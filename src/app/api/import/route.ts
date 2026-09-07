@@ -31,6 +31,7 @@ type Cursor = {
   pages_done: number;
   items_seen: number;
   last_item_date: string | null;
+  last_modified: string | null;
 };
 
 function freshCursor(): Cursor {
@@ -46,6 +47,7 @@ function freshCursor(): Cursor {
     pages_done: 0,
     items_seen: 0,
     last_item_date: null,
+    last_modified: null,
   };
 }
 
@@ -188,14 +190,18 @@ export async function GET(request: Request) {
     let pagesDone = cursor.pages_done;
     let itemsSeen = cursor.items_seen;
     let lastItemDate = cursor.last_item_date;
+    // NAVs Beispielcode schickt If-Modified-Since bei JEDEM Request und zieht
+    // den Wert aus dem Last-Modified-Header der Antwort nach. Lässt man den
+    // Header weg, beantwortet der Feed die Anfrage vom Anfang her (2023) —
+    // genau das ist hier passiert.
+    let lastModified = cursor.last_modified ?? cursor.start_from;
     let note: string | null = null;
 
     while (Date.now() - startedAt < TIME_BUDGET_MS) {
       const result = await fetchFeedPage({
         token,
         path: cursorUrl,
-        // If-Modified-Since positioniert nur den Einstiegspunkt beim allerersten Aufruf.
-        ifModifiedSince: cursor.cursor_url === null && pagesDone === 0 ? cursor.start_from : null,
+        ifModifiedSince: lastModified,
         // ETag nur beim Nachpollen der letzten Seite — sonst drohen falsche 304er.
         etag: atEnd ? etag : null,
       });
@@ -211,6 +217,7 @@ export async function GET(request: Request) {
       }
 
       const { page } = result;
+      if (result.lastModified) lastModified = result.lastModified;
       stats.pages += 1;
       pagesDone += 1;
       const items = page.items ?? [];
@@ -344,6 +351,7 @@ export async function GET(request: Request) {
         pages_done: pagesDone,
         items_seen: itemsSeen,
         last_item_date: lastItemDate,
+        last_modified: lastModified,
         last_run_at: new Date().toISOString(),
         last_note: note,
       })

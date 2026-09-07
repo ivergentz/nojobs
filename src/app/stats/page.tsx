@@ -13,6 +13,7 @@ type CursorRow = {
   last_run_at: string | null;
   last_note: string | null;
   last_item_date: string | null;
+  last_modified: string | null;
 };
 
 const nf = new Intl.NumberFormat("de-DE");
