@@ -5,8 +5,14 @@ import { evaluateAd } from "@/lib/evaluate";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const TIME_BUDGET_MS = 45_000;
-const CONCURRENCY = 4;
+/**
+ * Der Puffer muss zum langsamsten Schritt passen, nicht zum Durchschnitt.
+ * Ein Modellaufruf kann 25 Sekunden brauchen; startet ein Block bei Sekunde 44,
+ * endet er jenseits des 60-Sekunden-Limits von Vercel und reißt alles mit.
+ * Deshalb: neue Blöcke nur bis Sekunde 25, plus harter Abbruch pro Aufruf.
+ */
+const TIME_BUDGET_MS = 25_000;
+const CONCURRENCY = 10;
 
 /**
  * Bewertet Stellen in Blöcken, zeitbudgetiert wie der Importer.
@@ -35,7 +41,7 @@ export async function GET(request: Request) {
       .from("jobs")
       .select("uuid,title,employer_name,municipal,county,occupation_level1,description")
       .eq("status", "ACTIVE")
-      .limit(60);
+      .limit(Number(url.searchParams.get("limit") ?? "40"));
 
     if (scope === "labeled") query = query.not("label", "is", null);
     if (!force) query = query.is("evaluated_at", null);

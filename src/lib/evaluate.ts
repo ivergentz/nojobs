@@ -76,6 +76,13 @@ Sei streng. Lieber ein worth_reading zu viel als ein must_apply, das keins ist �
 Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences und ohne Vorrede:
 {"fit": "must_apply"|"worth_reading"|"ignore", "language": "english_ok"|"scandinavian_required"|"unclear", "confidence": "high"|"medium"|"low", "summary": string, "pros": string[], "cons": string[]}`;
 
+/**
+ * Harte Obergrenze pro Aufruf. Ohne die kann ein einzelner langsamer Request
+ * die ganze Serverless-Funktion über das 60-Sekunden-Limit ziehen und alle
+ * parallel laufenden Bewertungen mitreißen.
+ */
+const CALL_TIMEOUT_MS = 28_000;
+
 export async function evaluateAd(input: {
   title: string;
   employer: string;
@@ -88,16 +95,22 @@ export async function evaluateAd(input: {
     throw new Error("ANTHROPIC_API_KEY fehlt in den Umgebungsvariablen.");
   }
 
-  const res = await fetch(ANTHROPIC_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), CALL_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(ANTHROPIC_URL, {
+      signal: abort.signal,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
       model: process.env.EVAL_MODEL ?? "claude-sonnet-5",
-      max_tokens: 1200,
+      max_tokens: 900,
       system: `${PROFILE}\n\n${RULES}`,
       messages: [
         {
@@ -115,8 +128,16 @@ export async function evaluateAd(input: {
         },
       ],
     }),
-    cache: "no-store",
-  });
+      cache: "no-store",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Zeitüberschreitung nach ${CALL_TIMEOUT_MS / 1000}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const body = await res.text();
