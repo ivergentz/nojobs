@@ -12,7 +12,7 @@ export const maxDuration = 60;
  * Deshalb: neue Blöcke nur bis Sekunde 25, plus harter Abbruch pro Aufruf.
  */
 const TIME_BUDGET_MS = 25_000;
-const CONCURRENCY = 10;
+const CONCURRENCY = 25;
 
 /**
  * Bewertet Stellen in Blöcken, zeitbudgetiert wie der Importer.
@@ -41,10 +41,19 @@ export async function GET(request: Request) {
       .from("jobs")
       .select("uuid,title,employer_name,municipal,county,occupation_level1,description")
       .eq("status", "ACTIVE")
-      .limit(Number(url.searchParams.get("limit") ?? "40"));
+      .order("published", { ascending: false, nullsFirst: false })
+      .limit(Number(url.searchParams.get("limit") ?? "75"));
 
     if (scope === "labeled") query = query.not("label", "is", null);
     if (!force) query = query.is("evaluated_at", null);
+
+    // Alte Anzeigen zuerst zu bewerten lohnt nicht — viele Bewerbungsfristen
+    // sind abgelaufen. ?days=N beschränkt auf die letzten N Tage.
+    const days = url.searchParams.get("days");
+    if (days) {
+      const from = new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000);
+      query = query.gte("published", from.toISOString());
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -95,15 +104,15 @@ export async function GET(request: Request) {
       .from("jobs")
       .select("uuid", { count: "exact", head: true })
       .eq("status", "ACTIVE")
-      .is("evaluated_at", null)
-      .not("label", "is", null);
+      .is("evaluated_at", null);
 
     return NextResponse.json({
       ok: true,
       scope,
       durationMs: Date.now() - startedAt,
       ...stats,
-      offenBeiGelabelten: remaining ?? 0,
+      nochOffen: remaining ?? 0,
+      modell: process.env.EVAL_MODEL ?? "claude-sonnet-5",
       fehlerbeispiele: errors,
     });
   } catch (error) {
