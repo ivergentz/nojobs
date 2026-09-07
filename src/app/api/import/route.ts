@@ -93,6 +93,23 @@ async function inBatches<T>(
   }
 }
 
+/**
+ * Der Feed ist ein Änderungsstrom: dieselbe Anzeige taucht mehrfach auf, wenn
+ * sie mehrfach bearbeitet wurde. Postgres lehnt ein Upsert ab, sobald derselbe
+ * Konfliktschlüssel zweimal im selben Statement steht
+ * ("ON CONFLICT DO UPDATE command cannot affect row a second time").
+ * Wir behalten pro Schlüssel den letzten Eintrag — das ist der neueste Stand.
+ */
+function dedupeBy<T extends Record<string, unknown>>(rows: T[], key: keyof T): T[] {
+  const byKey = new Map<unknown, T>();
+  for (const row of rows) {
+    const value = row[key];
+    if (value === null || value === undefined) continue;
+    byKey.set(value, row);
+  }
+  return Array.from(byKey.values());
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const secret = process.env.IMPORT_SECRET;
@@ -228,19 +245,24 @@ export async function GET(request: Request) {
       });
 
       if (dropped.length) {
+        const uniqueDrops = dedupeBy(dropped, "feed_entry_id");
         const { error } = await db
           .from("dropped_ads")
-          .upsert(dropped, { onConflict: "feed_entry_id" });
+          .upsert(uniqueDrops, { onConflict: "feed_entry_id" });
         if (error) note = `Drop-Log konnte nicht geschrieben werden: ${error.message}`;
       }
 
       if (rows.length) {
-        const { error } = await db.from("jobs").upsert(rows, { onConflict: "uuid" });
+        const uniqueRows = dedupeBy(
+          rows as unknown as Record<string, unknown>[],
+          "uuid"
+        ) as unknown as typeof rows;
+        const { error } = await db.from("jobs").upsert(uniqueRows, { onConflict: "uuid" });
         if (error) {
           note = `Jobs konnten nicht geschrieben werden: ${error.message}`;
           break;
         }
-        stats.kept += rows.length;
+        stats.kept += uniqueRows.length;
       }
 
       // ---- Cursor weiterschieben ----
