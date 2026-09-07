@@ -66,9 +66,9 @@ unclear — norwegisch-, dänisch- oder schwedischsprachige Anzeige eines privat
 
 Die Sprachbewertung ist unabhängig vom fit. Eine perfekt passende Stelle bei einer norwegischen Kommune bekommt fit=must_apply UND language=scandinavian_required.
 
-AUSGABE:
-- summary: ein bis zwei Sätze auf Deutsch, was die Rolle ist und warum sie passt oder nicht.
-- pros und cons: je maximal vier kurze Stichpunkte auf Deutsch, konkret auf diesen Kandidaten bezogen. Keine Allgemeinplätze.
+AUSGABE — Längen sind verbindlich, längere Antworten werden abgeschnitten und sind unbrauchbar:
+- summary: HÖCHSTENS 40 Wörter. Zwei Sätze auf Deutsch: was die Rolle ist, warum sie passt oder nicht. Keine Aufzählung der Aufgaben, keine Wiederholung des Anzeigentexts.
+- pros und cons: je HÖCHSTENS vier Stichpunkte à HÖCHSTENS 10 Wörter, auf Deutsch, konkret auf diesen Kandidaten bezogen. Keine Allgemeinplätze, keine ganzen Sätze.
 - confidence: low, wenn die Anzeige zu vage ist, um die Rolle einzuordnen.
 
 Sei streng. Lieber ein worth_reading zu viel als ein must_apply, das keins ist — must_apply heißt "hierauf bewerbe ich mich diese Woche", nicht "das ist interessant".
@@ -110,7 +110,7 @@ export async function evaluateAd(input: {
       },
       body: JSON.stringify({
       model: process.env.EVAL_MODEL ?? "claude-sonnet-5",
-      max_tokens: 900,
+      max_tokens: 1500,
       system: `${PROFILE}\n\n${RULES}`,
       messages: [
         {
