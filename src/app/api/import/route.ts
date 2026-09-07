@@ -230,14 +230,14 @@ export async function GET(request: Request) {
       if (lastOnPage) lastItemDate = lastOnPage;
 
       // ---- Stufe A: entscheiden, ob wir das Detail überhaupt abrufen ----
-      const survivors: NavFeedItem[] = [];
+      const survivors: Array<{ item: NavFeedItem; matched: string | null }> = [];
       const dropped: Record<string, unknown>[] = [];
       const deactivated: string[] = [];
 
       for (const item of items) {
         const verdict = stageA(item);
         if (verdict.keep) {
-          survivors.push(item);
+          survivors.push({ item, matched: verdict.matched });
           continue;
         }
 
@@ -278,7 +278,7 @@ export async function GET(request: Request) {
       // ---- Stufe B: Detail holen, normalisieren, speichern ----
       const rows: ReturnType<typeof normalizeAd>[] = [];
 
-      await inBatches(survivors, DETAIL_CONCURRENCY, async (item) => {
+      await inBatches(survivors, DETAIL_CONCURRENCY, async ({ item, matched }) => {
         const detail = await fetchAdDetail({ token, url: item.url });
         if (!detail) {
           stats.detailsFailed += 1;
@@ -304,7 +304,9 @@ export async function GET(request: Request) {
           return;
         }
 
-        rows.push(normalizeAd({ item, ad: detail.ad, detailStatus: detail.status }));
+        rows.push(
+          normalizeAd({ item, ad: detail.ad, detailStatus: detail.status, matchTerm: matched })
+        );
       });
 
       if (dropped.length) {

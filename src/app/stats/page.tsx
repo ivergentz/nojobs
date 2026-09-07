@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 type WeeklyRow = { week_start: string; candidates: number };
 type OccupationRow = { occupation_level1: string | null; jobs: number };
 type ReasonRow = { drop_reason: string; drops: number };
+type MatchRow = { match_term: string | null; jobs: number };
 type SampleRow = { title: string | null; employer_name: string | null; drop_reason: string };
 type CursorRow = {
   pages_done: number;
@@ -35,12 +36,13 @@ function Bar({ value, max }: { value: number; max: number }) {
 export default async function StatsPage() {
   const db = supabaseAdmin();
 
-  const [cursor, weekly, occupations, reasons, samples, totals] = await Promise.all([
+  const [cursor, weekly, occupations, reasons, samples, matches, totals] = await Promise.all([
     db.from("import_cursor").select("*").eq("id", "nav").maybeSingle(),
     db.from("v_weekly_candidates").select("*").order("week_start", { ascending: false }).limit(8),
     db.from("v_occupation_distribution").select("*").order("jobs", { ascending: false }).limit(25),
     db.from("v_drop_reasons").select("*").order("drops", { ascending: false }).limit(15),
     db.from("v_drop_samples").select("*").limit(40),
+    db.from("v_match_terms").select("*").order("jobs", { ascending: false }).limit(20),
     db.from("jobs").select("uuid", { count: "exact", head: true }).eq("status", "ACTIVE"),
   ]);
 
@@ -49,6 +51,8 @@ export default async function StatsPage() {
   const occupationRows = (occupations.data ?? []) as OccupationRow[];
   const reasonRows = (reasons.data ?? []) as ReasonRow[];
   const sampleRows = (samples.data ?? []) as SampleRow[];
+  const matchRows = (matches.data ?? []) as MatchRow[];
+  const maxMatch = Math.max(1, ...matchRows.map((row) => Number(row.jobs)));
   const activeJobs = totals.count ?? 0;
 
   const completedWeeks = weeklyRows.slice(1);
@@ -155,6 +159,32 @@ export default async function StatsPage() {
             )}
           </tbody>
         </table>
+      </section>
+
+      {/* Die Gegenprobe zum Drop-Log: warum ist etwas DURCHgekommen? */}
+      <section className="border-b border-rule py-12">
+        <h2 className="text-lg font-semibold tracking-tight">Welcher Begriff hat durchgelassen?</h2>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+          Jeder Treffer in Stufe A geht auf einen Begriff aus <code>TITLE_INCLUDE</code> zurück.
+          Steht ein Begriff hier weit oben und liefert trotzdem nichts Brauchbares, gehört er
+          gestrichen oder verengt.
+        </p>
+
+        <div className="mt-8 space-y-3">
+          {matchRows.map((row) => (
+            <div
+              key={row.match_term ?? "ohne"}
+              className="grid grid-cols-[10rem_1fr_4rem] items-center gap-4"
+            >
+              <span className="truncate text-sm">{row.match_term ?? "—"}</span>
+              <Bar value={Number(row.jobs)} max={maxMatch} />
+              <span className="tnum text-right text-sm">{nf.format(Number(row.jobs))}</span>
+            </div>
+          ))}
+          {matchRows.length === 0 && (
+            <p className="text-sm text-muted">Noch keine Treffer gespeichert.</p>
+          )}
+        </div>
       </section>
 
       {/* Der Teil, den man sonst nie sieht. */}

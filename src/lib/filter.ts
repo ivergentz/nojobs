@@ -16,7 +16,7 @@
 import type { NavAdJson, NavFeedItem } from "./nav";
 
 export type FilterVerdict =
-  | { keep: true }
+  | { keep: true; matched: string | null }
   | { keep: false; stage: "A" | "B"; reason: string };
 
 /**
@@ -74,27 +74,38 @@ export function stageA(item: NavFeedItem): FilterVerdict {
     return { keep: false, stage: "A", reason: `titel-ausschluss:${excluded}` };
   }
 
-  const matched = TITLE_INCLUDE.some((needle) => haystack.includes(needle));
+  // Welcher Begriff hat gegriffen? Ohne diese Information lässt sich ein zu
+  // loser Filter nicht reparieren — man sieht nur, DASS Unpassendes durchkommt.
+  const matched = TITLE_INCLUDE.find((needle) => haystack.includes(needle));
   if (!matched) {
     return { keep: false, stage: "A", reason: "titel-kein-treffer" };
   }
 
-  return { keep: true };
+  return { keep: true, matched };
 }
 
 /**
  * Berufskategorien, die wir nach dem Detailabruf verwerfen.
  *
- * BEWUSST LEER beim ersten Lauf.
+ * Gefüllt aus der echten Verteilung des ersten Laufs — das Feld ist zu 100 %
+ * belegt und trägt den Filter. Enthalten sind nur Kategorien, bei denen ein
+ * Treffer ausgeschlossen ist. Bewusst NICHT ausgeschlossen bleiben
+ * "IT", "Kontor og økonomi" und "Kultur og kreative yrker".
  *
- * Wir wissen noch nicht, welche Werte NAV in occupationCategories.level1
- * tatsächlich liefert und wie oft das Feld überhaupt gefüllt ist. Die
- * Stats-Seite zeigt die echte Verteilung. Erst danach hier eintragen,
- * exakt so geschrieben wie dort angezeigt, z. B.:
- *
- *   const OCCUPATION_EXCLUDE = ["Helse og sosial", "Bygg og anlegg"];
+ * "Salg og service" ist der Grenzfall: überwiegend Einzelhandel, aber dort
+ * landen auch Rollen wie Salgssjef oder Key Account. Vorerst drin gelassen.
  */
-const OCCUPATION_EXCLUDE: string[] = [];
+const OCCUPATION_EXCLUDE: string[] = [
+  "Helse og sosial",
+  "Utdanning",
+  "Bygg og anlegg",
+  "Håndverkere",
+  "Industri og produksjon",
+  "Reiseliv og mat",
+  "Transport og lager",
+  "Natur og miljø",
+  "Sikkerhet og beredskap",
+];
 
 /**
  * Anzeigen ohne Berufskategorie werden NICHT verworfen. Ein leeres Feld ist
@@ -116,5 +127,5 @@ export function stageB(ad: NavAdJson): FilterVerdict {
   // Sprache wird hier bewusst nicht bewertet. "Flytende norsk kreves" steckt im
   // Fließtext und ist eine Ermessensfrage — das ist später Aufgabe des LLM,
   // nicht einer Regel, die still aussortiert.
-  return { keep: true };
+  return { keep: true, matched: null };
 }

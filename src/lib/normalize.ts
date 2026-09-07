@@ -23,6 +23,7 @@ export type JobRow = {
   occupation_level1: string | null;
   occupation_level2: string | null;
   categories: unknown;
+  match_term: string | null;
   raw: unknown;
   imported_at: string;
 };
@@ -57,8 +58,9 @@ export function normalizeAd(args: {
   item: NavFeedItem;
   ad: NavAdJson;
   detailStatus: string | null;
+  matchTerm: string | null;
 }): JobRow {
-  const { item, ad, detailStatus } = args;
+  const { item, ad, detailStatus, matchTerm } = args;
   const location = ad.workLocations?.[0] ?? null;
 
   return {
@@ -86,6 +88,7 @@ export function normalizeAd(args: {
     occupation_level1: clean(ad.occupationCategories?.[0]?.level1),
     occupation_level2: clean(ad.occupationCategories?.[0]?.level2),
     categories: ad.categoryList ?? null,
+    match_term: matchTerm,
     raw: stripPersonalData(ad),
     imported_at: new Date().toISOString(),
   };
