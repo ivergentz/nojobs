@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { fetchNokToEur } from "@/lib/translate";
 import LabelClient, { type LabelJob } from "./LabelClient";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +31,12 @@ export default async function LabelPage() {
 
   // IT zuerst — dort sitzen die echten Positivbeispiele. Danach die
   // Bürokategorie als Quelle für harte Negativbeispiele.
+  const fx = await fetchNokToEur();
+
   const { data, error } = await db
     .from("jobs")
     .select(
-      "uuid,title,employer_name,municipal,county,occupation_level1,occupation_level2,extent,application_due,application_url,description,published,label"
+      "uuid,title,employer_name,municipal,county,occupation_level1,occupation_level2,extent,application_due,application_url,description,published,label,title_de,description_de,salary_min_nok,salary_max_nok,salary_note,translated_at"
     )
     .eq("status", "ACTIVE")
     .is("label", null)
@@ -57,6 +60,12 @@ export default async function LabelPage() {
     due: (row.application_due as string) ?? null,
     url: (row.application_url as string) ?? null,
     description: toPlainText(row.description as string | null),
+    titleDe: (row.title_de as string) ?? null,
+    descriptionDe: (row.description_de as string) ?? null,
+    salaryMin: (row.salary_min_nok as number) ?? null,
+    salaryMax: (row.salary_max_nok as number) ?? null,
+    salaryNote: (row.salary_note as string) ?? null,
+    translated: Boolean(row.translated_at),
   }));
 
   return (
@@ -78,7 +87,7 @@ export default async function LabelPage() {
         </p>
       )}
 
-      <LabelClient jobs={jobs} alreadyDone={doneCount ?? 0} />
+      <LabelClient jobs={jobs} alreadyDone={doneCount ?? 0} fx={fx} />
     </main>
   );
 }
