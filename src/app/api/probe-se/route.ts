@@ -20,6 +20,85 @@ export const maxDuration = 60;
 
 const BASE = "https://jobstream.api.jobtechdev.se";
 
+const BYTE_CAP = 300_000;
+const CALL_TIMEOUT_MS = 8_000;
+
+/**
+ * Liest höchstens BYTE_CAP Bytes und bricht dann ab.
+ *
+ * /snapshot liefert alle aktuellen Anzeigen Schwedens am Stück — dreistellige
+ * Megabyte. Ein vollständiges res.text() sprengt die Serverless-Funktion.
+ * Für eine Feldanalyse genügen die ersten Kilobyte.
+ */
+async function readCapped(res: Response): Promise<{ text: string; abgeschnitten: boolean }> {
+  const reader = res.body?.getReader();
+  if (!reader) return { text: "", abgeschnitten: false };
+
+  const decoder = new TextDecoder();
+  let text = "";
+  let abgeschnitten = false;
+
+  while (text.length < BYTE_CAP) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value, { stream: true });
+    if (text.length >= BYTE_CAP) {
+      abgeschnitten = true;
+      break;
+    }
+  }
+
+  await reader.cancel().catch(() => {});
+  return { text, abgeschnitten };
+}
+
+/**
+ * Holt das erste vollständige JSON-Objekt aus einem womöglich abgeschnittenen
+ * Text, per Klammerzählung. Damit bekommen wir die Feldnamen auch dann, wenn
+ * die Antwort nie zu Ende gelesen wurde.
+ */
+function firstObject(text: string): Record<string, unknown> | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const secret = process.env.IMPORT_SECRET;
@@ -35,7 +114,6 @@ export async function GET(request: Request) {
     { label: "stream-ohne-key", path: `/stream?date=${since}`, withKey: false },
     { label: "stream-mit-key", path: `/stream?date=${since}`, withKey: true },
     { label: "stream-slash-datum", path: `/stream/${since}`, withKey: false },
-    { label: "snapshot", path: "/snapshot", withKey: false },
     { label: "wurzel", path: "/", withKey: false },
   ];
 
@@ -48,9 +126,17 @@ export async function GET(request: Request) {
       const headers: Record<string, string> = { Accept: "application/json" };
       if (candidate.withKey && apiKey) headers["api-key"] = apiKey;
 
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), CALL_TIMEOUT_MS);
+
       try {
-        const res = await fetch(`${BASE}${candidate.path}`, { headers, cache: "no-store" });
-        const text = await res.text();
+        const res = await fetch(`${BASE}${candidate.path}`, {
+          headers,
+          cache: "no-store",
+          signal: abort.signal,
+        });
+
+        const { text, abgeschnitten } = await readCapped(res);
 
         if (!res.ok) {
           return {
@@ -61,39 +147,29 @@ export async function GET(request: Request) {
           };
         }
 
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(text);
-        } catch {
-          return {
-            label: candidate.label,
-            path: candidate.path,
-            status: res.status,
-            hinweis: "kein JSON",
-            body: text.slice(0, 250),
-          };
-        }
-
-        const list = Array.isArray(parsed) ? parsed : null;
-        const first = (list?.[0] ?? parsed) as Record<string, unknown>;
+        const sample = firstObject(text);
 
         return {
           label: candidate.label,
           path: candidate.path,
           status: res.status,
-          istListe: Array.isArray(parsed),
-          anzahl: list?.length ?? null,
-          groesseKb: Math.round(text.length / 1024),
-          // Das Wichtigste: die echten Feldnamen plus ein gekürztes Beispiel.
-          felder: first && typeof first === "object" ? Object.keys(first) : null,
-          beispiel: first ? JSON.stringify(first).slice(0, 2500) : null,
+          istListe: text.trimStart().startsWith("["),
+          gelesenKb: Math.round(text.length / 1024),
+          abgeschnitten,
+          felder: sample ? Object.keys(sample) : null,
+          beispiel: sample ? JSON.stringify(sample).slice(0, 2500) : text.slice(0, 300),
         };
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         return {
           label: candidate.label,
           path: candidate.path,
-          fehler: error instanceof Error ? error.message : String(error),
+          fehler: error instanceof Error && error.name === "AbortError"
+            ? `Zeitüberschreitung nach ${CALL_TIMEOUT_MS / 1000}s`
+            : message,
         };
+      } finally {
+        clearTimeout(timer);
       }
     })
   );
