@@ -97,24 +97,46 @@ export async function getNavToken(): Promise<string> {
   }
 
   const body = (await res.text()).trim();
-  let token = body;
+  const token = extractJwt(body);
 
-  // Der Endpunkt hat in der Vergangenheit sowohl reinen Text als auch JSON geliefert.
+  if (!token) {
+    throw new Error(
+      `publicToken lieferte keinen erkennbaren Token. Antwort begann mit: ${body.slice(0, 120)}`
+    );
+  }
+
+  cachedToken = { value: token, fetchedAt: Date.now() };
+  return token;
+}
+
+/**
+ * Der publicToken-Endpunkt antwortet nicht mit dem reinen Token, sondern mit
+ * einem Fließtext der Form:
+ *
+ *   Current public token for Nav Job Vacancy Feed:
+ *   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…
+ *
+ * Ein HTTP-Header verträgt weder Zeilenumbrüche noch Leerzeichen, deshalb
+ * fischen wir das JWT gezielt heraus, statt die Antwort zu trimmen.
+ * JSON wird zusätzlich unterstützt, falls das Format sich wieder ändert.
+ */
+function extractJwt(body: string): string | null {
   if (body.startsWith("{")) {
     try {
       const parsed = JSON.parse(body) as Record<string, unknown>;
       const candidate = parsed.token ?? parsed.publicToken ?? parsed.access_token;
-      if (typeof candidate === "string") token = candidate;
+      if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
     } catch {
-      /* bleibt beim Rohtext */
+      /* fällt unten auf die Mustersuche zurück */
     }
   }
 
-  token = token.replace(/^"|"$/g, "").trim();
-  if (!token) throw new Error("publicToken lieferte einen leeren Token");
+  const match = body.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_.-]+/);
+  if (match) return match[0];
 
-  cachedToken = { value: token, fetchedAt: Date.now() };
-  return token;
+  // Letzter Ausweg: eine einzelne Zeile ohne Leerzeichen.
+  const bare = body.replace(/^"|"$/g, "").trim();
+  return /^\S+$/.test(bare) ? bare : null;
 }
 
 function absolute(pathOrUrl: string): string {
