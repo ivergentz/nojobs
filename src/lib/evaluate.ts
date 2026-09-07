@@ -83,6 +83,46 @@ Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences und ohne Vo
  */
 const CALL_TIMEOUT_MS = 28_000;
 
+/**
+ * Robustes Parsen der Modellantwort.
+ *
+ * Drei Dinge gehen in der Praxis schief: Markdown-Fences um das JSON,
+ * Vorrede vor der öffnenden Klammer, und rohe Zeilenumbrüche innerhalb von
+ * String-Werten — letztere sind in JSON nicht erlaubt und lassen JSON.parse
+ * scheitern, obwohl die Antwort inhaltlich vollständig ist.
+ */
+function parseVerdict(raw: string): Partial<Evaluation> | null {
+  const trimmed = raw
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim();
+
+  // Nur den Teil zwischen erster und letzter geschweifter Klammer nehmen.
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  const candidate = trimmed.slice(start, end + 1);
+
+  const attempts = [
+    candidate,
+    // Rohe Steuerzeichen in String-Werten maskieren.
+    candidate.replace(/[\u0000-\u001f]/g, (char) =>
+      char === "\n" ? "\\n" : char === "\t" ? "\\t" : ""
+    ),
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      return JSON.parse(attempt) as Partial<Evaluation>;
+    } catch {
+      /* nächster Versuch */
+    }
+  }
+
+  return null;
+}
+
 export async function evaluateAd(input: {
   title: string;
   employer: string;
@@ -126,6 +166,9 @@ export async function evaluateAd(input: {
             input.description.slice(0, 4000),
           ].join("\n"),
         },
+        // Vorbelegte Antwort: das Modell kann gar nicht erst mit Vorrede
+        // beginnen und muss das Objekt fortsetzen.
+        { role: "assistant", content: "{" },
       ],
     }),
       cache: "no-store",
@@ -144,21 +187,30 @@ export async function evaluateAd(input: {
     throw new Error(`Anthropic API: HTTP ${res.status} — ${body.slice(0, 300)}`);
   }
 
-  const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
-  const text = (data.content ?? [])
-    .filter((block) => block.type === "text")
-    .map((block) => block.text ?? "")
-    .join("")
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
+  const data = (await res.json()) as {
+    content?: Array<{ type: string; text?: string }>;
+    stop_reason?: string;
+  };
 
-  let parsed: Partial<Evaluation>;
-  try {
-    parsed = JSON.parse(text) as Partial<Evaluation>;
-  } catch {
-    throw new Error(`Antwort war kein JSON: ${text.slice(0, 200)}`);
+  const raw =
+    "{" +
+    (data.content ?? [])
+      .filter((block) => block.type === "text")
+      .map((block) => block.text ?? "")
+      .join("");
+
+  const parsed = parseVerdict(raw);
+
+  if (!parsed) {
+    // stop_reason sagt eindeutig, ob die Antwort am Token-Limit endete oder
+    // aus einem anderen Grund unbrauchbar ist. Vorher war das Raten.
+    const reason = data.stop_reason ?? "unbekannt";
+    const head = raw.slice(0, 200);
+    const tail = raw.slice(-200);
+    throw new Error(
+      `Kein gültiges JSON (stop_reason: ${reason}, ${raw.length} Zeichen). ` +
+        `Anfang: ${head} ||| Ende: ${tail}`
+    );
   }
 
   const fits: Fit[] = ["must_apply", "worth_reading", "ignore"];
