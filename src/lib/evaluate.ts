@@ -47,11 +47,16 @@ must_apply — (AI) Produktrolle mit klarer Passung. Beispiele: Product Owner, P
 
 worth_reading — angrenzend, aber nicht im Kern. Etwa: Produktrolle mit starkem Branchenwissen als Muss, technische Rolle mit Produktanteil, Beratung mit Digitalisierungsfokus ohne Produktverantwortung.
 
+WICHTIG — interne Systeme zählen als Produktarbeit. Iver verantwortet aktuell interne Plattformen (Telefonie, Belegerfassung, SharePoint-Rollout) in einer Behörde. Rollen mit Verantwortung für ein INTERNES System oder eine interne Plattform sind daher mindestens worth_reading, auch wenn im Titel "Forvaltning", "Rådgiver", "Systemeier", "Low-code" oder "Plattform" steht statt "Produkt". Beispiele: Verantwortung für Microsoft 365, ServiceNow, SAP, eine Fachanwendung oder eine interne Entwicklungsplattform.
+Sie sind must_apply, wenn dazu Gestaltungsspielraum kommt: Roadmap, Weiterentwicklung, Anforderungsmanagement, Stakeholder-Steuerung.
+Sie bleiben ignore, wenn es reiner Betrieb ohne Gestaltung ist: Helpdesk, First und Second Level Support, Serveradministration, Netzwerkbetrieb, Rufbereitschaft.
+
 ignore — alles andere. Insbesondere:
-- Reine Entwicklerrollen (Fullstack, Backend, Frontend, Plattformingenieur) OHNE Produktverantwortung.
+- Reine Entwicklerrollen (Fullstack, Backend, Frontend, Plattformingenieur) OHNE Produktverantwortung. Achtung: Low-code- und Konfigurationsrollen an einer internen Plattform fallen NICHT hierunter, siehe oben.
 - Reine Data-Analytics- und Data-Science-Rollen. Iver sucht ausdrücklich Richtung (AI) Product, nicht Datenanalyse — das steht auch nicht in seinem CV.
-- IT-Support, Systemadministration, Netzwerk, Infrastrukturbetrieb.
-- Forschung, Doktorandenstellen, Postdoc.
+- IT-Support, Systemadministration, Netzwerk, Infrastrukturbetrieb — sofern keine Systemverantwortung mit Gestaltungsspielraum dabei ist.
+- Forschung, Doktorandenstellen, Postdoc, sowie Stellen mit PhD als Anforderung.
+- Stellen, die eine nationale Sicherheitsfreigabe voraussetzen — für einen deutschen Bewerber ohne Wohnsitz im Land faktisch nicht erreichbar. Als cons vermerken.
 - Junior, Trainee, Praktikum, Lehre.
 - Head of Product und darüber, Director, Leitung mehrerer Produktteams.
 - Reine Projektleitung ohne Produktverantwortung (Bau, Beschaffung, Verwaltungsprojekte).
@@ -71,7 +76,10 @@ AUSGABE — Längen sind verbindlich, längere Antworten werden abgeschnitten un
 - pros und cons: je HÖCHSTENS vier Stichpunkte à HÖCHSTENS 10 Wörter, auf Deutsch, konkret auf diesen Kandidaten bezogen. Keine Allgemeinplätze, keine ganzen Sätze.
 - confidence: low, wenn die Anzeige zu vage ist, um die Rolle einzuordnen.
 
-Sei streng. Lieber ein worth_reading zu viel als ein must_apply, das keins ist — must_apply heißt "hierauf bewerbe ich mich diese Woche", nicht "das ist interessant".
+ASYMMETRIE — die beiden Fehler sind unterschiedlich teuer:
+Ein zu großzügiges worth_reading kostet Iver dreißig Sekunden Lesezeit. Ein fälschlich ignoriertes Angebot sieht er nie wieder, weil es gar nicht erst in der Inbox erscheint.
+Deshalb: Bei Unsicherheit zwischen ignore und worth_reading immer worth_reading wählen.
+Bei der Grenze zwischen worth_reading und must_apply dagegen streng bleiben — must_apply heißt "hierauf bewerbe ich mich diese Woche", nicht "das ist interessant".
 
 Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences und ohne Vorrede:
 {"fit": "must_apply"|"worth_reading"|"ignore", "language": "english_ok"|"scandinavian_required"|"unclear", "confidence": "high"|"medium"|"low", "summary": string, "pros": string[], "cons": string[]}`;
