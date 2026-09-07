@@ -12,6 +12,7 @@ type CursorRow = {
   at_end: boolean;
   last_run_at: string | null;
   last_note: string | null;
+  last_item_date: string | null;
 };
 
 const nf = new Intl.NumberFormat("de-DE");
@@ -204,6 +205,10 @@ export default async function StatsPage() {
             <dd className="tnum">{nf.format(cursorRow?.pages_done ?? 0)}</dd>
           </div>
           <div className="flex justify-between border-t border-rule/60 py-2">
+            <dt className="text-muted">Feed steht bei</dt>
+            <dd className="tnum">{formatDate(cursorRow?.last_item_date ?? null)}</dd>
+          </div>
+          <div className="flex justify-between border-t border-rule/60 py-2">
             <dt className="text-muted">Letzter Lauf</dt>
             <dd className="tnum">{formatDate(cursorRow?.last_run_at ?? null)}</dd>
           </div>
@@ -218,7 +223,9 @@ export default async function StatsPage() {
         {running && (
           <p className="mt-6 max-w-xl leading-relaxed text-muted">
             Ruf <code>/api/import?secret=…</code> erneut auf. Jeder Aufruf verarbeitet rund 45
-            Sekunden und macht dort weiter, wo der letzte aufgehört hat.
+            Sekunden und macht dort weiter, wo der letzte aufgehört hat. Liegt „Feed steht bei"
+            weit in der Vergangenheit, hat der Einstiegspunkt nicht gegriffen — dann mit{" "}
+            <code>&amp;reset=purge</code> neu starten.
           </p>
         )}
 

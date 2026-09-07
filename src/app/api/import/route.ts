@@ -30,7 +30,24 @@ type Cursor = {
   at_end: boolean;
   pages_done: number;
   items_seen: number;
+  last_item_date: string | null;
 };
+
+function freshCursor(): Cursor {
+  const days = Number(process.env.NAV_BACKFILL_DAYS ?? "14");
+  const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  return {
+    id: CURSOR_ID,
+    cursor_url: null,
+    etag: null,
+    start_from: toRfc1123(from),
+    at_end: false,
+    pages_done: 0,
+    items_seen: 0,
+    last_item_date: null,
+  };
+}
 
 async function loadCursor(db: ReturnType<typeof supabaseAdmin>): Promise<Cursor> {
   const { data, error } = await db
@@ -42,18 +59,7 @@ async function loadCursor(db: ReturnType<typeof supabaseAdmin>): Promise<Cursor>
   if (error) throw new Error(`Cursor lesen fehlgeschlagen: ${error.message}`);
   if (data) return data as Cursor;
 
-  const days = Number(process.env.NAV_BACKFILL_DAYS ?? "14");
-  const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-  const fresh: Cursor = {
-    id: CURSOR_ID,
-    cursor_url: null,
-    etag: null,
-    start_from: toRfc1123(from),
-    at_end: false,
-    pages_done: 0,
-    items_seen: 0,
-  };
+  const fresh = freshCursor();
 
   // Upsert statt insert: zwei parallele Aufrufe (Reload, Doppelklick,
   // Browser-Prefetch) würden sonst beide anlegen wollen und einer bricht
@@ -81,6 +87,25 @@ async function loadCursor(db: ReturnType<typeof supabaseAdmin>): Promise<Cursor>
   }
 
   return created as Cursor;
+}
+
+/** Setzt den Backfill zurück. ?reset=1 nur den Cursor, ?reset=purge auch die Daten. */
+async function resetImport(db: ReturnType<typeof supabaseAdmin>, purge: boolean) {
+  if (purge) {
+    await db.from("dropped_ads").delete().neq("feed_entry_id", "");
+    await db.from("jobs").delete().neq("uuid", "");
+  }
+
+  const fresh = freshCursor();
+  const { error } = await db
+    .from("import_cursor")
+    .upsert(
+      { ...fresh, last_run_at: new Date().toISOString(), last_note: "Zurückgesetzt." },
+      { onConflict: "id" }
+    );
+
+  if (error) throw new Error(`Zurücksetzen fehlgeschlagen: ${error.message}`);
+  return fresh;
 }
 
 async function inBatches<T>(
@@ -134,8 +159,27 @@ export async function GET(request: Request) {
     deactivated: 0,
   };
 
+  // Aufschlüsselung der Ablehnungen für diesen Lauf. Ohne die sieht man nur,
+  // DASS alles wegfällt, nicht warum.
+  const reasonTally: Record<string, number> = {};
+  const tally = (reason: string) => {
+    const key = reason.split(":")[0];
+    reasonTally[key] = (reasonTally[key] ?? 0) + 1;
+  };
+
   try {
     const token = await getNavToken();
+
+    const resetMode = url.searchParams.get("reset");
+    if (resetMode) {
+      const fresh = await resetImport(db, resetMode === "purge");
+      return NextResponse.json({
+        ok: true,
+        reset: resetMode === "purge" ? "Cursor und Daten gelöscht." : "Cursor gelöscht.",
+        startingFrom: fresh.start_from,
+      });
+    }
+
     const cursor = await loadCursor(db);
 
     let cursorUrl = cursor.cursor_url ?? "/api/v1/feed";
@@ -143,6 +187,7 @@ export async function GET(request: Request) {
     let atEnd = cursor.at_end;
     let pagesDone = cursor.pages_done;
     let itemsSeen = cursor.items_seen;
+    let lastItemDate = cursor.last_item_date;
     let note: string | null = null;
 
     while (Date.now() - startedAt < TIME_BUDGET_MS) {
@@ -172,6 +217,11 @@ export async function GET(request: Request) {
       stats.items += items.length;
       itemsSeen += items.length;
 
+      // Wo in der Zeit stehen wir? Ohne das ist ein Backfill über 60 Seiten
+      // nicht von einem Backfill über 6000 Seiten zu unterscheiden.
+      const lastOnPage = items[items.length - 1]?.date_modified ?? null;
+      if (lastOnPage) lastItemDate = lastOnPage;
+
       // ---- Stufe A: entscheiden, ob wir das Detail überhaupt abrufen ----
       const survivors: NavFeedItem[] = [];
       const dropped: Record<string, unknown>[] = [];
@@ -185,6 +235,7 @@ export async function GET(request: Request) {
         }
 
         stats.droppedStageA += 1;
+        tally(verdict.reason);
 
         // Inaktive Anzeigen müssen laut Nutzungsbedingungen aus dem Dienst
         // verschwinden. Wir markieren sie; die Views zeigen nur ACTIVE.
@@ -205,12 +256,16 @@ export async function GET(request: Request) {
         });
       }
 
-      if (deactivated.length) {
-        const { error } = await db
-          .from("jobs")
-          .update({ status: "INACTIVE" })
-          .in("uuid", deactivated);
-        if (!error) stats.deactivated += deactivated.length;
+      // In Blöcken, sonst sprengt die .in()-Liste die URL-Länge und der Fehler
+      // verschwindet still — genau das ist hier schon einmal passiert.
+      for (let i = 0; i < deactivated.length; i += 200) {
+        const chunk = Array.from(new Set(deactivated.slice(i, i + 200)));
+        const { error } = await db.from("jobs").update({ status: "INACTIVE" }).in("uuid", chunk);
+        if (error) {
+          note = `Deaktivieren fehlgeschlagen: ${error.message}`;
+        } else {
+          stats.deactivated += chunk.length;
+        }
       }
 
       // ---- Stufe B: Detail holen, normalisieren, speichern ----
@@ -227,6 +282,7 @@ export async function GET(request: Request) {
         const verdict = stageB(detail.ad);
         if (!verdict.keep) {
           stats.droppedStageB += 1;
+          tally(verdict.reason);
           dropped.push({
             feed_entry_id: item.id,
             uuid: item._feed_entry?.uuid ?? null,
@@ -287,6 +343,7 @@ export async function GET(request: Request) {
         at_end: atEnd,
         pages_done: pagesDone,
         items_seen: itemsSeen,
+        last_item_date: lastItemDate,
         last_run_at: new Date().toISOString(),
         last_note: note,
       })
@@ -304,8 +361,10 @@ export async function GET(request: Request) {
       done: atEnd,
       note,
       durationMs: Date.now() - startedAt,
+      feedPosition: lastItemDate,
       totals: { pagesDone, itemsSeen },
       thisRun: stats,
+      dropReasons: reasonTally,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
