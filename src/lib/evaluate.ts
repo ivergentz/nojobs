@@ -166,9 +166,6 @@ export async function evaluateAd(input: {
             input.description.slice(0, 4000),
           ].join("\n"),
         },
-        // Vorbelegte Antwort: das Modell kann gar nicht erst mit Vorrede
-        // beginnen und muss das Objekt fortsetzen.
-        { role: "assistant", content: "{" },
       ],
     }),
       cache: "no-store",
@@ -192,12 +189,10 @@ export async function evaluateAd(input: {
     stop_reason?: string;
   };
 
-  const raw =
-    "{" +
-    (data.content ?? [])
-      .filter((block) => block.type === "text")
-      .map((block) => block.text ?? "")
-      .join("");
+  const raw = (data.content ?? [])
+    .filter((block) => block.type === "text")
+    .map((block) => block.text ?? "")
+    .join("");
 
   const parsed = parseVerdict(raw);
 
