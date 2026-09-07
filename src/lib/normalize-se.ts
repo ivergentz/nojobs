@@ -10,26 +10,54 @@ import type { JobRow } from "./normalize";
  * sparen. Entsprechend großzügiger ist er geschnitten.
  */
 
-const TITLE_INCLUDE = [
+/**
+ * Muster statt Teilstrings.
+ *
+ * Der erste Lauf hat gezeigt, warum: "cio" traf 24-mal, weil es in "socionom"
+ * steckt. Kurze Begriffe und Abkürzungen brauchen Wortgrenzen.
+ *
+ * Zweite Lehre: "chef", "ledare", "ingenjör" und "konsult" allein sind zu
+ * breit — butikschef, restaurangchef, byggingenjör. Sie zählen nur noch mit
+ * fachlicher Vorsilbe.
+ */
+const TITLE_PATTERNS: Array<[string, RegExp]> = [
   // Produkt und Projekt
-  "produkt", "product", "projektled", "project", "program", "portfölj",
-  "ägare", "owner", "scrum", "agil",
-  // Digital und Tech
-  "digital", "teknolog", "technolog", "tech", "utveckl", "developer", "engineer",
-  "ingenjör", "arkitekt", "architect", "system", "plattform", "platform",
-  "mjukvara", "software", "moln", "cloud", "devops", "data", "analytic",
-  "analys", "analyst", "insikt", "insight", "ai", "artificiell intelligens",
-  "machine learning", "maskininlärning", "low-code", "no-code",
-  // Verwaltung und Weiterentwicklung interner Systeme
-  "förvalt", "systemförvalt", "verksamhetsutveckl", "digitaliser",
-  "kravanalytiker", "kravställ", "lösningsarkitekt", "tjänstedesign",
-  // Business
-  "affärsutveckl", "business", "strategi", "strategy", "rådgivare", "advisor",
-  "konsult", "consultant", "innovation", "transformation", "saas", "growth",
-  // Führung
-  "chef", "ledare", "manager", "head of", "director", "cto", "cpo", "cio", "lead",
+  ["produkt", /produkt|product/i],
+  ["projektledare", /projektled|program(chef|ledare|ansvarig)/i],
+  ["agile", /\bscrum\b|\bagil|product owner|produktägare/i],
+
+  // Entwicklung und Architektur
+  ["utveckling", /utveckl|developer|mjukvar|software/i],
+  ["arkitekt", /arkitekt|architect/i],
+  ["engineer", /\bengineer\b|\bengineering\b/i],
+  ["ingenjör-tech", /(system|mjukvaru|data|test|plattform|it)[- ]?ingenjör/i],
+
+  // Plattform und interne Systeme — die Rollen, die dem VBG-Profil entsprechen
+  ["plattform", /plattform|platform/i],
+  ["förvaltning", /förvalt|systemägare|objektägare/i],
+  ["verksamhetsutveckling", /verksamhetsutveckl|digitaliser/i],
+  ["kravanalys", /kravanalytiker|kravställ|lösningsarkitekt/i],
+  ["low-code", /low[- ]?code|no[- ]?code/i],
+
+  // Daten und KI
+  ["ai", /\bai\b|\bai[- ]|artificiell intelligens|machine learning|maskininlärning/i],
+  ["data", /\bdata\b|\bdata[- ]/i],
+  ["analys", /analytic|\banalys(t|chef|ansvarig)/i],
+
+  // Business und Beratung
+  ["affärsutveckling", /affärsutveckl|business develop/i],
+  ["strategi", /\bstrategi|\bstrategy\b/i],
+  ["rådgivare-digital", /(it|digital\w*|teknik\w*|data|verksamhet\w*)[- ]?(rådgivare|konsult|advisor|consultant)/i],
+  ["innovation", /innovation|transformation/i],
+  ["saas", /\bsaas\b|\bgrowth\b/i],
+
+  // Führung, nur mit fachlicher Vorsilbe
+  ["chef-tech", /(it|produkt|teknik|teknologi|digital|digitaliserings|utvecklings|system|data|innovations)[- ]?chef/i],
+  ["ledare-tech", /(it|produkt|teknik|digital|utvecklings|team)[- ]?ledare/i],
+  ["c-level", /\bcto\b|\bcpo\b|\bcio\b|\bcdo\b|head of (product|digital|technology|engineering)/i],
+
   // Design
-  "ux", "design", "interaktion",
+  ["ux", /\bux\b|\bui\b|tjänstedesign|interaktionsdesign|produktdesign/i],
 ];
 
 const TITLE_EXCLUDE = [
@@ -38,13 +66,29 @@ const TITLE_EXCLUDE = [
 ];
 
 /**
- * Berufsfelder, die wir verwerfen.
- *
- * BEWUSST LEER beim ersten Lauf — dieselbe Lehre wie bei NAV: Erst die echte
- * Verteilung auf /stats ansehen, dann die Werte exakt so eintragen, wie sie
- * dort stehen. Geratene Taxonomie-Strings haben schon einmal Zeit gekostet.
+ * Berufsfelder, die verworfen werden — gefüllt aus der echten Verteilung des
+ * ersten Laufs, nicht geraten.
  */
-const FIELD_EXCLUDE: string[] = [];
+const FIELD_EXCLUDE: string[] = [
+  "Yrken med social inriktning",
+  "Pedagogik",
+  "Hälso- och sjukvård",
+  "Bygg och anläggning",
+  "Industriell tillverkning",
+  "Transport, distribution, lager",
+  "Installation, drift, underhåll",
+  "Hotell, restaurang, storhushåll",
+  "Säkerhet och bevakning",
+  "Sanering och renhållning",
+  "Naturbruk",
+  "Kropps- och skönhetsvård",
+];
+
+/**
+ * In diesem Feld ist jede Anzeige relevant genug fürs Modell — hier greift
+ * kein Titelfilter. Recall vor Precision, und das Feld ist klein genug.
+ */
+const FIELD_ALWAYS = ["Data/IT"];
 
 export type SeVerdict = { keep: true; matched: string | null } | { keep: false; reason: string };
 
@@ -61,19 +105,25 @@ export function filterSe(ad: SeAd): SeVerdict {
     return { keep: false, reason: `yrkesomrade:${field}` };
   }
 
-  const haystack = [lower(ad.headline), lower(ad.occupation?.label)].join(" ");
+  const haystack = [ad.headline ?? "", ad.occupation?.label ?? ""].join(" ");
+  const lowered = haystack.toLowerCase();
 
-  const excluded = TITLE_EXCLUDE.find((needle) => haystack.includes(needle));
+  const excluded = TITLE_EXCLUDE.find((needle) => lowered.includes(needle));
   if (excluded) {
     return { keep: false, reason: `titel-ausschluss:${excluded}` };
   }
 
-  const matched = TITLE_INCLUDE.find((needle) => haystack.includes(needle));
-  if (!matched) {
+  if (field && FIELD_ALWAYS.includes(field)) {
+    const hit = TITLE_PATTERNS.find(([, pattern]) => pattern.test(haystack));
+    return { keep: true, matched: hit ? hit[0] : "feld:Data/IT" };
+  }
+
+  const hit = TITLE_PATTERNS.find(([, pattern]) => pattern.test(haystack));
+  if (!hit) {
     return { keep: false, reason: "titel-kein-treffer" };
   }
 
-  return { keep: true, matched };
+  return { keep: true, matched: hit[0] };
 }
 
 const clean = (value: unknown): string | null => {
