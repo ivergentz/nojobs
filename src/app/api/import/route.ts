@@ -55,9 +55,32 @@ async function loadCursor(db: ReturnType<typeof supabaseAdmin>): Promise<Cursor>
     items_seen: 0,
   };
 
-  const { error: insertError } = await db.from("import_cursor").insert(fresh);
-  if (insertError) throw new Error(`Cursor anlegen fehlgeschlagen: ${insertError.message}`);
-  return fresh;
+  // Upsert statt insert: zwei parallele Aufrufe (Reload, Doppelklick,
+  // Browser-Prefetch) würden sonst beide anlegen wollen und einer bricht
+  // am Primary Key ab. ignoreDuplicates lässt eine vorhandene Zeile in Ruhe.
+  const { error: upsertError } = await db
+    .from("import_cursor")
+    .upsert(fresh, { onConflict: "id", ignoreDuplicates: true });
+
+  if (upsertError) throw new Error(`Cursor anlegen fehlgeschlagen: ${upsertError.message}`);
+
+  const { data: created, error: rereadError } = await db
+    .from("import_cursor")
+    .select("*")
+    .eq("id", CURSOR_ID)
+    .maybeSingle();
+
+  if (rereadError) throw new Error(`Cursor erneut lesen fehlgeschlagen: ${rereadError.message}`);
+
+  if (!created) {
+    throw new Error(
+      "Cursor wurde geschrieben, ist aber nicht lesbar. Das passiert, wenn in " +
+        "SUPABASE_SERVICE_ROLE_KEY der anon- bzw. publishable-Key steht — der sieht " +
+        "wegen Row Level Security keine Zeilen. Bitte den service_role-Schlüssel eintragen."
+    );
+  }
+
+  return created as Cursor;
 }
 
 async function inBatches<T>(
