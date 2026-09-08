@@ -33,24 +33,19 @@ export async function GET(request: Request) {
   const wo = url.searchParams.get("wo") ?? "Hamburg";
   const query = `was=${encodeURIComponent(was)}&wo=${encodeURIComponent(wo)}&umkreis=50&size=10&page=1`;
 
-  // v6 ist geklärt, jetzt geht es um Felder und Filterparameter.
+  // Suche ist geklärt. Offen ist nur noch: wo steht die Stellenbeschreibung?
+  // Die Trefferliste enthält sie nicht, das Bewertungs-Prompt braucht sie aber.
+  const ref = url.searchParams.get("ref") ?? "10001-1003600753-S";
+  const b64 = Buffer.from(ref, "utf8").toString("base64");
+  const b64url = b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
   const candidates: Array<{ label: string; path: string; key: boolean }> = [
-    { label: "v6-suche", path: `/pc/v6/jobs?${query}`, key: true },
-    {
-      label: "v6-homeoffice",
-      path: `/pc/v6/jobs?was=${encodeURIComponent(was)}&arbeitszeit=ho&size=10&page=1`,
-      key: true,
-    },
-    {
-      label: "v6-neu-seit-7",
-      path: `/pc/v6/jobs?was=${encodeURIComponent(was)}&veroeffentlichtseit=7&size=10&page=1`,
-      key: true,
-    },
-    {
-      label: "v6-nur-angebote",
-      path: `/pc/v6/jobs?${query}&angebotsart=1`,
-      key: true,
-    },
+    { label: "detail-v4-roh", path: `/pc/v4/jobdetails/${encodeURIComponent(ref)}`, key: true },
+    { label: "detail-v4-base64", path: `/pc/v4/jobdetails/${b64}`, key: true },
+    { label: "detail-v4-base64url", path: `/pc/v4/jobdetails/${b64url}`, key: true },
+    { label: "detail-v6-roh", path: `/pc/v6/jobdetails/${encodeURIComponent(ref)}`, key: true },
+    { label: "detail-v6-base64url", path: `/pc/v6/jobdetails/${b64url}`, key: true },
+    { label: "suche-mit-beschreibung", path: `/pc/v6/jobs?was=Product%20Owner&wo=Hamburg&size=1&page=1`, key: true },
   ];
 
   const results = await Promise.all(
@@ -84,11 +79,23 @@ export async function GET(request: Request) {
           return { label: candidate.label, status: res.status, hinweis: "kein JSON", body: text.slice(0, 250) };
         }
 
-        // Erstes Array irgendwo im Wurzelobjekt nehmen, statt Schlüssel zu raten.
         const entry = Object.entries(parsed).find(([, value]) => Array.isArray(value));
         const listKey = entry?.[0] ?? null;
         const list = (entry?.[1] as unknown[]) ?? null;
         const first = (list?.[0] ?? null) as Record<string, unknown> | null;
+
+        // Bei Detailantworten ist das Wurzelobjekt selbst die Anzeige.
+        const objekt = first ?? parsed;
+
+        // Längstes Textfeld — das ist mit hoher Wahrscheinlichkeit die Beschreibung.
+        let textfeld: string | null = null;
+        let textlaenge = 0;
+        for (const [key, value] of Object.entries(objekt)) {
+          if (typeof value === "string" && value.length > textlaenge) {
+            textlaenge = value.length;
+            textfeld = key;
+          }
+        }
 
         return {
           label: candidate.label,
@@ -97,9 +104,14 @@ export async function GET(request: Request) {
           listenfeld: listKey ?? null,
           anzahlAufSeite: list?.length ?? null,
           gesamt: parsed.maxErgebnisse ?? parsed.totalElements ?? parsed.total ?? null,
-          felder: first ? Object.keys(first) : null,
-          beispiel: first ? JSON.stringify(first).slice(0, 2500) : null,
-          zweitesBeispiel: list && list[1] ? JSON.stringify(list[1]).slice(0, 800) : null,
+          felder: Object.keys(objekt).slice(0, 40),
+          beschreibungsfeld: textfeld,
+          beschreibungslaenge: textlaenge,
+          beschreibungsanfang:
+            textfeld && textlaenge > 200
+              ? String((objekt as Record<string, unknown>)[textfeld]).slice(0, 400)
+              : null,
+          beispiel: JSON.stringify(objekt).slice(0, 1800),
         };
       } catch (error) {
         return {
