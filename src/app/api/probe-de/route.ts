@@ -33,13 +33,24 @@ export async function GET(request: Request) {
   const wo = url.searchParams.get("wo") ?? "Hamburg";
   const query = `was=${encodeURIComponent(was)}&wo=${encodeURIComponent(wo)}&umkreis=50&size=10&page=1`;
 
+  // v6 ist geklärt, jetzt geht es um Felder und Filterparameter.
   const candidates: Array<{ label: string; path: string; key: boolean }> = [
-    { label: "v4-mit-key", path: `/pc/v4/jobs?${query}`, key: true },
-    { label: "v4-ohne-key", path: `/pc/v4/jobs?${query}`, key: false },
-    { label: "v6-mit-key", path: `/pc/v6/jobs?${query}`, key: true },
-    { label: "v5-mit-key", path: `/pc/v5/jobs?${query}`, key: true },
-    // Homeoffice-Filter separat prüfen — der Parametername ist ungewiss.
-    { label: "v4-homeoffice", path: `/pc/v4/jobs?was=${encodeURIComponent(was)}&arbeitszeit=ho&size=10&page=1`, key: true },
+    { label: "v6-suche", path: `/pc/v6/jobs?${query}`, key: true },
+    {
+      label: "v6-homeoffice",
+      path: `/pc/v6/jobs?was=${encodeURIComponent(was)}&arbeitszeit=ho&size=10&page=1`,
+      key: true,
+    },
+    {
+      label: "v6-neu-seit-7",
+      path: `/pc/v6/jobs?was=${encodeURIComponent(was)}&veroeffentlichtseit=7&size=10&page=1`,
+      key: true,
+    },
+    {
+      label: "v6-nur-angebote",
+      path: `/pc/v6/jobs?${query}&angebotsart=1`,
+      key: true,
+    },
   ];
 
   const results = await Promise.all(
@@ -73,11 +84,10 @@ export async function GET(request: Request) {
           return { label: candidate.label, status: res.status, hinweis: "kein JSON", body: text.slice(0, 250) };
         }
 
-        // Die Trefferliste steckt je nach Version unter einem anderen Schlüssel.
-        const listKey = ["stellenangebote", "jobs", "items", "content"].find(
-          (key) => Array.isArray((parsed as Record<string, unknown>)[key])
-        );
-        const list = listKey ? ((parsed as Record<string, unknown>)[listKey] as unknown[]) : null;
+        // Erstes Array irgendwo im Wurzelobjekt nehmen, statt Schlüssel zu raten.
+        const entry = Object.entries(parsed).find(([, value]) => Array.isArray(value));
+        const listKey = entry?.[0] ?? null;
+        const list = (entry?.[1] as unknown[]) ?? null;
         const first = (list?.[0] ?? null) as Record<string, unknown> | null;
 
         return {
@@ -88,7 +98,8 @@ export async function GET(request: Request) {
           anzahlAufSeite: list?.length ?? null,
           gesamt: parsed.maxErgebnisse ?? parsed.totalElements ?? parsed.total ?? null,
           felder: first ? Object.keys(first) : null,
-          beispiel: first ? JSON.stringify(first).slice(0, 2000) : null,
+          beispiel: first ? JSON.stringify(first).slice(0, 2500) : null,
+          zweitesBeispiel: list && list[1] ? JSON.stringify(list[1]).slice(0, 800) : null,
         };
       } catch (error) {
         return {
