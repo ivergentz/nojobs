@@ -140,6 +140,17 @@ export default function AdminClient() {
         }`
     );
 
+  const importDe = () =>
+    loop(
+      "Import Deutschland",
+      () => `/api/import-de?secret=${encodeURIComponent(secret)}`,
+      (body) => body.done === true,
+      (body) =>
+        `${body.fortschritt ?? "?"} Begriffe, ${body.treffer ?? 0} Treffer, ${
+          body.gespeichert ?? 0
+        } gespeichert`
+    );
+
   const evaluate = (scope: "all" | "labeled", withDays: boolean) =>
     loop(
       scope === "all" ? `Bewerten${withDays ? ` (${days} Tage)` : " (alles)"}` : "Bewerten (gelabelt)",
@@ -196,7 +207,7 @@ export default function AdminClient() {
           <ul className="mt-4 space-y-1 text-xs text-muted">
             {state.cursors.map((cursor) => (
               <li key={cursor.id}>
-                {cursor.id === "nav" ? "Norwegen" : "Schweden"}: Stand{" "}
+                {cursor.id === "nav" ? "Norwegen" : cursor.id === "se" ? "Schweden" : "Deutschland"}: Stand{" "}
                 {cursor.last_item_date?.slice(0, 16) ?? "—"} ·{" "}
                 {cursor.at_end ? "aktuell" : "Rückstand"}
               </li>
@@ -222,6 +233,14 @@ export default function AdminClient() {
             className="rounded border border-ink px-4 py-2 text-sm disabled:opacity-40"
           >
             Import Schweden
+          </button>
+          <button
+            type="button"
+            onClick={() => void importDe()}
+            disabled={Boolean(running)}
+            className="rounded border border-ink px-4 py-2 text-sm disabled:opacity-40"
+          >
+            Import Deutschland
           </button>
           <button
             type="button"

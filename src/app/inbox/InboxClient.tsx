@@ -26,7 +26,7 @@ type Fx = { rate: number; date: string } | null;
 
 const num = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
 
-const LAND: Record<string, string> = { nav: "Norwegen", jobstream: "Schweden" };
+const LAND: Record<string, string> = { nav: "Norwegen", jobstream: "Schweden", ba: "Deutschland" };
 
 const STATUS: Array<{ key: string; label: string }> = [
   { key: "interessant", label: "Vormerken" },
@@ -38,7 +38,14 @@ const STATUS: Array<{ key: string; label: string }> = [
 function salaryLine(job: InboxJob, fx: Fx): string | null {
   if (job.salaryMin === null && job.salaryMax === null) return job.salaryNote;
 
-  // Gehaltsangaben stammen bislang nur aus norwegischen Anzeigen (NOK).
+  // Deutschland liefert Euro strukturiert mit — keine Umrechnung nötig.
+  if (job.source === "ba") {
+    const low = job.salaryMin ?? (job.salaryMax as number);
+    const high = job.salaryMax ?? (job.salaryMin as number);
+    return low === high
+      ? `${num.format(low)} €`
+      : `${num.format(low)}–${num.format(high)} €`;
+  }
   if (job.source !== "nav") return job.salaryNote;
 
   const low = job.salaryMin ?? (job.salaryMax as number);
