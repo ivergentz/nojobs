@@ -151,6 +151,17 @@ export default function AdminClient() {
         } gespeichert`
     );
 
+  const daily = () =>
+    loop(
+      "Tageslauf",
+      () => `/api/daily?secret=${encodeURIComponent(secret)}`,
+      () => true,
+      (body) =>
+        (body.ergebnisse ?? [])
+          .map((e: any) => `${e.schritt}: ${e.fehler ? "Fehler" : e.done === false ? "offen" : "ok"}`)
+          .join(" · ")
+    );
+
   const evaluate = (scope: "all" | "labeled", withDays: boolean) =>
     loop(
       scope === "all" ? `Bewerten${withDays ? ` (${days} Tage)` : " (alles)"}` : "Bewerten (gelabelt)",
@@ -218,6 +229,14 @@ export default function AdminClient() {
 
       <section className="mt-10 border-t border-rule pt-8">
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void daily()}
+            disabled={Boolean(running)}
+            className="rounded border border-keep px-4 py-2 text-sm text-keep disabled:opacity-40"
+          >
+            Tageslauf
+          </button>
           <button
             type="button"
             onClick={() => void importNav()}

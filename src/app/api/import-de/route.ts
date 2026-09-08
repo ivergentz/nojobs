@@ -7,7 +7,7 @@ import type { JobRow } from "@/lib/normalize";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const TIME_BUDGET_MS = 40_000;
+const TIME_BUDGET_DEFAULT = 40_000;
 const DETAIL_CONCURRENCY = 5;
 const CURSOR_ID = "de";
 
@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   }
 
   const startedAt = Date.now();
+  const TIME_BUDGET_MS = Number(url.searchParams.get("budget") ?? TIME_BUDGET_DEFAULT);
   const db = supabaseAdmin();
   const tage = Number(url.searchParams.get("tage") ?? "14");
   const stats = { begriffe: 0, treffer: 0, verworfen: 0, details: 0, gespeichert: 0 };

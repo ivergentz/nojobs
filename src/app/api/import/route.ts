@@ -18,7 +18,7 @@ export const maxDuration = 60;
  * Der nächste Aufruf macht dort weiter. Dadurch ist der 14-Tage-Backfill
  * beliebig oft wiederholbar, ohne dass ein Abbruch etwas kaputt macht.
  */
-const TIME_BUDGET_MS = 45_000;
+const TIME_BUDGET_DEFAULT = 45_000;
 const DETAIL_CONCURRENCY = 6;
 const CURSOR_ID = "nav";
 
@@ -148,6 +148,7 @@ export async function GET(request: Request) {
   }
 
   const startedAt = Date.now();
+  const TIME_BUDGET_MS = Number(url.searchParams.get("budget") ?? TIME_BUDGET_DEFAULT);
   const db = supabaseAdmin();
 
   const stats = {

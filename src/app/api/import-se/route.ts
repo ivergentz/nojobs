@@ -7,7 +7,7 @@ import type { JobRow } from "@/lib/normalize";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const TIME_BUDGET_MS = 40_000;
+const TIME_BUDGET_DEFAULT = 40_000;
 const FLUSH_AT = 200;
 const CURSOR_ID = "se";
 
@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   }
 
   const startedAt = Date.now();
+  const TIME_BUDGET_MS = Number(url.searchParams.get("budget") ?? TIME_BUDGET_DEFAULT);
   const db = supabaseAdmin();
   const stats = { gelesen: 0, verworfen: 0, gespeichert: 0, deaktiviert: 0 };
   const reasonTally: Record<string, number> = {};

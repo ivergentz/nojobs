@@ -58,6 +58,10 @@ const TITLE_PATTERNS: Array<[string, RegExp]> = [
 
   // Design
   ["ux", /\bux\b|\bui\b|tjänstedesign|interaktionsdesign|produktdesign/i],
+
+  // Rollen, die im Feld Data/IT häufig sind und sonst durchs Raster fielen
+  ["it-roll", /\bit-|\bict\b|informatik|teknisk projektled|scrum master|release/i],
+  ["produktnah", /backlog|roadmap|kravhanter|användarupplevelse|discovery/i],
 ];
 
 const TITLE_EXCLUDE = [
@@ -85,10 +89,12 @@ const FIELD_EXCLUDE: string[] = [
 ];
 
 /**
- * In diesem Feld ist jede Anzeige relevant genug fürs Modell — hier greift
- * kein Titelfilter. Recall vor Precision, und das Feld ist klein genug.
+ * Früher lief "Data/IT" ohne Titelfilter durch. Das war für die Aufbauphase
+ * richtig, kostet im Dauerbetrieb aber den größten Teil der Modellaufrufe.
+ * Jetzt gilt der Titelfilter überall — was fällt, steht im Drop-Log und ist
+ * dort nachprüfbar.
  */
-const FIELD_ALWAYS = ["Data/IT"];
+const FIELD_ALWAYS: string[] = [];
 
 export type SeVerdict = { keep: true; matched: string | null } | { keep: false; reason: string };
 

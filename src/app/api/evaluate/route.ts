@@ -11,7 +11,7 @@ export const maxDuration = 60;
  * endet er jenseits des 60-Sekunden-Limits von Vercel und reißt alles mit.
  * Deshalb: neue Blöcke nur bis Sekunde 25, plus harter Abbruch pro Aufruf.
  */
-const TIME_BUDGET_MS = 25_000;
+const TIME_BUDGET_DEFAULT = 25_000;
 const CONCURRENCY = 25;
 
 /**
@@ -31,6 +31,7 @@ export async function GET(request: Request) {
   const scope = url.searchParams.get("scope") ?? "labeled";
   const force = url.searchParams.get("force") === "1";
   const startedAt = Date.now();
+  const TIME_BUDGET_MS = Number(url.searchParams.get("budget") ?? TIME_BUDGET_DEFAULT);
   const db = supabaseAdmin();
 
   const stats = { evaluated: 0, failed: 0 };
