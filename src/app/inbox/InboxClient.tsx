@@ -152,6 +152,12 @@ export default function InboxClient({ jobs, fx }: { jobs: InboxJob[]; fx: Fx }) 
                     Zur Bewerbung
                   </a>
                 )}
+                <a
+                  href={`/application/${encodeURIComponent(job.uuid)}`}
+                  className="rounded border border-ink px-4 py-2 text-sm"
+                >
+                  Unterlagen
+                </a>
                 {STATUS.map((entry) => (
                   <button
                     key={entry.key}

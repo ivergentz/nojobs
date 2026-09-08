@@ -1,0 +1,306 @@
+{
+  "de": {
+    "role": "Product Builder mit Architekturverständnis",
+    "tagline": "10 Jahre Produktmanagement und Marketing — vom Robert Bosch Konzern bis zum eigenen SaaS-Portfolio. Ich verbinde strategisches Produktdenken mit technischer Umsetzung und bringe Produkte KI-nativ von der ersten Hypothese bis zum Live-Go.",
+    "labels": {
+      "products": "Eigene Produkte — Solo Founder",
+      "experience": "Berufserfahrung",
+      "education": "Ausbildung",
+      "skills": "Fähigkeiten",
+      "languages": "Sprachen",
+      "print": "Als PDF drucken",
+      "download": "Als PDF herunterladen",
+      "back": "Zurück",
+      "live": "Live",
+      "q3": "Launch Q3 2026"
+    },
+    "products": [
+      {
+        "name": "RankBrief",
+        "period": "Q1 2026 — heute",
+        "status": "Live",
+        "url": "rankbrief.com",
+        "bullets": [
+          "B2B-SaaS für vollautomatisierte monatliche SEO-Reports; von Idee bis Stripe-Integration in Solo-Umsetzung aufgebaut.",
+          "ICP-Definition und modulares Pricing (Grundgebühr 19 €/Property, Paketrabatte, Whitelabel-Add-on); 8 Supabase Edge Functions, pg_cron, Brevo-Mail-Pipeline."
+        ],
+        "stack": "React · Supabase · Stripe · Google Search Console API · Claude API"
+      },
+      {
+        "name": "S&I. Wedding",
+        "period": "seit 2025",
+        "status": "Live",
+        "url": "sarahiver.com",
+        "bullets": [
+          "Premium-Multi-Tenant-Plattform für Hochzeitswebsites im DACH-Markt; sieben individuell gestaltete Themes, SuperAdmin-Layer, RSVP-System.",
+          "Hochzeitsplaza-Partnerschaft live; A/B-Test zwischen Direct-Landing und Modal-Theme-Selector mit Variante B +3× Session-Dauer."
+        ],
+        "stack": "React · Supabase · Cloudinary · Brevo"
+      },
+      {
+        "name": "WERKRUF",
+        "period": "Launch Q3 2026",
+        "status": "Final API-Phase",
+        "url": "werkruf.com",
+        "bullets": [
+          "Local-SEO-SaaS für lokale Dienstleister (Handwerk, Gastronomie, Beauty); KI-gestützte Review-Replies, dynamisches GBP-Audit, DSGVO-nativ.",
+          "Kernplattform fertig; Migration der Google Places API von Classic auf v1 abgeschlossen; GBP-API in finaler Google-Freigabephase."
+        ],
+        "stack": "React · Supabase · Stripe · Google Places API · Google Business Profile API · Cloudinary · Claude API"
+      }
+    ],
+    "experience": [
+      {
+        "period": "01/2025 — heute",
+        "title": "Fachreferent & Kommunikationsmanager",
+        "company": "VBG Hamburg — Ressortmanagement RMB",
+        "bullets": [
+          "Steuerung aller Posteingangskanäle; Konzeption und Einführung einer KI-gestützten Verschlagwortung — Auslesequote +13 %, Warteschlangen-Aufleger −20 %.",
+          "Teilprojektleitung SharePoint & Teams-Migration (Pilot ABRMG, Rollout Q1 2027)."
+        ]
+      },
+      {
+        "period": "05/2024 — 07/2024",
+        "title": "Produktmanager (IT)",
+        "company": "SEMA Systems",
+        "bullets": [
+          "Einvernehmliche Auflösung in der Probezeit; Rolle entsprach nicht dem vereinbarten Scope."
+        ]
+      },
+      {
+        "period": "03/2023 — 03/2024",
+        "title": "Produktmanager Global (IT)",
+        "company": "Robert Bosch GmbH",
+        "bullets": [
+          "Weiterentwicklung interner SaaS-Lösungen und internationaler Produktportfolios; Conversions +11,5 %, Erschließung von fünf neuen globalen Märkten."
+        ]
+      },
+      {
+        "period": "06/2022 — 01/2023",
+        "title": "Product Owner & Projektmanager",
+        "company": "Emmora GmbH",
+        "bullets": [
+          "Website-Relaunch und Funnel-Optimierung: Conversions +14 %.",
+          "Erschließung neuer Geschäftsfelder: Umsatz +10 %."
+        ]
+      },
+      {
+        "period": "01/2021 — 06/2022",
+        "title": "Selbstständig — Marketing und IT",
+        "company": "Hamburg",
+        "bullets": [
+          "Beratung, Kampagnenplanung und kleinere Webprojekte für Bestandskunden aus dem Airport- und Netzwerkumfeld."
+        ]
+      },
+      {
+        "period": "09/2017 — 06/2020",
+        "title": "Marketing & Sales",
+        "company": "Salzburg Flughafen GmbH",
+        "bullets": [
+          "Marketingstrategien, Marktanalysen, Budgetverantwortung ~750 k€/Jahr; Markenbekanntheit +25 %, effizientere Mitarbeitergewinnung im Saisongeschäft."
+        ]
+      }
+    ],
+    "education": [
+      {
+        "period": "07 — 10/2020",
+        "title": "Frontend Development",
+        "school": "neuefische, Hamburg — Intensive Bootcamp"
+      },
+      {
+        "period": "2014 — 2016",
+        "title": "MSc Sportmanagement & Medien",
+        "school": "Universität Salzburg"
+      },
+      {
+        "period": "2009 — 2014",
+        "title": "BA Sportwissenschaft",
+        "school": "Universität Mainz"
+      }
+    ],
+    "skills": [
+      {
+        "label": "Produkt & Strategie",
+        "items": "ICP-Definition · Pricing-Strategie · Go-to-Market · Agile PM · A/B-Testing · Funnel-Optimierung"
+      },
+      {
+        "label": "Technik & Architektur",
+        "items": "React · Supabase · Stripe · pg_cron · Edge Functions · REST-APIs · DSGVO · Cloudinary"
+      },
+      {
+        "label": "KI & Automation",
+        "items": "Claude Code · Claude API · AI-gestützte Workflows · Prompt Engineering · 95 %-Automation-Prinzip"
+      }
+    ],
+    "languages": [
+      {
+        "name": "Deutsch",
+        "level": "Muttersprache"
+      },
+      {
+        "name": "Englisch",
+        "level": "Fließend / Business-tauglich"
+      },
+      {
+        "name": "Norwegisch",
+        "level": "Im Aufbau"
+      },
+      {
+        "name": "Schwedisch",
+        "level": "Im Aufbau"
+      }
+    ]
+  },
+  "en": {
+    "role": "Product Builder with an Architect's Eye",
+    "tagline": "Ten years across product management and marketing — from the Robert Bosch group to my own SaaS portfolio. I bridge strategic product thinking with technical execution and ship products AI-natively, from first hypothesis to going live.",
+    "labels": {
+      "products": "Own Products — Solo Founder",
+      "experience": "Experience",
+      "education": "Education",
+      "skills": "Skills",
+      "languages": "Languages",
+      "print": "Save as PDF",
+      "download": "Download as PDF",
+      "back": "Back",
+      "live": "Live",
+      "q3": "Launching Q3 2026"
+    },
+    "products": [
+      {
+        "name": "RankBrief",
+        "period": "Q1 2026 — today",
+        "status": "Live",
+        "url": "rankbrief.com",
+        "bullets": [
+          "B2B SaaS for fully automated monthly SEO reports; built solo from idea to Stripe integration.",
+          "ICP definition and modular pricing (base fee €19/property, volume discounts, white-label add-on); 8 Supabase Edge Functions, pg_cron, Brevo mail pipeline."
+        ],
+        "stack": "React · Supabase · Stripe · Google Search Console API · Claude API"
+      },
+      {
+        "name": "S&I. Wedding",
+        "period": "since 2025",
+        "status": "Live",
+        "url": "sarahiver.com",
+        "bullets": [
+          "Premium multi-tenant platform for wedding websites in the DACH market; seven individually designed themes, SuperAdmin layer, RSVP system.",
+          "Hochzeitsplaza partnership live; A/B test between direct landing and modal theme selector with variant B +3× session duration."
+        ],
+        "stack": "React · Supabase · Cloudinary · Brevo"
+      },
+      {
+        "name": "WERKRUF",
+        "period": "Launching Q3 2026",
+        "status": "Final API phase",
+        "url": "werkruf.com",
+        "bullets": [
+          "Local SEO SaaS for local service providers (trades, hospitality, beauty); AI-assisted review replies, dynamic GBP audit, GDPR-native.",
+          "Core platform complete; Google Places API migrated from Classic to v1; GBP API in final Google approval."
+        ],
+        "stack": "React · Supabase · Stripe · Google Places API · Google Business Profile API · Cloudinary · Claude API"
+      }
+    ],
+    "experience": [
+      {
+        "period": "01/2025 — today",
+        "title": "Communications Specialist",
+        "company": "VBG Hamburg — RMB division",
+        "bullets": [
+          "Leading all incoming communication channels; conceived and rolled out AI-assisted tagging — read-rate +13 %, queue drop-offs −20 %.",
+          "Sub-project lead for SharePoint & Teams migration (ABRMG pilot, rollout Q1 2027)."
+        ]
+      },
+      {
+        "period": "05/2024 — 07/2024",
+        "title": "Product Manager (IT)",
+        "company": "SEMA Systems",
+        "bullets": [
+          "Mutually agreed separation during probation; role did not match the scope agreed during hiring."
+        ]
+      },
+      {
+        "period": "03/2023 — 03/2024",
+        "title": "Product Manager Global (IT)",
+        "company": "Robert Bosch GmbH",
+        "bullets": [
+          "Evolution of internal SaaS solutions and international product portfolios; conversions +11.5 %, opened five new global markets."
+        ]
+      },
+      {
+        "period": "06/2022 — 01/2023",
+        "title": "Product Owner & Project Manager",
+        "company": "Emmora GmbH",
+        "bullets": [
+          "Website relaunch and funnel optimization: conversions +14 %.",
+          "Opened new business lines: revenue +10 %."
+        ]
+      },
+      {
+        "period": "01/2021 — 06/2022",
+        "title": "Freelance — Marketing and IT",
+        "company": "Hamburg",
+        "bullets": [
+          "Consulting, campaign planning and small web projects for returning clients from the airport and personal network."
+        ]
+      },
+      {
+        "period": "09/2017 — 06/2020",
+        "title": "Marketing & Sales",
+        "company": "Salzburg Airport",
+        "bullets": [
+          "Marketing strategies, market analyses, budget responsibility ~€750k/year; brand awareness +25 %, improved seasonal hiring efficiency."
+        ]
+      }
+    ],
+    "education": [
+      {
+        "period": "07 — 10/2020",
+        "title": "Frontend Development",
+        "school": "neuefische, Hamburg — Intensive Bootcamp"
+      },
+      {
+        "period": "2014 — 2016",
+        "title": "MSc Sports Management & Media",
+        "school": "University of Salzburg"
+      },
+      {
+        "period": "2009 — 2014",
+        "title": "BA Sports Science",
+        "school": "University of Mainz"
+      }
+    ],
+    "skills": [
+      {
+        "label": "Product & Strategy",
+        "items": "ICP Definition · Pricing Strategy · Go-to-Market · Agile PM · A/B Testing · Funnel Optimization"
+      },
+      {
+        "label": "Tech & Architecture",
+        "items": "React · Supabase · Stripe · pg_cron · Edge Functions · REST APIs · GDPR · Cloudinary"
+      },
+      {
+        "label": "AI & Automation",
+        "items": "Claude Code · Claude API · AI-assisted workflows · Prompt engineering · 95% automation principle"
+      }
+    ],
+    "languages": [
+      {
+        "name": "German",
+        "level": "Native"
+      },
+      {
+        "name": "English",
+        "level": "Fluent / Business proficient"
+      },
+      {
+        "name": "Norwegian",
+        "level": "Learning"
+      },
+      {
+        "name": "Swedish",
+        "level": "Learning"
+      }
+    ]
+  }
+}
