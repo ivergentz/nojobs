@@ -43,12 +43,14 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: 'Times-Roman',
     fontSize: 34,
+    lineHeight: 1.15,
     color: INK,
-    marginBottom: 2,
+    marginBottom: 6,
   },
   role: {
     fontFamily: 'Times-Italic',
     fontSize: 13,
+    lineHeight: 1.3,
     color: FG,
     marginBottom: 10,
   },
@@ -107,8 +109,9 @@ const styles = StyleSheet.create({
   productName: {
     fontFamily: 'Times-Roman',
     fontSize: 15,
+    lineHeight: 1.25,
     color: INK,
-    marginBottom: 1,
+    marginBottom: 3,
   },
   productUrlWrap: {
     flexDirection: 'row',
@@ -129,8 +132,9 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Times-Roman',
     fontSize: 12,
+    lineHeight: 1.25,
     color: FG,
-    marginBottom: 1,
+    marginBottom: 3,
   },
   company: {
     fontSize: 9.5,
@@ -151,7 +155,7 @@ const styles = StyleSheet.create({
   },
 
   /* Education */
-  eduTitle: { fontFamily: 'Times-Roman', fontSize: 11, color: FG },
+  eduTitle: { fontFamily: 'Times-Roman', fontSize: 11, lineHeight: 1.3, color: FG },
   eduSchool: { fontSize: 8.5, color: MUTED },
 
   /* Skills grid */

@@ -47,16 +47,50 @@
           "Kernplattform fertig; Migration der Google Places API von Classic auf v1 abgeschlossen; GBP-API in finaler Google-Freigabephase."
         ],
         "stack": "React · Supabase · Stripe · Google Places API · Google Business Profile API · Cloudinary · Claude API"
+      },
+      {
+        "name": "sarahiver.de",
+        "period": "Launch Q4 2026",
+        "status": "In Umsetzung",
+        "url": "sarahiver.de",
+        "bullets": [
+          "Eigenständiges Self-Service-Produkt für den preissensiblen Teil des Hochzeitsmarktes — bewusst mit eigenen Themes, um das Premium-Produkt nicht zu kannibalisieren.",
+          "Zweite Marke statt zweiter Preisstufe: getrennte Positionierung, getrenntes Design, gemeinsamer technischer Unterbau."
+        ],
+        "stack": "React · Supabase · Stripe"
+      },
+      {
+        "name": "Career Inbox",
+        "period": "seit Q3 2026",
+        "status": "In Umsetzung",
+        "url": "Produktexperiment",
+        "bullets": [
+          "Produktexperiment zur Frage, ob Stellenmatching ohne Keyword-Suche funktioniert: Anbindung der offenen Feeds von NAV (NO) und Arbetsförmedlingen (SE), Regelfilter zur Kostenreduktion, LLM-Bewertung mit erklärbarem Urteil statt Score.",
+          "Für die Validierung als Testnutzer aufgetreten: 131 Anzeigen von Hand bewertet und das Prompt gegen diese Ground Truth kalibriert — 91 % Übereinstimmung, Ablehnungsgründe werden protokolliert, um Recall überhaupt messbar zu machen."
+        ],
+        "stack": "Next.js · Supabase · Claude API · Vercel Cron"
+      },
+      {
+        "name": "JoStoMo",
+        "period": "2026",
+        "status": "Live",
+        "url": "jostomo",
+        "bullets": [
+          "Stop-Motion-Web-App, gebaut für meinen Sohn — Aufnahme Bild für Bild, Onion-Skin, Export als Video.",
+          "Nebenprojekt mit klarem Nutzer: ein Kind, das es ohne Erklärung bedienen können muss."
+        ],
+        "stack": "React · MediaRecorder API"
       }
     ],
     "experience": [
       {
         "period": "01/2025 — heute",
-        "title": "Fachreferent & Kommunikationsmanager",
+        "title": "Produktverantwortung interne Systeme",
         "company": "VBG Hamburg — Ressortmanagement RMB",
         "bullets": [
-          "Steuerung aller Posteingangskanäle; Konzeption und Einführung einer KI-gestützten Verschlagwortung — Auslesequote +13 %, Warteschlangen-Aufleger −20 %.",
-          "Teilprojektleitung SharePoint & Teams-Migration (Pilot ABRMG, Rollout Q1 2027)."
+          "Produktverantwortung für die unternehmensweite Telefonieplattform und die automatisierte Belegerfassung.",
+          "Konzeption und Einführung einer KI-gestützten Verschlagwortung im Posteingang — Auslesequote +13 %, Warteschlangen-Aufleger −20 %.",
+          "Teilprojektleitung SharePoint- und Teams-Einführung (Pilot ABRMG, Rollout Q1 2027)."
         ]
       },
       {
@@ -199,16 +233,50 @@
           "Core platform complete; Google Places API migrated from Classic to v1; GBP API in final Google approval."
         ],
         "stack": "React · Supabase · Stripe · Google Places API · Google Business Profile API · Cloudinary · Claude API"
+      },
+      {
+        "name": "sarahiver.de",
+        "period": "Launch Q4 2026",
+        "status": "In progress",
+        "url": "sarahiver.de",
+        "bullets": [
+          "A standalone self-service product for the price-sensitive end of the wedding market — deliberately built with its own themes so it does not cannibalise the premium offering.",
+          "A second brand rather than a second price point: separate positioning, separate design, shared technical foundation."
+        ],
+        "stack": "React · Supabase · Stripe"
+      },
+      {
+        "name": "Career Inbox",
+        "period": "since Q3 2026",
+        "status": "In progress",
+        "url": "product experiment",
+        "bullets": [
+          "A product experiment on whether job matching works without keyword search: importers for the open feeds of NAV (NO) and Arbetsförmedlingen (SE), rule-based filtering to keep inference cost down, LLM scoring with an explainable verdict instead of a number.",
+          "Acted as the test user for validation: hand-scored 131 postings and calibrated the prompt against that ground truth — 91 % agreement, with every rejection logged so recall becomes measurable at all."
+        ],
+        "stack": "Next.js · Supabase · Claude API · Vercel Cron"
+      },
+      {
+        "name": "JoStoMo",
+        "period": "2026",
+        "status": "Live",
+        "url": "jostomo",
+        "bullets": [
+          "Stop-motion web app built for my son — frame-by-frame capture, onion skinning, video export.",
+          "A side project with one very clear user: a child who has to be able to use it without instructions."
+        ],
+        "stack": "React · MediaRecorder API"
       }
     ],
     "experience": [
       {
         "period": "01/2025 — today",
-        "title": "Communications Specialist",
+        "title": "Product Owner, Internal Systems",
         "company": "VBG Hamburg — RMB division",
         "bullets": [
-          "Leading all incoming communication channels; conceived and rolled out AI-assisted tagging — read-rate +13 %, queue drop-offs −20 %.",
-          "Sub-project lead for SharePoint & Teams migration (ABRMG pilot, rollout Q1 2027)."
+          "Product ownership for the organisation-wide telephony platform and automated document capture.",
+          "Designed and rolled out AI-assisted tagging for the inbound queue — read-rate +13 %, queue drop-offs −20 %.",
+          "Sub-project lead for the SharePoint and Teams rollout (ABRMG pilot, rollout Q1 2027)."
         ]
       },
       {

@@ -33,8 +33,8 @@ const styles = StyleSheet.create({
     borderBottomColor: HAIRLINE,
     marginBottom: 20,
   },
-  name: { fontFamily: "Times-Roman", fontSize: 34, color: INK, marginBottom: 2 },
-  role: { fontFamily: "Times-Italic", fontSize: 13, color: FG, marginBottom: 10 },
+  name: { fontFamily: "Times-Roman", fontSize: 34, lineHeight: 1.15, color: INK, marginBottom: 6 },
+  role: { fontFamily: "Times-Italic", fontSize: 13, lineHeight: 1.3, color: FG, marginBottom: 10 },
   meta: { fontSize: 8.5, color: MUTED, fontFamily: "Courier" },
 
   recipientBlock: { marginBottom: 22 },
@@ -54,11 +54,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
 
-  headline: { fontFamily: "Times-Roman", fontSize: 15, color: INK, marginBottom: 12 },
+  headline: { fontFamily: "Times-Roman", fontSize: 15, lineHeight: 1.3, color: INK, marginBottom: 12 },
   paragraph: { fontSize: 10, color: FG, lineHeight: 1.55, marginBottom: 10 },
 
   signOff: { marginTop: 18, fontSize: 10, color: FG },
-  signature: { fontFamily: "Times-Roman", fontSize: 14, color: INK, marginTop: 10 },
+  signature: { fontFamily: "Times-Roman", fontSize: 14, lineHeight: 1.3, color: INK, marginTop: 10 },
   footer: {
     marginTop: 26,
     paddingTop: 10,
