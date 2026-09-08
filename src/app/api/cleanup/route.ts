@@ -38,11 +38,15 @@ export async function GET(request: Request) {
 
     if (fristError) return NextResponse.json({ ok: false, error: fristError.message }, { status: 500 });
 
+    // Gemessen wird am Veröffentlichungsdatum, nicht am Import. Deutsche
+    // Anzeigen werden täglich neu importiert; ihr imported_at ist deshalb
+    // immer frisch und wäre als Alterungsmaß unbrauchbar.
     const { data: liegengeblieben, error: altError } = await db
       .from("jobs")
       .update({ app_status: "abgelaufen", app_status_at: new Date().toISOString() })
       .eq("app_status", "neu")
-      .lt("imported_at", cutoff)
+      .not("published", "is", null)
+      .lt("published", cutoff)
       .select("uuid");
 
     if (altError) return NextResponse.json({ ok: false, error: altError.message }, { status: 500 });

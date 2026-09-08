@@ -28,7 +28,10 @@ export async function GET(request: Request) {
   const startedAt = Date.now();
   const TIME_BUDGET_MS = Number(url.searchParams.get("budget") ?? TIME_BUDGET_DEFAULT);
   const db = supabaseAdmin();
-  const tage = Number(url.searchParams.get("tage") ?? "14");
+  // Zwei Tage statt einem: Deutschland hat keinen Cursor, sondern eine Suche.
+  // Fällt ein Cron-Lauf aus, ist der Tag sonst dauerhaft weg. Die Überlappung
+  // kostet nichts — Doppelte werden geupsertet und nur Unbewertetes geht ans Modell.
+  const tage = Number(url.searchParams.get("tage") ?? "2");
   const stats = { begriffe: 0, treffer: 0, verworfen: 0, details: 0, gespeichert: 0 };
   const gruende: Record<string, number> = {};
 
