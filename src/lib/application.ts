@@ -79,9 +79,11 @@ LEBENSLAUF-ANPASSUNG (cvOverrides):
 - role: Ivers Rollenbezeichnung oben im CV, auf die Stelle zugeschnitten. Höchstens 6 Wörter.
 - tagline: der Einleitungssatz, auf die Stelle zugeschnitten. Höchstens 45 Wörter. Auf denselben Fakten wie das Original.
 - productOrder: die Namen der drei Produkte in der Reihenfolge, die für diese Stelle am meisten überzeugt.
-- bulletRewrites: höchstens vier Stichpunkte umformulieren, mit Angabe von section und name. Nur Betonung verschieben, keine neuen Fakten.
+- bulletRewrites: HÖCHSTENS DREI Stichpunkte umformulieren, mit Angabe von section und name. Nur Betonung verschieben, keine neuen Fakten.
 
-hinweise: zwei bis vier Sätze auf Deutsch an Iver — was du warum betont hast, und welche Lücke er im Gespräch erklären können muss.
+hinweise: HÖCHSTENS DREI Sätze auf Deutsch an Iver — was du warum betont hast, und welche Lücke er im Gespräch erklären können muss.
+
+LÄNGEN SIND VERBINDLICH. Zu lange Antworten werden abgeschnitten und sind unbrauchbar. Beginne die Antwort direkt mit der geschweiften Klammer, ohne Vorrede.
 
 Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences:
 {"lang":"de"|"en","role":string,"recipient":string[],"subject":string,"headline":string,"paragraphs":string[],"signOff":string,"cvOverrides":{"role":string,"tagline":string,"productOrder":string[],"bulletRewrites":[{"section":"products"|"experience","name":string,"bullets":string[]}]},"hinweise":string[]}`;
@@ -111,7 +113,7 @@ export async function draftApplication(input: {
       },
       body: JSON.stringify({
         model: process.env.DRAFT_MODEL ?? "claude-sonnet-5",
-        max_tokens: 3000,
+        max_tokens: 8000,
         system: `${RULES}\n\nIVERS LEBENSLAUF (${input.lang}):\n${profileFor(input.lang)}`,
         messages: [
           {
@@ -155,7 +157,11 @@ export async function draftApplication(input: {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start === -1 || end <= start) {
-    throw new Error(`Kein JSON (stop_reason: ${data.stop_reason ?? "?"}): ${raw.slice(0, 200)}`);
+    const bloecke = (data.content ?? []).map((block) => block.type).join(", ") || "keine";
+    throw new Error(
+      `Kein JSON. stop_reason: ${data.stop_reason ?? "?"}, Blocktypen: ${bloecke}, ` +
+        `Textlänge: ${raw.length}. Anfang: ${raw.slice(0, 300) || "(leer)"}`
+    );
   }
 
   const candidate = raw.slice(start, end + 1);
