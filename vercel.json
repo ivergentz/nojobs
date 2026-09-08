@@ -2,6 +2,8 @@
   "crons": [
     { "path": "/api/import", "schedule": "0 4 * * *" },
     { "path": "/api/import-se", "schedule": "20 4 * * *" },
-    { "path": "/api/evaluate?scope=all", "schedule": "40 4 * * *" }
+    { "path": "/api/evaluate?scope=all&days=4", "schedule": "40 4 * * *" },
+    { "path": "/api/cleanup", "schedule": "50 4 * * *" },
+    { "path": "/api/notify", "schedule": "0 6 * * *" }
   ]
 }
