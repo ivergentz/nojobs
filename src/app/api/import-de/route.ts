@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
+import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
 import { fetchBaDetail, searchBaAll, type BaHit } from "@/lib/ba";
 import { filterDe, gehaltDe, normalizeDe, SUCHBEGRIFFE } from "@/lib/normalize-de";
@@ -189,6 +190,19 @@ export async function GET(request: Request) {
       .filter(Boolean)
       .join(" ");
 
+    await logFehler(db, [
+      ...suchfehler.slice(0, 10).map((meldung) => ({ quelle: "Arbeitsagentur", detail: "Suche", meldung })),
+      ...(stats.detailsFehlgeschlagen > 0
+        ? [
+            {
+              quelle: "Arbeitsagentur",
+              detail: "Details",
+              meldung: `${stats.detailsFehlgeschlagen} Anzeigen ohne Beschreibung gespeichert (Detailabruf fehlgeschlagen).`,
+            },
+          ]
+        : []),
+    ]);
+
     await db.from("import_cursor").upsert(
       {
         id: CURSOR_ID,
@@ -223,6 +237,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    await logFehler(db, [{ quelle: "Arbeitsagentur", detail: "Gesamtlauf", meldung: message }]);
     return NextResponse.json({ ok: false, error: message, ...stats }, { status: 500 });
   }
 }

@@ -20,6 +20,7 @@ export type InboxJob = {
   salaryNote: string | null;
   status: string;
   published: string | null;
+  quelle: string;
 };
 
 const num = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
@@ -112,7 +113,10 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
                     <span className="ml-2 font-normal text-muted">unsicher</span>
                   )}
                 </span>
-                {seit && <span className="tnum text-muted">seit {seit}</span>}
+                <span className="text-right text-xs text-muted">
+                  {job.quelle}
+                  {seit ? <span className="tnum"> · seit {seit}</span> : null}
+                </span>
               </div>
 
               <h2 className="mt-2 text-lg font-semibold leading-snug">{job.title}</h2>

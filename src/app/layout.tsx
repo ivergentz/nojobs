@@ -14,6 +14,7 @@ const NAV = [
   { href: "/eval", label: "Kalibrierung" },
   { href: "/stats", label: "Statistik" },
   { href: "/admin", label: "Steuerung" },
+  { href: "/log", label: "Log" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

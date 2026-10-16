@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
+import { logFehler } from "@/lib/fehlerlog";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Nacht-Cron (04:00 UTC): Import Hamburg/Remote, danach Aufräumen.
+ * Nacht-Cron (04:00 UTC): Import aus allen Quellen, danach Aufräumen.
  *
  * Bewertet wird NICHT hier, sondern im Morgen-Cron /api/notify. Vorher liefen
  * drei Importe plus Bewertung in diesem einen 60-Sekunden-Aufruf; die
@@ -17,7 +19,9 @@ export const maxDuration = 60;
  */
 
 const SCHRITTE: Array<{ name: string; pfad: string; budget: number }> = [
-  { name: "Import Hamburg/Remote", pfad: "/api/import-de", budget: 32_000 },
+  { name: "Karriereseiten", pfad: "/api/import-ats", budget: 10_000 },
+  { name: "Google Jobs & Arbeitnow", pfad: "/api/import-sammel", budget: 10_000 },
+  { name: "Arbeitsagentur", pfad: "/api/import-de", budget: 20_000 },
   { name: "Aufräumen", pfad: "/api/cleanup", budget: 3_000 },
 ];
 
@@ -69,6 +73,24 @@ export async function GET(request: Request) {
         schritt: schritt.name,
         fehler: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  // Schritte, die komplett gescheitert sind (Timeout, 500, keine Antwort),
+  // landen im Protokoll. Einzelne Quellenfehler protokolliert der Schritt selbst.
+  const gescheitert = ergebnisse.filter((e) => e.fehler || e.uebersprungen);
+  if (gescheitert.length) {
+    try {
+      await logFehler(
+        supabaseAdmin(),
+        gescheitert.map((e) => ({
+          quelle: "Nachtlauf",
+          detail: String(e.schritt),
+          meldung: String(e.fehler ?? e.uebersprungen),
+        }))
+      );
+    } catch {
+      /* Protokoll darf den Lauf nicht abbrechen */
     }
   }
 

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { evaluateAd } from "./evaluate";
+import { AKTIVE_QUELLEN } from "./quellen";
 
 /**
  * Bewertet offene Stellen in Blöcken, zeitbudgetiert.
@@ -40,7 +41,7 @@ export async function runEvaluation(
     .from("jobs")
     .select("uuid,title,employer_name,municipal,county,sector,salary_min_nok,salary_max_nok,salary_note,description")
     .eq("status", "ACTIVE")
-    .eq("source", "ba")
+    .in("source", AKTIVE_QUELLEN)
     .order("published", { ascending: false, nullsFirst: false })
     .limit(options.limit ?? 60);
 
@@ -105,7 +106,7 @@ export async function runEvaluation(
     .from("jobs")
     .select("uuid", { count: "exact", head: true })
     .eq("status", "ACTIVE")
-    .eq("source", "ba")
+    .in("source", AKTIVE_QUELLEN)
     .is("evaluated_at", null);
 
   return { ...stats, nochOffen: remaining ?? 0, fehlerbeispiele: errors };

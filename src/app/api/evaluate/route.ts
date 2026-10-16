@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
+import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_MODEL } from "@/lib/evaluate";
 import { runEvaluation } from "@/lib/run-evaluate";
@@ -28,13 +29,24 @@ export async function GET(request: Request) {
   const startedAt = Date.now();
 
   try {
-    const result = await runEvaluation(supabaseAdmin(), {
+    const db = supabaseAdmin();
+    const result = await runEvaluation(db, {
       budgetMs: Math.min(Number(url.searchParams.get("budget") ?? TIME_BUDGET_DEFAULT), 30_000),
       scope: url.searchParams.get("scope") === "labeled" ? "labeled" : "all",
       force: url.searchParams.get("force") === "1",
       days: url.searchParams.get("days") ? Number(url.searchParams.get("days")) : null,
       limit: Number(url.searchParams.get("limit") ?? "60"),
     });
+
+    if (result.failed > 0) {
+      await logFehler(db, [
+        {
+          quelle: "Bewertung (Claude)",
+          detail: `${result.failed} fehlgeschlagen, ${result.evaluated} ok`,
+          meldung: result.fehlerbeispiele[0] ?? "unbekannt",
+        },
+      ]);
+    }
 
     // Alles gescheitert ist ein Fehler, kein "nichts zu tun" — sonst bleibt
     // z. B. ein falscher Modellname oder Schlüssel unbemerkt.

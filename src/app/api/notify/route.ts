@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
+import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
 import { buildMessage, findChatId, sendTelegram, type NotifyJob } from "@/lib/notify";
 import { runEvaluation } from "@/lib/run-evaluate";
+import { AKTIVE_QUELLEN } from "@/lib/quellen";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -43,8 +45,18 @@ export async function GET(request: Request) {
     if (!url.searchParams.get("skipEval")) {
       try {
         bewertung = await runEvaluation(db, { budgetMs: 18_000 });
+        if (bewertung.failed > 0) {
+          await logFehler(db, [
+            {
+              quelle: "Bewertung (Claude)",
+              detail: `${bewertung.failed} fehlgeschlagen, ${bewertung.evaluated} ok`,
+              meldung: bewertung.fehlerbeispiele[0] ?? "unbekannt",
+            },
+          ]);
+        }
       } catch (error) {
         bewertung = { fehler: error instanceof Error ? error.message : String(error) };
+        await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: "Morgenlauf", meldung: bewertung.fehler }]);
       }
     }
 
@@ -52,7 +64,7 @@ export async function GET(request: Request) {
       .from("jobs")
       .select("uuid,title,employer_name,municipal,county,country,eval_fit,eval_summary,application_url,application_due")
       .eq("status", "ACTIVE")
-      .eq("source", "ba")
+      .in("source", AKTIVE_QUELLEN)
       .in("eval_fit", ["must_apply", "worth_reading"])
       .eq("app_status", "neu")
       .is("notified_at", null)
@@ -95,7 +107,13 @@ export async function GET(request: Request) {
       });
     }
 
-    await sendTelegram(buildMessage(jobs, `${base}/inbox`));
+    try {
+      await sendTelegram(buildMessage(jobs, `${base}/inbox`));
+    } catch (error) {
+      const meldung = error instanceof Error ? error.message : String(error);
+      await logFehler(db, [{ quelle: "Telegram", detail: "Morgenlauf", meldung }]);
+      return NextResponse.json({ ok: false, error: meldung, bewertung }, { status: 502 });
+    }
 
     await db
       .from("jobs")

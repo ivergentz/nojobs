@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { AKTIVE_QUELLEN } from "@/lib/quellen";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function EvalPage() {
     .from("jobs")
     .select("uuid,title,employer_name,label,eval_fit,eval_summary")
     .eq("status", "ACTIVE")
-    .eq("source", "ba")
+    .in("source", AKTIVE_QUELLEN)
     .not("label", "is", null)
     .not("evaluated_at", "is", null)
     .limit(500);

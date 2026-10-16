@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import LabelClient, { type LabelJob } from "./LabelClient";
+import { AKTIVE_QUELLEN } from "@/lib/quellen";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function LabelPage() {
       "uuid,title,employer_name,municipal,county,occupation_level1,sector,extent,application_due,application_url,description,published,salary_min_nok,salary_max_nok,salary_note"
     )
     .eq("status", "ACTIVE")
-    .eq("source", "ba")
+    .in("source", AKTIVE_QUELLEN)
     .is("label", null)
     .not("description", "is", null)
     .order("published", { ascending: false, nullsFirst: false })
@@ -44,7 +45,7 @@ export default async function LabelPage() {
   const { count: doneCount } = await db
     .from("jobs")
     .select("uuid", { count: "exact", head: true })
-    .eq("source", "ba")
+    .in("source", AKTIVE_QUELLEN)
     .not("label", "is", null);
 
   const jobs: LabelJob[] = (data ?? []).map((row) => ({

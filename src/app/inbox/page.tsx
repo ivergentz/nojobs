@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import InboxClient, { type InboxJob } from "./InboxClient";
+import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +19,10 @@ export default async function InboxPage() {
     db
       .from("jobs")
       .select(
-        "uuid,source,title,employer_name,municipal,county,country,sector,eval_fit,eval_confidence,eval_summary,eval_pros,eval_cons,application_due,application_url,salary_min_nok,salary_max_nok,salary_note,app_status,published"
+        "uuid,source,occupation_level1,title,employer_name,municipal,county,country,sector,eval_fit,eval_confidence,eval_summary,eval_pros,eval_cons,application_due,application_url,salary_min_nok,salary_max_nok,salary_note,app_status,published"
       )
       .eq("status", "ACTIVE")
-      .eq("source", "ba")
+      .in("source", AKTIVE_QUELLEN)
       .in("eval_fit", ["must_apply", "worth_reading"])
       .in("app_status", ["neu", "interessant", "beworben", "interview"])
       // "must_apply" sortiert alphabetisch vor "worth_reading".
@@ -32,7 +33,7 @@ export default async function InboxPage() {
       .from("jobs")
       .select("uuid", { count: "exact", head: true })
       .eq("status", "ACTIVE")
-      .eq("source", "ba")
+      .in("source", AKTIVE_QUELLEN)
       .is("evaluated_at", null),
   ]);
 
@@ -56,6 +57,10 @@ export default async function InboxPage() {
     salaryNote: (row.salary_note as string) ?? null,
     status: (row.app_status as string) ?? "neu",
     published: (row.published as string) ?? null,
+    quelle:
+      row.source === "google" && row.occupation_level1
+        ? `Google Jobs, ${String(row.occupation_level1)}`
+        : QUELLEN_NAME[row.source as string] ?? String(row.source),
   }));
 
   const neu = jobs.filter((job) => job.status === "neu").length;

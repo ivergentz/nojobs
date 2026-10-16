@@ -19,6 +19,8 @@ type State = {
   hamburg: number;
   remote: number;
   modell: string;
+  ausfaelle24h: number;
+  quellen: Record<string, number>;
   cursors: Array<{
     id: string;
     at_end: boolean | null;
@@ -141,9 +143,31 @@ export default function AdminClient() {
     await refresh();
   };
 
-  const importDe = () =>
-    loop(
-      "Import",
+  /** Alle Importe nacheinander. Fällt einer aus, laufen die anderen trotzdem. */
+  const importAlle = async () => {
+    if (!secret) {
+      say("Kein Secret eingetragen.", true);
+      return;
+    }
+    await loop(
+      "Karriereseiten",
+      () => `/api/import-ats?secret=${encodeURIComponent(secret)}`,
+      () => true,
+      (body) =>
+        `${body.gelesen ?? 0}/${body.firmen ?? 0} Firmen, ${body.passend ?? 0} passend, ${body.gespeichert ?? 0} neu` +
+        (body.fehler?.length ? ` · ${body.fehler.length} Firmen ausgefallen (siehe Log)` : "")
+    );
+    await loop(
+      "Google Jobs & Arbeitnow",
+      () => `/api/import-sammel?secret=${encodeURIComponent(secret)}`,
+      () => true,
+      (body) =>
+        `Google: ${body.googleStatus ?? "?"}, ${body.passend ?? 0} passend, ${body.doppelt ?? 0} doppelt, ${
+          body.gespeichert ?? 0
+        } neu` + (body.fehler?.length ? ` · ${body.fehler.length} Ausfälle (siehe Log)` : "")
+    );
+    await loop(
+      "Arbeitsagentur",
       () => `/api/import-de?secret=${encodeURIComponent(secret)}`,
       (body) => body.done === true,
       (body) =>
@@ -151,6 +175,7 @@ export default function AdminClient() {
         `${body.gespeichert ?? 0} neu gespeichert, ${body.offen ?? 0} offen` +
         (body.suchfehler?.length ? ` · Suchfehler: ${body.suchfehler[0]}` : "")
     );
+  };
 
   const daily = () =>
     loop(
@@ -199,7 +224,12 @@ export default function AdminClient() {
     );
 
   const zahl = (value: number) => new Intl.NumberFormat("de-DE").format(value);
-  const cursor = state?.cursors.find((entry) => entry.id === "de") ?? null;
+  const QUELLEN_LABEL: Record<string, string> = {
+    de: "Arbeitsagentur",
+    ats: "Karriereseiten",
+    google: "Google Jobs",
+    arbeitnow: "Arbeitnow",
+  };
 
   const button = "rounded border px-4 py-2 text-sm disabled:opacity-40";
 
@@ -243,10 +273,27 @@ export default function AdminClient() {
           </div>
 
           <p className="mt-6 text-xs text-muted">Bewertungsmodell: {state.modell}</p>
-          <p className="mt-1 text-xs text-muted">
-            Letzter Import: {wann(cursor?.last_run_at ?? null)}
-            {cursor?.last_note ? ` — ${cursor.last_note}` : ""}
-          </p>
+          <ul className="mt-2 space-y-1 text-xs text-muted">
+            {["ats", "google", "arbeitnow", "de"].map((id) => {
+              const cursor = state.cursors.find((entry) => entry.id === id);
+              const anzahl = state.quellen?.[id === "de" ? "ba" : id] ?? 0;
+              return (
+                <li key={id}>
+                  <span className="text-ink">{QUELLEN_LABEL[id]}</span> · {zahl(anzahl)} aktiv · zuletzt{" "}
+                  {wann(cursor?.last_run_at ?? null)}
+                  {cursor?.last_note ? ` — ${cursor.last_note}` : ""}
+                </li>
+              );
+            })}
+          </ul>
+          {state.ausfaelle24h > 0 && (
+            <p className="mt-3 text-sm text-drop">
+              {state.ausfaelle24h} Schnittstellen-Ausfälle in den letzten 24 Stunden —{" "}
+              <a href="/log" className="underline underline-offset-4">
+                Log ansehen
+              </a>
+            </p>
+          )}
         </section>
       )}
 
@@ -254,7 +301,7 @@ export default function AdminClient() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => void importDe()}
+            onClick={() => void importAlle()}
             disabled={Boolean(running)}
             className={`${button} border-ink`}
           >
