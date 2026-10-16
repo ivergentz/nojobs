@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type InboxJob = {
   uuid: string;
@@ -33,8 +33,24 @@ const STATUS: Array<{ key: string; label: string }> = [
   { key: "abgelegt", label: "Ablegen" },
 ];
 
-/** Diese Status verschwinden sofort aus der Liste. */
-const AUSGEBLENDET = ["abgelegt", "absage"];
+/** Reiter: jeder Status hat seine eigene Liste. */
+const REITER: Array<{ key: string; label: string }> = [
+  { key: "neu", label: "Neu" },
+  { key: "interessant", label: "Vorgemerkt" },
+  { key: "beworben", label: "Beworben" },
+  { key: "interview", label: "Interview" },
+  { key: "absage", label: "Absage" },
+  { key: "abgelegt", label: "Abgelegt" },
+];
+
+const LEER: Record<string, string> = {
+  neu: "Nichts Neues. Die Steuerung zeigt, ob Import und Bewertung gelaufen sind.",
+  interessant: "Noch nichts vorgemerkt.",
+  beworben: "Noch keine Bewerbung eingetragen.",
+  interview: "Noch keine Interviews — kommt.",
+  absage: "Keine Absagen eingetragen.",
+  abgelegt: "Nichts abgelegt.",
+};
 
 function salaryLine(job: InboxJob): string | null {
   if (job.salaryMin === null && job.salaryMax === null) return job.salaryNote;
@@ -54,6 +70,17 @@ function datum(value: string | null): string | null {
 export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
   const [state, setState] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState<string | null>(null);
+  const [reiter, setReiter] = useState("neu");
+
+  // Gewählten Reiter in der Adresse merken (#beworben), damit Neuladen ihn behält.
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (REITER.some((r) => r.key === hash)) setReiter(hash);
+  }, []);
+  const waehlen = (key: string) => {
+    setReiter(key);
+    window.history.replaceState(null, "", key === "neu" ? window.location.pathname : `#${key}`);
+  };
 
   const setStatus = async (uuid: string, status: string) => {
     const previous = state[uuid];
@@ -82,20 +109,39 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
     }
   };
 
-  const visible = jobs.filter((job) => !AUSGEBLENDET.includes(state[job.uuid] ?? job.status));
-
-  if (visible.length === 0) {
-    return (
-      <p className="mt-12 text-sm leading-relaxed">
-        Nichts Neues. Bei einer engen Suche ist das öfter der Normalfall, kein Fehler — die
-        Steuerung zeigt, ob Import und Bewertung gelaufen sind.
-      </p>
-    );
-  }
+  const statusVon = (job: InboxJob) => state[job.uuid] ?? job.status;
+  const anzahl = (key: string) => jobs.filter((job) => statusVon(job) === key).length;
+  const visible = jobs.filter((job) => statusVon(job) === reiter);
 
   return (
-    <div className="mt-4">
+    <div className="mt-6">
+      <nav
+        aria-label="Status"
+        className="-mx-6 flex gap-1 overflow-x-auto border-b border-rule px-6 text-sm"
+      >
+        {REITER.map((r) => {
+          const aktiv = r.key === reiter;
+          const n = anzahl(r.key);
+          return (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => waehlen(r.key)}
+              aria-current={aktiv ? "page" : undefined}
+              className={`-mb-px shrink-0 border-b-2 px-3 py-2 ${
+                aktiv ? "border-ink font-semibold" : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              {r.label}
+              <span className="tnum ml-1.5 text-xs text-muted">{n}</span>
+            </button>
+          );
+        })}
+      </nav>
+
       {failed && <p className="mt-4 text-sm text-drop">Nicht gespeichert: {failed}</p>}
+
+      {visible.length === 0 && <p className="mt-10 text-sm leading-relaxed">{LEER[reiter]}</p>}
 
       <ul>
         {visible.map((job) => {
@@ -182,7 +228,13 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
               </div>
 
               {status !== "neu" && (
-                <p className="mt-3 text-xs text-muted">Status: {status}</p>
+                <button
+                  type="button"
+                  onClick={() => void setStatus(job.uuid, "neu")}
+                  className="mt-3 text-xs text-muted underline underline-offset-4"
+                >
+                  zurück zu „Neu“
+                </button>
               )}
             </li>
           );

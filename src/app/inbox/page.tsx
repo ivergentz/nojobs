@@ -15,20 +15,31 @@ const asList = (value: unknown): string[] =>
 export default async function InboxPage() {
   const db = supabaseAdmin();
 
-  const [inbox, unbewertet] = await Promise.all([
+  const SPALTEN =
+    "uuid,source,occupation_level1,title,employer_name,municipal,county,country,sector,eval_fit,eval_confidence,eval_summary,eval_pros,eval_cons,application_due,application_url,salary_min_nok,salary_max_nok,salary_note,app_status,app_status_at,published";
+
+  const [neuQuery, verfolgtQuery, unbewertet] = await Promise.all([
+    // Reiter "Neu": aktive, positiv bewertete Stellen ohne Bearbeitung
     db
       .from("jobs")
-      .select(
-        "uuid,source,occupation_level1,title,employer_name,municipal,county,country,sector,eval_fit,eval_confidence,eval_summary,eval_pros,eval_cons,application_due,application_url,salary_min_nok,salary_max_nok,salary_note,app_status,published"
-      )
+      .select(SPALTEN)
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)
       .in("eval_fit", ["must_apply", "worth_reading"])
-      .in("app_status", ["neu", "interessant", "beworben", "interview"])
+      .eq("app_status", "neu")
       // "must_apply" sortiert alphabetisch vor "worth_reading".
       .order("eval_fit", { ascending: true })
       .order("published", { ascending: false, nullsFirst: false })
       .limit(150),
+    // Alle anderen Reiter: alles, was du angefasst hast — auch wenn die
+    // Anzeige inzwischen offline ist. Eine laufende Bewerbung darf nicht
+    // verschwinden, nur weil die Firma die Stelle vom Netz nimmt.
+    db
+      .from("jobs")
+      .select(SPALTEN)
+      .in("app_status", ["interessant", "beworben", "interview", "absage", "abgelegt"])
+      .order("app_status_at", { ascending: false, nullsFirst: false })
+      .limit(400),
     db
       .from("jobs")
       .select("uuid", { count: "exact", head: true })
@@ -36,6 +47,11 @@ export default async function InboxPage() {
       .in("source", AKTIVE_QUELLEN)
       .is("evaluated_at", null),
   ]);
+
+  const inbox = {
+    data: [...(neuQuery.data ?? []), ...(verfolgtQuery.data ?? [])],
+    error: neuQuery.error ?? verfolgtQuery.error,
+  };
 
   const jobs: InboxJob[] = (inbox.data ?? []).map((row) => ({
     uuid: row.uuid as string,
