@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import ApplicationClient from "./ApplicationClient";
+import FragenClient from "./FragenClient";
 import { CV_BASE, loadCv } from "@/lib/cv-source";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +68,13 @@ export default async function ApplicationPage({
         draft={(job.application_draft as any) ?? null}
         defaultLang="de"
         cvQuelle={cvQuelle}
+      />
+
+      <FragenClient
+        uuid={job.uuid as string}
+        initial={
+          Array.isArray((job.application_draft as any)?.fragen) ? (job.application_draft as any).fragen : []
+        }
       />
     </main>
   );

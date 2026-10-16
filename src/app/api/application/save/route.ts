@@ -10,9 +10,16 @@ export async function POST(request: Request) {
     if (!uuid || !draft) return NextResponse.json({ error: "uuid oder draft fehlt" }, { status: 400 });
 
     const db = supabaseAdmin();
+
+    // Die Formular-Fragen werden separat gepflegt (/api/application/frage) —
+    // beim Sichern des Anschreibens nicht überschreiben.
+    const { data: vorher } = await db.from("jobs").select("application_draft").eq("uuid", uuid).maybeSingle();
+    const fragen = (vorher?.application_draft as any)?.fragen;
+    const merged = fragen ? { ...(draft as Record<string, unknown>), fragen } : draft;
+
     const { error } = await db
       .from("jobs")
-      .update({ application_draft: draft, application_drafted_at: new Date().toISOString() })
+      .update({ application_draft: merged, application_drafted_at: new Date().toISOString() })
       .eq("uuid", uuid);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

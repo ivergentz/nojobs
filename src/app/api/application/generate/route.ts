@@ -35,6 +35,9 @@ export async function POST(request: Request) {
     if (vorher?.facts?.salary) {
       draft.facts = { ...draft.facts, salary: vorher.facts.salary };
     }
+    // Formular-Fragen bleiben beim Neuentwurf erhalten.
+    const fragen = (vorher as any)?.fragen;
+    if (Array.isArray(fragen)) (draft as any).fragen = fragen;
 
     const { error: writeError } = await db
       .from("jobs")
