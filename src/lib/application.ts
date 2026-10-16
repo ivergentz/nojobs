@@ -1,4 +1,4 @@
-import { callClaudeTool, DEFAULT_MODEL } from "./claude";
+import { callClaudeJson, DEFAULT_MODEL } from "./claude";
 import { cloneCv, loadCv, type Cv, type Lang } from "./cv-source";
 
 /**
@@ -87,7 +87,7 @@ LEBENSLAUF-ANPASSUNG (cvOverrides):
 
 hinweise: HÖCHSTENS DREI Sätze auf Deutsch an Iver — was du warum betont hast, und welche Lücke er im Gespräch erklären können muss.
 
-LÄNGEN SIND VERBINDLICH. Gib den Entwurf über das Werkzeug "entwurf" ab.`;
+LÄNGEN SIND VERBINDLICH. Antworte im vorgegebenen JSON-Format.`;
 
 const STR = { type: "string" };
 const LIST = { type: "array", items: STR };
@@ -111,7 +111,6 @@ const SCHEMA = {
         productOrder: LIST,
         bulletRewrites: {
           type: "array",
-          maxItems: 3,
           items: {
             type: "object",
             properties: {
@@ -123,10 +122,22 @@ const SCHEMA = {
           },
         },
       },
+      required: ["role", "tagline", "productOrder", "bulletRewrites"],
     },
     hinweise: LIST,
   },
-  required: ["recipient", "subject", "headline", "paragraphs", "cvOverrides", "hinweise"],
+  required: [
+    "role",
+    "recipient",
+    "subject",
+    "salutation",
+    "headline",
+    "paragraphs",
+    "closing",
+    "signOff",
+    "cvOverrides",
+    "hinweise",
+  ],
 };
 
 export async function draftApplication(input: {
@@ -139,7 +150,7 @@ export async function draftApplication(input: {
 
   const { cv } = await loadCv(input.lang);
 
-  const parsed = await callClaudeTool<Partial<ApplicationDraft>>({
+  const parsed = await callClaudeJson<Partial<ApplicationDraft>>({
     model: process.env.DRAFT_MODEL || DEFAULT_MODEL,
     system: `${RULES}\n\nIVERS LEBENSLAUF (${input.lang}, Stand ivergentz.de):\n${profileFor(cv)}`,
     user: [
@@ -151,8 +162,6 @@ export async function draftApplication(input: {
       "Ausschreibung:",
       input.description.slice(0, 12000),
     ].join("\n"),
-    toolName: "entwurf",
-    toolDescription: "Bewerbungsentwurf: Anschreiben und Anpassungen am Lebenslauf.",
     schema: SCHEMA,
     maxTokens: 8000,
     timeoutMs: CALL_TIMEOUT_MS,

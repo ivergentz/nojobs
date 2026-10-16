@@ -6,7 +6,7 @@
  * und Schweden. Es wird nicht mehr bewertet und nicht mehr geschrieben.
  */
 
-import { callClaudeTool, DEFAULT_MODEL } from "./claude";
+import { callClaudeJson, DEFAULT_MODEL } from "./claude";
 
 export { DEFAULT_MODEL };
 
@@ -76,7 +76,7 @@ Ein zu großzügiges worth_reading kostet Iver dreißig Sekunden Lesezeit. Ein f
 Deshalb: Bei Unsicherheit zwischen ignore und worth_reading immer worth_reading wählen.
 Bei der Grenze zwischen worth_reading und must_apply dagegen streng bleiben — must_apply heißt "hierauf bewerbe ich mich diese Woche".
 
-Gib dein Urteil über das Werkzeug "urteil" ab.`;
+Antworte im vorgegebenen JSON-Format.`;
 
 const SCHEMA = {
   type: "object",
@@ -84,8 +84,8 @@ const SCHEMA = {
     fit: { type: "string", enum: ["must_apply", "worth_reading", "ignore"] },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     summary: { type: "string", description: "Höchstens 40 Wörter, Deutsch." },
-    pros: { type: "array", items: { type: "string" }, maxItems: 4 },
-    cons: { type: "array", items: { type: "string" }, maxItems: 4 },
+    pros: { type: "array", items: { type: "string" } },
+    cons: { type: "array", items: { type: "string" } },
   },
   required: ["fit", "confidence", "summary", "pros", "cons"],
 };
@@ -104,7 +104,7 @@ export async function evaluateAd(input: {
   salary: string;
   description: string;
 }): Promise<Evaluation> {
-  const parsed = await callClaudeTool<Partial<Evaluation>>({
+  const parsed = await callClaudeJson<Partial<Evaluation>>({
     model: process.env.EVAL_MODEL || DEFAULT_MODEL,
     system: `${PROFILE}\n\n${RULES}`,
     user: [
@@ -118,8 +118,6 @@ export async function evaluateAd(input: {
       // Aufgaben, Anforderungen und Arbeitsmodell.
       input.description ? input.description.slice(0, 6000) : "(keine Beschreibung verfügbar)",
     ].join("\n"),
-    toolName: "urteil",
-    toolDescription: "Urteil zur Passung einer Stellenanzeige für Iver.",
     schema: SCHEMA,
     maxTokens: 1500,
     timeoutMs: CALL_TIMEOUT_MS,
