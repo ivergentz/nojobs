@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import ApplicationClient from "./ApplicationClient";
+import { CV_BASE, loadCv } from "@/lib/cv-source";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,11 @@ export default async function ApplicationPage({
 }) {
   const { uuid } = await params;
   const db = supabaseAdmin();
+  const { quelle } = await loadCv("de");
+  const cvQuelle =
+    quelle === "ivergentz.de"
+      ? `live von ${CV_BASE.replace(/^https?:\/\//, "")}`
+      : "Fallback-Kopie im Repo (ivergentz.de/cv.json nicht erreichbar)";
 
   const { data: job, error } = await db
     .from("jobs")
@@ -60,6 +66,7 @@ export default async function ApplicationPage({
         uuid={job.uuid as string}
         draft={(job.application_draft as any) ?? null}
         defaultLang="de"
+        cvQuelle={cvQuelle}
       />
     </main>
   );

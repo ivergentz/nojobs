@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorized } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_MODEL } from "@/lib/evaluate";
 import { runEvaluation } from "@/lib/run-evaluate";
@@ -20,9 +21,7 @@ const TIME_BUDGET_DEFAULT = 25_000;
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const secret = process.env.IMPORT_SECRET;
-  const fromCron = request.headers.get("x-vercel-cron") !== null;
-  if (secret && !fromCron && url.searchParams.get("secret") !== secret) {
+  if (!authorized(request)) {
     return NextResponse.json({ error: "nicht autorisiert" }, { status: 401 });
   }
 

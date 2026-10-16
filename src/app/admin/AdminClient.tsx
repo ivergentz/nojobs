@@ -178,18 +178,24 @@ export default function AdminClient() {
         (body.fehlerbeispiele?.length ? ` · ${body.fehlerbeispiele[0]}` : "")
     );
 
-  const notify = (dry: boolean) =>
+  const notify = (mode: "dry" | "test" | "full") =>
     loop(
-      dry ? "Telegram-Vorschau" : "Telegram senden",
+      mode === "dry" ? "Telegram-Vorschau" : mode === "test" ? "Telegram-Test" : "Morgenlauf",
       () =>
-        `/api/notify?secret=${encodeURIComponent(secret)}&skipEval=1` + (dry ? "&dry=1" : ""),
+        `/api/notify?secret=${encodeURIComponent(secret)}` +
+        (mode === "dry" ? "&skipEval=1&dry=1" : mode === "test" ? "&test=1" : ""),
       () => true,
       (body) =>
-        body.vorschau
-          ? body.vorschau.replace(/<[^>]+>/g, "").slice(0, 300)
-          : body.gesendet
-            ? `${body.stellen} Stellen gesendet`
-            : `nicht gesendet: ${body.grund ?? "?"}`
+        body.test
+          ? "Testnachricht gesendet — prüf Telegram"
+          : body.vorschau
+            ? body.vorschau.replace(/<[^>]+>/g, "").slice(0, 300)
+            : body.gesendet
+              ? `${body.stellen} Stellen gesendet`
+              : `nicht gesendet: ${body.grund ?? "?"}` +
+                (body.bewertung?.evaluated !== undefined
+                  ? ` · vorher ${body.bewertung.evaluated} bewertet`
+                  : "")
     );
 
   const zahl = (value: number) => new Intl.NumberFormat("de-DE").format(value);
@@ -298,11 +304,27 @@ export default function AdminClient() {
           </button>
           <button
             type="button"
-            onClick={() => void notify(true)}
+            onClick={() => void notify("dry")}
             disabled={Boolean(running)}
             className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
           >
             Telegram-Vorschau
+          </button>
+          <button
+            type="button"
+            onClick={() => void notify("test")}
+            disabled={Boolean(running)}
+            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+          >
+            Telegram-Test senden
+          </button>
+          <button
+            type="button"
+            onClick={() => void notify("full")}
+            disabled={Boolean(running)}
+            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+          >
+            Morgenlauf testen
           </button>
 
           {running && (

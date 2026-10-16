@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorized } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { buildMessage, findChatId, sendTelegram, type NotifyJob } from "@/lib/notify";
 import { runEvaluation } from "@/lib/run-evaluate";
@@ -14,18 +15,26 @@ export const maxDuration = 60;
  * ?skipEval=1  — nur benachrichtigen
  * ?dry=1       — Nachricht nur anzeigen, nicht senden
  * ?chatid=1    — Einrichtungshilfe: Chat-ID des Bots
+ * ?test=1      — Testnachricht senden (prüft Token und Chat-ID)
+ *
+ * Geschickt wird nur, wenn mindestens eine Stelle auf "Bewerben" steht —
+ * ein täglicher Leerlauf-Ping wäre der schnellste Weg, die Nachrichten
+ * wegzuignorieren. Die Antwort sagt immer, warum nichts kam.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const secret = process.env.IMPORT_SECRET;
-  const fromCron = request.headers.get("x-vercel-cron") !== null;
-  if (secret && !fromCron && url.searchParams.get("secret") !== secret) {
+  if (!authorized(request)) {
     return NextResponse.json({ error: "nicht autorisiert" }, { status: 401 });
   }
 
   try {
     if (url.searchParams.get("chatid")) {
       return NextResponse.json({ ok: true, chats: await findChatId() });
+    }
+
+    if (url.searchParams.get("test")) {
+      await sendTelegram("✅ Career Inbox: Testnachricht. Token und Chat-ID funktionieren.");
+      return NextResponse.json({ ok: true, gesendet: true, test: true });
     }
 
     const db = supabaseAdmin();

@@ -3,6 +3,7 @@ import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { supabaseAdmin } from "@/lib/supabase";
 import { applyOverrides, type ApplicationDraft } from "@/lib/application";
+import { loadCv } from "@/lib/cv-source";
 import CvDocument from "@/lib/pdf/CvDocument";
 import LetterDocument from "@/lib/pdf/LetterDocument";
 
@@ -15,14 +16,16 @@ function slug(value: string): string {
     .replace(/[äàáâ]/g, "a")
     .replace(/[öòóô]/g, "o")
     .replace(/[üùúû]/g, "u")
-    .replace(/[åæ]/g, "a")
-    .replace(/ø/g, "o")
     .replace(/ß/g, "ss")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 50);
 }
 
+/**
+ * ?uuid=…&doc=letter|cv
+ * Lebenslauf, Schriften und Foto kommen live von ivergentz.de.
+ */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const uuid = url.searchParams.get("uuid");
@@ -44,28 +47,31 @@ export async function GET(request: Request) {
     }
 
     const draft = job.application_draft as ApplicationDraft;
+    const lang = draft.lang === "en" ? "en" : "de";
+    const { cv, quelle } = await loadCv(lang);
+
     const element =
       doc === "cv"
-        ? React.createElement(CvDocument, {
-            cv: applyOverrides(draft.lang, draft.cvOverrides ?? {}),
-            lang: draft.lang,
-          })
-        : React.createElement(LetterDocument, { data: draft });
+        ? React.createElement(CvDocument, { cv: applyOverrides(cv, draft.cvOverrides ?? {}), lang })
+        : React.createElement(LetterDocument, { data: draft, cv });
 
     const buffer = await renderToBuffer(element as any);
-    const name = `${doc === "cv" ? "CV" : draft.lang === "de" ? "Anschreiben" : "Cover-Letter"}_Iver-Bohnes_${slug(
-      (job.employer_name as string) ?? "bewerbung"
-    )}.pdf`;
+    const firma = slug((job.employer_name as string) ?? "bewerbung");
+    const name =
+      doc === "cv"
+        ? `${lang === "de" ? "Lebenslauf" : "CV"}_Iver_Bohnes_${firma}.pdf`
+        : `${lang === "de" ? "Anschreiben" : "Cover_Letter"}_Iver_Bohnes_${firma}.pdf`;
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${name}"`,
         "Cache-Control": "no-store",
+        "X-CV-Quelle": quelle,
       },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: `PDF fehlgeschlagen: ${message}` }, { status: 500 });
   }
 }

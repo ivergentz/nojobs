@@ -1,295 +1,246 @@
-import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import React from "react";
+import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
+import type { Cv } from "../cv-source";
+import { COLORS, portraitUrl, registerFonts } from "./fonts";
 
 /**
- * CVPdfDocument — A4, white base, crimson accent.
- *
- * v1.3.8 layout restoration:
- *   - Two-page target layout matching the prior PDF behaviour:
- *     Page 1 = Header + Tagline + ALL THREE products with bullets
- *     Page 2 = Experience + Education + Skills + Languages
- *   - Per-row `wrap={false}` removed so bullets stay with their parent
- *     row even if the row pushes near a page edge — the row will move
- *     to the next page as a unit instead of leaving the heading orphaned.
- *   - Hard page break before Experience removed — let pdf-renderer place
- *     the section naturally.
- *   - Reduced section spacing slightly so two pages fit more reliably.
+ * Lebenslauf im Design von ivergentz.de — dieselbe Vorlage wie der
+ * PDF-Export der Website (CVPdfDocument.js): Oswald + Bodoni + Newsreader +
+ * Plex, Crimson-Akzent, Label-Spalte links, Inhalt rechts. Zwei Seiten.
  */
 
-const CRIMSON = '#DC143C';
-const INK = '#0A0A0A';
-const FG = '#141414';
-const MUTED = '#6B6B66';
-const HAIRLINE = '#D6D4CC';
-const PAPER = '#FFFFFF';
+registerFonts();
 
-const styles = StyleSheet.create({
+const { ink: INK, soft: SOFT, mute: MUTE, accent: ACCENT, line: LINE } = COLORS;
+const LABEL_W = 108;
+
+const s = StyleSheet.create({
   page: {
-    backgroundColor: PAPER,
-    paddingTop: 36,
-    paddingBottom: 36,
-    paddingHorizontal: 48,
-    fontFamily: 'Helvetica',
-    fontSize: 10,
-    color: FG,
-    lineHeight: 1.45,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 34,
+    paddingBottom: 46,
+    paddingHorizontal: 46,
+    fontFamily: "Newsreader",
+    fontSize: 9.8,
+    lineHeight: 1.4,
+    color: SOFT,
   },
   header: {
+    flexDirection: "row",
+    alignItems: "flex-end",
     paddingBottom: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: HAIRLINE,
-    marginBottom: 16,
+    borderBottomWidth: 2.5,
+    borderBottomColor: INK,
   },
-  name: {
-    fontFamily: 'Times-Roman',
-    fontSize: 34,
-    lineHeight: 1.15,
-    color: INK,
-    marginBottom: 6,
-  },
-  role: {
-    fontFamily: 'Times-Italic',
-    fontSize: 13,
-    lineHeight: 1.3,
-    color: FG,
-    marginBottom: 10,
-  },
-  meta: {
-    fontSize: 8.5,
-    color: MUTED,
-    fontFamily: 'Courier',
-  },
-  tagline: {
-    fontFamily: 'Times-Italic',
-    fontSize: 11.5,
-    color: FG,
-    marginBottom: 18,
-    lineHeight: 1.45,
-  },
+  headerText: { flex: 1, paddingRight: 20 },
+  nameRow: { flexDirection: "row" },
+  name: { fontFamily: "Oswald", fontWeight: 700, fontSize: 40, color: INK, lineHeight: 1.05 },
+  nameB: { fontFamily: "Oswald", fontWeight: 700, fontSize: 40, color: ACCENT, lineHeight: 1.05 },
+  former: { fontFamily: "Bodoni", fontStyle: "italic", fontSize: 11.5, color: MUTE, marginTop: 7 },
+  role: { fontFamily: "Oswald", fontWeight: 600, fontSize: 11.5, letterSpacing: 0.6, color: ACCENT, marginTop: 6 },
+  contact: { flexDirection: "row", flexWrap: "wrap", marginTop: 9, fontFamily: "Plex", fontSize: 8.2, color: SOFT },
+  dot: { color: MUTE, marginHorizontal: 5 },
+  photo: { width: 70, height: 87.5, objectFit: "cover", borderRadius: 1.5 },
 
-  sectionLabelWrap: {
-    flexDirection: 'row',
+  section: { flexDirection: "row", paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: LINE },
+  sectionLast: { borderBottomWidth: 0 },
+  label: {
+    width: LABEL_W,
+    paddingRight: 12,
+    fontFamily: "Plex",
+    fontWeight: 600,
+    fontSize: 7.2,
+    letterSpacing: 1.1,
+    color: ACCENT,
+    paddingTop: 3,
+  },
+  labelNote: {
+    fontFamily: "Bodoni",
+    fontStyle: "italic",
+    fontWeight: 400,
+    fontSize: 8.6,
+    letterSpacing: 0,
+    color: MUTE,
     marginTop: 4,
-    marginBottom: 10,
-  },
-  sectionLabel: {
-    fontFamily: 'Courier-Bold',
-    fontSize: 8,
-    color: PAPER,
-    backgroundColor: CRIMSON,
-    paddingTop: 2,
-    paddingBottom: 2,
-    paddingLeft: 6,
-    paddingRight: 6,
-    letterSpacing: 1.5,
-  },
-
-  /* Two-column row: 100px period | flex body */
-  row: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  period: {
-    width: 100,
-    fontFamily: 'Courier',
-    fontSize: 8.5,
-    color: MUTED,
-    paddingTop: 2,
     lineHeight: 1.4,
   },
-  periodStatus: {
-    color: MUTED,
-    fontFamily: 'Courier',
-    fontSize: 8,
-    marginTop: 1,
-  },
-  body: { flex: 1 },
+  content: { flex: 1 },
+  lead: { fontFamily: "Newsreader", fontSize: 11.4, lineHeight: 1.36, color: INK },
 
-  /* Product variants */
-  productName: {
-    fontFamily: 'Times-Roman',
-    fontSize: 15,
-    lineHeight: 1.25,
-    color: INK,
-    marginBottom: 3,
-  },
-  productUrlWrap: {
-    flexDirection: 'row',
-    marginBottom: 5,
-  },
-  productUrl: {
-    fontFamily: 'Courier',
-    fontSize: 8,
-    color: PAPER,
-    backgroundColor: CRIMSON,
-    paddingTop: 1,
-    paddingBottom: 1,
-    paddingLeft: 4,
-    paddingRight: 4,
-  },
+  compRow: { marginBottom: 6 },
+  compLabel: { fontFamily: "Oswald", fontWeight: 600, fontSize: 9.6, letterSpacing: 0.3, lineHeight: 1.3, color: INK, marginBottom: 1 },
+  compItems: { fontSize: 9.3, color: SOFT, lineHeight: 1.36 },
 
-  /* Experience variants */
-  title: {
-    fontFamily: 'Times-Roman',
-    fontSize: 12,
-    lineHeight: 1.25,
-    color: FG,
-    marginBottom: 3,
+  entry: { marginBottom: 7 },
+  entryHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+  title: { fontFamily: "Oswald", fontWeight: 600, fontSize: 11.8, lineHeight: 1.25, color: INK, flex: 1, paddingRight: 10, letterSpacing: 0.2 },
+  period: { fontFamily: "PlexMono", fontSize: 7.8, color: MUTE },
+  sub: { fontFamily: "Plex", fontWeight: 600, fontSize: 7.2, letterSpacing: 0.8, color: SOFT, marginTop: 2 },
+  status: { fontFamily: "Plex", fontSize: 7.2, fontWeight: 600, letterSpacing: 0.8, color: ACCENT },
+
+  bullets: { marginTop: 3 },
+  bullet: { flexDirection: "row", marginBottom: 2 },
+  bulletMark: { width: 10, paddingTop: 4.4 },
+  bulletLine: { width: 3.6, height: 3.6, backgroundColor: ACCENT },
+  bulletText: { flex: 1, fontSize: 9.3, lineHeight: 1.34, color: SOFT },
+
+  langs: { flexDirection: "row", flexWrap: "wrap" },
+  lang: { width: "50%", flexDirection: "row", marginBottom: 3 },
+  langName: { fontSize: 10, color: INK, marginRight: 6 },
+  langLevel: { fontSize: 10, fontStyle: "italic", color: MUTE },
+
+  footer: {
+    position: "absolute",
+    left: 46,
+    right: 46,
+    bottom: 22,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    fontFamily: "Plex",
+    fontSize: 7.2,
+    color: MUTE,
   },
-  company: {
-    fontSize: 9.5,
-    color: MUTED,
-    marginBottom: 4,
-  },
-
-  bulletList: { marginTop: 1 },
-  bullet: { flexDirection: 'row', marginBottom: 2 },
-  bulletMark: { width: 10, color: CRIMSON, fontSize: 9.5 },
-  bulletText: { flex: 1, fontSize: 9.5, lineHeight: 1.4, color: FG },
-
-  stack: {
-    fontFamily: 'Courier',
-    fontSize: 7.5,
-    color: MUTED,
-    marginTop: 4,
-  },
-
-  /* Education */
-  eduTitle: { fontFamily: 'Times-Roman', fontSize: 11, lineHeight: 1.3, color: FG },
-  eduSchool: { fontSize: 8.5, color: MUTED },
-
-  /* Skills grid */
-  skillsGrid: { flexDirection: 'row', gap: 14 },
-  skillCol: { flex: 1 },
-  skillLabel: {
-    fontFamily: 'Courier',
-    fontSize: 7,
-    color: CRIMSON,
-    marginBottom: 2,
-    letterSpacing: 1,
-  },
-  skillItems: { fontSize: 9, color: FG, lineHeight: 1.4 },
-
-  /* Languages */
-  /* Vier Sprachen passen nicht mehr nebeneinander — zweispaltig umbrechen. */
-  langGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  langItem: { flexBasis: '45%', flexDirection: 'row', marginBottom: 3 },
-  langName: { fontSize: 10, color: FG, marginRight: 6 },
-  langLevel: { fontSize: 9.5, color: MUTED },
 });
 
-export default function CvDocument({ cv, lang }: { cv: any; lang: string }) {
+function Section({
+  label,
+  note,
+  last,
+  keep,
+  children,
+}: {
+  label: string;
+  note?: string;
+  last?: boolean;
+  keep?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[s.section, last ? s.sectionLast : {}]} wrap={!keep}>
+      <View style={s.label}>
+        <Text>{label.toUpperCase()}</Text>
+        {note ? <Text style={s.labelNote}>{note}</Text> : null}
+      </View>
+      <View style={s.content}>{children}</View>
+    </View>
+  );
+}
+
+function Bullets({ items }: { items: string[] }) {
+  return (
+    <View style={s.bullets}>
+      {items.map((b, i) => (
+        <View key={i} style={s.bullet}>
+          <View style={s.bulletMark}>
+            <View style={s.bulletLine} />
+          </View>
+          <Text style={s.bulletText}>{b}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export default function CvDocument({ cv, lang }: { cv: Cv; lang: "de" | "en" }) {
+  const L = cv.labels;
+  const c = cv.contact;
   return (
     <Document
-      title={lang === 'de' ? 'Lebenslauf — Iver Bohnes' : 'CV — Iver Bohnes'}
+      title={lang === "de" ? "Lebenslauf — Iver Bohnes" : "CV — Iver Bohnes"}
       author="Iver Bohnes"
+      subject={cv.role}
+      language={lang}
     >
-      <Page size="A4" style={styles.page} wrap>
-        {/* === Compact header (top of page 1, no longer fixed) === */}
-        <View style={styles.header}>
-          <Text style={styles.name}>Iver Bohnes</Text>
-          <Text style={styles.role}>{cv.role}</Text>
-          <Text style={styles.meta}>
-            Hamburg, Deutschland  ·  iverbohnes@gmail.com  ·  +49 176 66631237  ·  ivergentz.de
-          </Text>
-        </View>
-
-        <Text style={styles.tagline}>{cv.tagline}</Text>
-
-        {/* === Products — each row stays together as a unit === */}
-        <View style={styles.sectionLabelWrap}>
-          <Text style={styles.sectionLabel}>{cv.labels.products.toUpperCase()}</Text>
-        </View>
-        {cv.products.map((p: any, i: number) => (
-          <View key={i} style={styles.row}>
-            <View style={styles.period}>
-              <Text>{p.period}</Text>
-              <Text style={styles.periodStatus}>{p.status}</Text>
+      <Page size="A4" style={s.page}>
+        <View style={s.header}>
+          <View style={s.headerText}>
+            <View style={s.nameRow}>
+              <Text style={s.name}>IVER </Text>
+              <Text style={s.nameB}>BOHNES</Text>
             </View>
-            <View style={styles.body}>
-              <Text style={styles.productName}>{p.name}</Text>
-              <View style={styles.productUrlWrap}>
-                <Text style={styles.productUrl}>{p.url}</Text>
-              </View>
-              <View style={styles.bulletList}>
-                {p.bullets.map((b: any, j: number) => (
-                  <View key={j} style={styles.bullet}>
-                    <Text style={styles.bulletMark}>—</Text>
-                    <Text style={styles.bulletText}>{b}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.stack}>{p.stack}</Text>
+            <Text style={s.former}>{cv.formerName}</Text>
+            <Text style={s.role}>{cv.role}</Text>
+            <View style={s.contact}>
+              <Text>{c.location}</Text>
+              <Text style={s.dot}>·</Text>
+              <Text>{c.email}</Text>
+              <Text style={s.dot}>·</Text>
+              <Text>{c.phone}</Text>
+              <Text style={s.dot}>·</Text>
+              <Text>{c.web}</Text>
             </View>
           </View>
-        ))}
-
-        {/* === Experience — natural flow, lands on page 2 === */}
-        <View style={styles.sectionLabelWrap}>
-          <Text style={styles.sectionLabel}>{cv.labels.experience.toUpperCase()}</Text>
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          <Image style={s.photo} src={portraitUrl()} />
         </View>
-        {cv.experience.map((e: any, i: number) => (
-          <View key={i} style={styles.row} wrap={false}>
-            <View style={styles.period}>
-              <Text>{e.period}</Text>
-            </View>
-            <View style={styles.body}>
-              <Text style={styles.title}>{e.title}</Text>
-              <Text style={styles.company}>{e.company}</Text>
-              <View style={styles.bulletList}>
-                {e.bullets.map((b: any, j: number) => (
-                  <View key={j} style={styles.bullet}>
-                    <Text style={styles.bulletMark}>—</Text>
-                    <Text style={styles.bulletText}>{b}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        ))}
 
-        {/* === Education === */}
-        <View style={styles.sectionLabelWrap}>
-          <Text style={styles.sectionLabel}>{cv.labels.education.toUpperCase()}</Text>
-        </View>
-        {cv.education.map((e: any, i: number) => (
-          <View key={i} style={styles.row} wrap={false}>
-            <View style={styles.period}>
-              <Text>{e.period}</Text>
-            </View>
-            <View style={styles.body}>
-              <Text style={styles.eduTitle}>{e.title}</Text>
-              <Text style={styles.eduSchool}>{e.school}</Text>
-            </View>
-          </View>
-        ))}
+        <Section label={L.profile}>
+          <Text style={s.lead}>{cv.tagline}</Text>
+        </Section>
 
-        {/* === Skills === */}
-        <View style={styles.sectionLabelWrap}>
-          <Text style={styles.sectionLabel}>{cv.labels.skills.toUpperCase()}</Text>
-        </View>
-        <View style={styles.skillsGrid} wrap={false}>
-          {cv.skills.map((s: any, i: number) => (
-            <View key={i} style={styles.skillCol}>
-              <Text style={styles.skillLabel}>{s.label}</Text>
-              <Text style={styles.skillItems}>{s.items}</Text>
+        <Section label={L.competencies}>
+          {cv.competencies.map((k) => (
+            <View key={k.label} style={s.compRow}>
+              <Text style={s.compLabel}>{k.label.toUpperCase()}</Text>
+              <Text style={s.compItems}>{k.items}</Text>
             </View>
           ))}
-        </View>
+        </Section>
 
-        {/* === Languages === */}
-        <View style={{ marginTop: 12 }}>
-          <View style={styles.sectionLabelWrap}>
-            <Text style={styles.sectionLabel}>{cv.labels.languages.toUpperCase()}</Text>
-          </View>
-          <View style={styles.langGrid} wrap={false}>
-            {cv.languages.map((l: any, i: number) => (
-              <View key={i} style={styles.langItem}>
-                <Text style={styles.langName}>{l.name}</Text>
-                <Text style={styles.langLevel}>— {l.level}</Text>
+        <Section label={L.experience}>
+          {cv.experience.map((e) => (
+            <View key={e.period + e.title} style={s.entry} wrap={false}>
+              <View style={s.entryHead}>
+                <Text style={s.title}>{e.title.toUpperCase()}</Text>
+                <Text style={s.period}>{e.period}</Text>
+              </View>
+              <Text style={s.sub}>{e.company.toUpperCase()}</Text>
+              <Bullets items={e.bullets} />
+            </View>
+          ))}
+        </Section>
+
+        <Section label={L.products} note={L.productsNote}>
+          {cv.products.map((p) => (
+            <View key={p.name} style={s.entry} wrap={false}>
+              <View style={s.entryHead}>
+                <Text style={s.title}>{p.name.toUpperCase()}</Text>
+                <Text style={s.status}>{p.status.toUpperCase()}</Text>
+              </View>
+              <Text style={s.sub}>{p.url.toUpperCase()}</Text>
+              <Bullets items={p.bullets} />
+            </View>
+          ))}
+        </Section>
+
+        <Section label={L.education}>
+          {cv.education.map((e) => (
+            <View key={e.title} style={s.entry} wrap={false}>
+              <View style={s.entryHead}>
+                <Text style={[s.title, { fontSize: 10.8 }]}>{e.title.toUpperCase()}</Text>
+                <Text style={s.period}>{e.period}</Text>
+              </View>
+              <Text style={s.sub}>{e.school.toUpperCase()}</Text>
+            </View>
+          ))}
+        </Section>
+
+        <Section label={L.languages} last keep>
+          <View style={s.langs}>
+            {cv.languages.map((l) => (
+              <View key={l.name} style={s.lang}>
+                <Text style={s.langName}>{l.name}</Text>
+                <Text style={s.langLevel}>{l.level}</Text>
               </View>
             ))}
           </View>
+        </Section>
+
+        <View style={s.footer} fixed>
+          <Text>
+            Iver Bohnes ({cv.formerName}) — {lang === "de" ? "Lebenslauf" : "Curriculum vitae"}
+          </Text>
+          <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
     </Document>

@@ -10,6 +10,9 @@ type Draft = {
   headline: string;
   paragraphs: string[];
   signOff: string;
+  salutation?: string;
+  closing?: string;
+  facts?: { salary?: string; notice?: string };
   cvOverrides: Record<string, unknown>;
   hinweise: string[];
 };
@@ -18,10 +21,12 @@ export default function ApplicationClient({
   uuid,
   draft: initial,
   defaultLang,
+  cvQuelle,
 }: {
   uuid: string;
   draft: Draft | null;
   defaultLang: "de" | "en";
+  cvQuelle: string;
 }) {
   const [draft, setDraft] = useState<Draft | null>(initial);
   const [lang, setLang] = useState<"de" | "en">(initial?.lang ?? defaultLang);
@@ -106,6 +111,7 @@ export default function ApplicationClient({
           Der Entwurf ist ein Entwurf. Lies ihn durch und ändere, was nicht nach dir klingt, bevor
           du die PDFs herunterlädst — im Gespräch musst du jeden Satz vertreten können.
         </p>
+        <p className="mt-3 text-xs text-muted">Lebenslauf und Design: {cvQuelle}</p>
       </div>
     );
   }
@@ -143,7 +149,16 @@ export default function ApplicationClient({
       </label>
 
       <label className="block">
-        <span className="text-sm text-muted">Aufmacher</span>
+        <span className="text-sm text-muted">Anrede</span>
+        <input
+          value={draft.salutation ?? ""}
+          onChange={(event) => patch({ salutation: event.target.value })}
+          className="mt-2 w-full rounded border border-rule bg-transparent px-3 py-2 text-sm"
+        />
+      </label>
+
+      <label className="block">
+        <span className="text-sm text-muted">Aufmacher (kursiv, direkt nach der Anrede)</span>
         <input
           value={draft.headline}
           onChange={(event) => patch({ headline: event.target.value })}
@@ -169,8 +184,38 @@ export default function ApplicationClient({
           ))}
         </div>
         <p className="mt-2 text-xs text-muted">
-          {draft.paragraphs.join(" ").split(/\s+/).filter(Boolean).length} Wörter
+          {[draft.headline, ...draft.paragraphs].join(" ").split(/\s+/).filter(Boolean).length} Wörter
+          · **Einstieg.** am Absatzanfang erscheint im PDF fett in Versalien
         </p>
+      </div>
+
+      <label className="block">
+        <span className="text-sm text-muted">Schlusssatz</span>
+        <input
+          value={draft.closing ?? ""}
+          onChange={(event) => patch({ closing: event.target.value })}
+          className="mt-2 w-full rounded border border-rule bg-transparent px-3 py-2 text-sm"
+        />
+      </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-sm text-muted">Gehaltsvorstellung (leer = nicht nennen)</span>
+          <input
+            value={draft.facts?.salary ?? ""}
+            onChange={(event) => patch({ facts: { ...draft.facts, salary: event.target.value } })}
+            placeholder="z. B. 88.000 € brutto p. a. (fix)"
+            className="mt-2 w-full rounded border border-rule bg-transparent px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="block">
+          <span className="text-sm text-muted">Kündigungsfrist (leer = nicht nennen)</span>
+          <input
+            value={draft.facts?.notice ?? ""}
+            onChange={(event) => patch({ facts: { ...draft.facts, notice: event.target.value } })}
+            className="mt-2 w-full rounded border border-rule bg-transparent px-3 py-2 text-sm"
+          />
+        </label>
       </div>
 
       <label className="block">
@@ -225,6 +270,7 @@ export default function ApplicationClient({
         </p>
       )}
       {failed && <p className="text-sm text-drop">{failed}</p>}
+      <p className="text-xs text-muted">Lebenslauf und Design: {cvQuelle}</p>
     </div>
   );
 }

@@ -1,72 +1,91 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import type { Cv } from "../cv-source";
+import { COLORS, registerFonts } from "./fonts";
 
 /**
- * Anschreiben im selben Layout wie der Lebenslauf.
+ * Anschreiben im Design von ivergentz.de, passend zum Lebenslauf:
+ * Kopf mit IVER BOHNES (Bohnes in Crimson), "geb. Gentz", Rolle, Kontakt rechts;
+ * Betreff in Oswald, Aufmacher kursiv in Bodoni, Fließtext in Newsreader.
  *
- * Gleiche Tokens wie CVPdfDocument: Crimson-Akzent, Times für Überschriften,
- * Courier für Metazeilen, Helvetica für Fließtext. Nur Standard-PDF-Schriften,
- * deshalb keine Schriftdateien nötig.
+ * Absätze dürfen mit einem fett markierten Einstieg beginnen:
+ *   "**Eine KI-Initiative aufbauen.** Bei der VBG …"
+ * Der Teil zwischen ** erscheint in Oswald-Versalien.
+ *
+ * Gehaltsvorstellung und Kündigungsfrist stehen als Faktenzeile über dem Gruß,
+ * sofern ausgefüllt.
  */
 
-const CRIMSON = "#DC143C";
-const INK = "#0A0A0A";
-const FG = "#141414";
-const MUTED = "#6B6B66";
-const HAIRLINE = "#D6D4CC";
-const PAPER = "#FFFFFF";
+registerFonts();
 
-const styles = StyleSheet.create({
+const { ink: INK, soft: SOFT, mute: MUTE, accent: ACCENT, line: LINE } = COLORS;
+
+const s = StyleSheet.create({
   page: {
-    backgroundColor: PAPER,
-    paddingTop: 36,
-    paddingBottom: 36,
-    paddingHorizontal: 48,
-    fontFamily: "Helvetica",
-    fontSize: 10,
-    color: FG,
-    lineHeight: 1.55,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 44,
+    paddingBottom: 40,
+    paddingHorizontal: 54,
+    fontFamily: "Newsreader",
+    fontSize: 10.4,
+    lineHeight: 1.42,
+    color: SOFT,
   },
-  header: {
-    paddingBottom: 14,
+  head: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    borderBottomWidth: 2.5,
+    borderBottomColor: INK,
+    paddingBottom: 11,
+  },
+  nameRow: { flexDirection: "row" },
+  name: { fontFamily: "Oswald", fontWeight: 700, fontSize: 34, lineHeight: 1, color: INK },
+  nameB: { fontFamily: "Oswald", fontWeight: 700, fontSize: 34, lineHeight: 1, color: ACCENT },
+  former: { fontFamily: "Bodoni", fontStyle: "italic", fontSize: 11, color: MUTE, marginTop: 8 },
+  role: { fontFamily: "Oswald", fontWeight: 600, fontSize: 10.5, letterSpacing: 0.6, color: ACCENT, marginTop: 4 },
+  contact: { fontFamily: "Plex", fontSize: 7.8, color: SOFT, textAlign: "right", lineHeight: 1.6 },
+
+  meta: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20, marginBottom: 17 },
+  to: { fontFamily: "Plex", fontSize: 8.6, color: INK, lineHeight: 1.5 },
+  date: { fontFamily: "Plex", fontSize: 8, color: MUTE },
+
+  kicker: { fontFamily: "Plex", fontWeight: 600, fontSize: 7, letterSpacing: 1.4, color: ACCENT, marginBottom: 4 },
+  subject: { fontFamily: "Oswald", fontWeight: 600, fontSize: 20, lineHeight: 1.05, color: INK, marginBottom: 14 },
+
+  salutation: { marginBottom: 7 },
+  lead: { fontFamily: "Bodoni", fontStyle: "italic", fontSize: 13.5, lineHeight: 1.3, color: INK, marginBottom: 10 },
+  p: { marginBottom: 7 },
+  b: { fontFamily: "Oswald", fontWeight: 600, fontSize: 9.6, letterSpacing: 0.3, color: INK },
+
+  facts: {
+    flexDirection: "row",
+    borderTopWidth: 2,
+    borderTopColor: INK,
     borderBottomWidth: 0.5,
-    borderBottomColor: HAIRLINE,
-    marginBottom: 20,
+    borderBottomColor: LINE,
+    paddingVertical: 6,
+    marginTop: 4,
+    marginBottom: 11,
   },
-  name: { fontFamily: "Times-Roman", fontSize: 34, lineHeight: 1.15, color: INK, marginBottom: 6 },
-  role: { fontFamily: "Times-Italic", fontSize: 13, lineHeight: 1.3, color: FG, marginBottom: 10 },
-  meta: { fontSize: 8.5, color: MUTED, fontFamily: "Courier" },
+  fact: { flexDirection: "row", alignItems: "center", marginRight: 28 },
+  factLabel: { fontFamily: "Plex", fontWeight: 600, fontSize: 7, letterSpacing: 0.9, color: ACCENT, marginRight: 6 },
+  factValue: { fontFamily: "Plex", fontWeight: 500, fontSize: 8.2, color: INK },
 
-  recipientBlock: { marginBottom: 22 },
-  recipient: { fontSize: 10, color: FG, lineHeight: 1.5 },
-  dateLine: { fontFamily: "Courier", fontSize: 8.5, color: MUTED, marginTop: 14 },
+  closing: { marginBottom: 7 },
+  greet: { marginTop: 6 },
+  signRow: { flexDirection: "row", marginTop: 3 },
+  sign: { fontFamily: "Oswald", fontWeight: 700, fontSize: 18, color: INK },
+  signB: { fontFamily: "Oswald", fontWeight: 700, fontSize: 18, color: ACCENT },
 
-  subjectWrap: { flexDirection: "row", marginBottom: 16 },
-  subject: {
-    fontFamily: "Courier-Bold",
-    fontSize: 8,
-    color: PAPER,
-    backgroundColor: CRIMSON,
-    paddingTop: 2,
-    paddingBottom: 2,
-    paddingLeft: 6,
-    paddingRight: 6,
-    letterSpacing: 1.5,
-  },
-
-  headline: { fontFamily: "Times-Roman", fontSize: 15, lineHeight: 1.3, color: INK, marginBottom: 12 },
-  paragraph: { fontSize: 10, color: FG, lineHeight: 1.55, marginBottom: 10 },
-
-  signOff: { marginTop: 18, fontSize: 10, color: FG },
-  signature: { fontFamily: "Times-Roman", fontSize: 14, lineHeight: 1.3, color: INK, marginTop: 10 },
   footer: {
-    marginTop: 26,
-    paddingTop: 10,
-    borderTopWidth: 0.5,
-    borderTopColor: HAIRLINE,
-    fontFamily: "Courier",
-    fontSize: 7.5,
-    color: MUTED,
+    position: "absolute",
+    left: 54,
+    right: 54,
+    bottom: 24,
+    fontFamily: "Plex",
+    fontSize: 7.2,
+    color: MUTE,
   },
 });
 
@@ -78,61 +97,112 @@ export type LetterData = {
   headline: string;
   paragraphs: string[];
   signOff: string;
+  salutation?: string;
+  closing?: string;
+  facts?: { salary?: string; notice?: string };
 };
 
-export default function LetterDocument({ data }: { data: LetterData }) {
+/** "**Einstieg.** Rest" → Einstieg in Oswald-Versalien, Rest normal. */
+function Paragraph({ text }: { text: string }) {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  return (
+    <Text style={s.p}>
+      {parts.map((part, index) =>
+        index % 2 === 1 ? (
+          <Text key={index} style={s.b}>
+            {part.toUpperCase()}
+          </Text>
+        ) : (
+          <Text key={index}>{part}</Text>
+        )
+      )}
+    </Text>
+  );
+}
+
+export default function LetterDocument({ data, cv }: { data: LetterData; cv: Cv }) {
   const de = data.lang === "de";
   const today = new Date().toLocaleDateString(de ? "de-DE" : "en-GB", {
-    day: "2-digit",
+    day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/Berlin",
   });
 
+  const salary = data.facts?.salary?.trim();
+  const notice = data.facts?.notice?.trim();
+  const [lead, ...body] = data.headline ? [data.headline, ...data.paragraphs] : [null, ...data.paragraphs];
+
   return (
-    <Document
-      title={de ? "Anschreiben — Iver Bohnes" : "Cover Letter — Iver Bohnes"}
-      author="Iver Bohnes"
-    >
-      <Page size="A4" style={styles.page} wrap>
-        <View style={styles.header}>
-          <Text style={styles.name}>Iver Bohnes</Text>
-          <Text style={styles.role}>{data.role}</Text>
-          <Text style={styles.meta}>
-            Hamburg, {de ? "Deutschland" : "Germany"} · iverbohnes@gmail.com · +49 176 66631237 ·
-            ivergentz.de
-          </Text>
-        </View>
-
-        <View style={styles.recipientBlock}>
-          {data.recipient.map((line, index) => (
-            <Text key={index} style={styles.recipient}>
-              {line}
+    <Document title={de ? "Anschreiben — Iver Bohnes" : "Cover Letter — Iver Bohnes"} author="Iver Bohnes">
+      <Page size="A4" style={s.page}>
+        <View style={s.head}>
+          <View>
+            <View style={s.nameRow}>
+              <Text style={s.name}>IVER </Text>
+              <Text style={s.nameB}>BOHNES</Text>
+            </View>
+            <Text style={s.former}>{cv.formerName}</Text>
+            <Text style={s.role}>{(data.role || cv.role).toUpperCase()}</Text>
+          </View>
+          <View>
+            <Text style={s.contact}>Große Freiheit 82, 22767 Hamburg{de ? "" : ", Germany"}</Text>
+            <Text style={s.contact}>
+              {cv.contact.email} · {cv.contact.phone}
             </Text>
-          ))}
-          <Text style={styles.dateLine}>
-            Hamburg, {today}
-          </Text>
+            <Text style={s.contact}>{cv.contact.web}</Text>
+          </View>
         </View>
 
-        <View style={styles.subjectWrap}>
-          <Text style={styles.subject}>{data.subject.toUpperCase()}</Text>
+        <View style={s.meta}>
+          <View>
+            {data.recipient.filter(Boolean).map((line, index) => (
+              <Text key={index} style={s.to}>
+                {line}
+              </Text>
+            ))}
+          </View>
+          <Text style={s.date}>Hamburg, {today}</Text>
         </View>
 
-        {data.headline ? <Text style={styles.headline}>{data.headline}</Text> : null}
+        <Text style={s.kicker}>{de ? "BEWERBUNG" : "APPLICATION"}</Text>
+        <Text style={s.subject}>{data.subject.toUpperCase()}</Text>
 
-        {data.paragraphs.map((paragraph, index) => (
-          <Text key={index} style={styles.paragraph}>
-            {paragraph}
-          </Text>
-        ))}
+        <Text style={s.salutation}>
+          {data.salutation || (de ? "Sehr geehrte Damen und Herren," : "Dear Hiring Team,")}
+        </Text>
 
-        <Text style={styles.signOff}>{data.signOff}</Text>
-        <Text style={styles.signature}>Iver Bohnes</Text>
+        {lead ? <Text style={s.lead}>{lead}</Text> : null}
+        {body.map((paragraph, index) => (paragraph ? <Paragraph key={index} text={paragraph} /> : null))}
 
-        <Text style={styles.footer}>
-          {de
-            ? "Anlagen: Lebenslauf · Referenzen auf Anfrage"
-            : "Enclosed: CV · References on request"}
+        {salary || notice ? (
+          <View style={s.facts} wrap={false}>
+            {salary ? (
+              <View style={s.fact}>
+                <Text style={s.factLabel}>{de ? "GEHALTSVORSTELLUNG" : "SALARY EXPECTATION"}</Text>
+                <Text style={s.factValue}>{salary}</Text>
+              </View>
+            ) : null}
+            {notice ? (
+              <View style={s.fact}>
+                <Text style={s.factLabel}>{de ? "KÜNDIGUNGSFRIST" : "NOTICE PERIOD"}</Text>
+                <Text style={s.factValue}>{notice}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        <View wrap={false}>
+          {data.closing ? <Text style={s.closing}>{data.closing}</Text> : null}
+          <Text style={s.greet}>{data.signOff || (de ? "Mit freundlichen Grüßen" : "Kind regards")}</Text>
+          <View style={s.signRow}>
+            <Text style={s.sign}>IVER </Text>
+            <Text style={s.signB}>BOHNES</Text>
+          </View>
+        </View>
+
+        <Text style={s.footer} fixed>
+          {de ? "Anlage: Lebenslauf" : "Enclosure: CV"} · {cv.contact.web}
         </Text>
       </Page>
     </Document>

@@ -1,12 +1,14 @@
-import cvData from "@/data/cv.json";
 import { DEFAULT_MODEL } from "./evaluate";
+import { cloneCv, loadCv, type Cv, type Lang } from "./cv-source";
 
 /**
  * Erzeugt einen Bewerbungsentwurf zu einer Stelle.
  *
+ * Grundlage ist der Lebenslauf von ivergentz.de (siehe cv-source.ts) — also
+ * immer der Stand, den auch die Website zeigt.
+ *
  * Bewusst ein ENTWURF: Das Ergebnis landet in der Datenbank und wird auf der
- * Bewerbungsseite bearbeitet, bevor ein PDF entsteht. Ein Anschreiben, das
- * Iver nicht selbst durchdacht hat, fällt im Gespräch auf.
+ * Bewerbungsseite bearbeitet, bevor ein PDF entsteht.
  *
  * Der Lebenslauf wird nicht neu geschrieben, sondern nur umsortiert und in
  * einzelnen Bullets geschärft — erfundene Erfahrung wäre der schnellste Weg,
@@ -24,31 +26,29 @@ export type CvOverrides = {
 };
 
 export type ApplicationDraft = {
-  lang: "de" | "en";
+  lang: Lang;
   role: string;
   recipient: string[];
   subject: string;
   headline: string;
   paragraphs: string[];
   signOff: string;
+  salutation?: string;
+  closing?: string;
+  facts?: { salary?: string; notice?: string };
   cvOverrides: CvOverrides;
   hinweise: string[];
 };
 
-function profileFor(lang: "de" | "en") {
-  const cv = (cvData as Record<string, any>)[lang];
+function profileFor(cv: Cv) {
   return JSON.stringify(
     {
       role: cv.role,
       tagline: cv.tagline,
-      products: cv.products.map((p: any) => ({ name: p.name, bullets: p.bullets, stack: p.stack })),
-      experience: cv.experience.map((e: any) => ({
-        title: e.title,
-        company: e.company,
-        period: e.period,
-        bullets: e.bullets,
-      })),
-      skills: cv.skills,
+      competencies: cv.competencies,
+      experience: cv.experience,
+      products: cv.products.map((p) => ({ name: p.name, status: p.status, bullets: p.bullets })),
+      education: cv.education,
       languages: cv.languages,
     },
     null,
@@ -56,41 +56,45 @@ function profileFor(lang: "de" | "en") {
   );
 }
 
-const RULES = `Du entwirfst Bewerbungsunterlagen für Iver Bohnes.
+const RULES = `Du entwirfst Bewerbungsunterlagen für Iver Bohnes (geb. Gentz, daher die Domain ivergentz.de).
 
 HARTE REGELN:
 - Nichts erfinden. Jede Aussage muss sich auf den gelieferten Lebenslauf zurückführen lassen.
 - Keine Jahreszahlen, Firmennamen oder Kennzahlen ergänzen, die nicht im Lebenslauf stehen.
-- Seniorität nicht aufblasen: Iver hat rund drei Jahre in Produktrollen plus sein eigenes SaaS-Portfolio. Er ist Mid-Level bis unteres Senior, kein Head of Product.
+- Seniorität nicht aufblasen: rund drei Jahre in Produktrollen plus eigenes SaaS-Portfolio. Kein Head of Product.
+- Iver denkt Produkte ganzheitlich: Prototyp, MVP, laufende Verbesserung UND Vermarktung (Ads, Social, Cold Outreach). Nie so formulieren, als würde er nach dem Prototyp aufhören.
 - Keine Floskeln. Kein "mit großem Interesse habe ich Ihre Stellenanzeige gelesen", kein "dynamisches Umfeld", kein "Teamplayer".
 - Wenn eine Anforderung nicht erfüllt ist, wird sie nicht überspielt. Entweder weglassen oder offen benennen und mit dem Nächstbesten kontern.
+- Gehalt und Kündigungsfrist NICHT in den Text schreiben — die stehen separat in einer Faktenzeile.
 
 ANSCHREIBEN:
-- Drei bis vier Absätze, zusammen höchstens 300 Wörter.
-- Absatz 1: warum diese Firma und diese Rolle, konkret aus der Ausschreibung. Kein Selbstlob.
-- Absatz 2: der stärkste Beleg aus Ivers Profil für genau diese Rolle.
-- Absatz 3: der zweitstärkste, oder ein offener Punkt ehrlich adressiert.
-- Absatz 4 optional: Verfügbarkeit (Kündigungsfrist 3 Monate), Arbeitsmodell.
-- Sprache: die vorgegebene Sprache der Unterlagen verwenden. Ist die Ausschreibung komplett englisch, trotzdem die vorgegebene Sprache nehmen und in hinweise empfehlen, auf Englisch umzustellen.
-- headline: ein Satz, der als Aufmacher über dem Fließtext steht. Höchstens 12 Wörter. Darf leer sein.
-- subject: Betreffzeile in Großbuchstaben-Optik, höchstens 8 Wörter, z. B. "BEWERBUNG ALS PRODUKTMANAGER" oder "APPLICATION — PRODUCT OWNER E-COMMERCE".
-- recipient: ein bis drei Zeilen, Firmenname und Ort. Nur was in der Ausschreibung steht. Keine erfundenen Ansprechpartner.
+- headline: der Aufmacher direkt nach der Anrede, ein bis zwei Sätze, höchstens 35 Wörter. Greift auf, was die Firma laut Ausschreibung wirklich sucht, und sagt, warum Iver genau das gerade tut.
+- paragraphs: drei bis vier Absätze, zusammen höchstens 280 Wörter. Jeder Absatz beginnt mit einem kurzen fett markierten Einstieg in der Form **Einstieg in wenigen Wörtern.** gefolgt vom Text.
+  - Absatz 1: der stärkste Beleg aus Ivers Profil für genau diese Rolle (meist VBG: KI-Posteingang, MVP selbst gebaut, Kennzahlen).
+  - Absatz 2: der zweitstärkste Beleg (meist eigene Produkte: bauen und vermarkten, Claude API, Kostenkontrolle).
+  - Absatz 3: Business Cases, KPIs, Stakeholder (Bosch, Emmora, Marketing) — oder ein offener Punkt ehrlich adressiert.
+  - Absatz 4 optional, OHNE fetten Einstieg: Bezug auf Arbeitsweise oder Plan der Firma, ein bis zwei Sätze.
+- closing: ein kurzer Schlusssatz, z. B. "Ich freue mich auf ein persönliches Gespräch."
+- salutation: "Sehr geehrte Damen und Herren," bzw. "Dear Hiring Team," — nur einen Namen verwenden, wenn er in der Ausschreibung steht.
+- subject: die Stellenbezeichnung aus der Ausschreibung, höchstens 8 Wörter, z. B. "AI Program Manager (m/w/d)".
+- recipient: ein bis drei Zeilen, Firmenname und Ort. Nur was in der Ausschreibung steht.
+- Sprache: die vorgegebene Sprache der Unterlagen verwenden. Ist die Ausschreibung komplett englisch und die Vorgabe deutsch, trotzdem deutsch schreiben und in hinweise empfehlen, auf Englisch umzustellen.
 
 LEBENSLAUF-ANPASSUNG (cvOverrides):
-- role: Ivers Rollenbezeichnung oben im CV, auf die Stelle zugeschnitten. Höchstens 6 Wörter.
-- tagline: der Einleitungssatz, auf die Stelle zugeschnitten. Höchstens 45 Wörter. Auf denselben Fakten wie das Original.
-- productOrder: die Namen der drei Produkte in der Reihenfolge, die für diese Stelle am meisten überzeugt.
-- bulletRewrites: HÖCHSTENS DREI Stichpunkte umformulieren, mit Angabe von section und name. Nur Betonung verschieben, keine neuen Fakten.
+- role: Rollenbezeichnung oben im CV, auf die Stelle zugeschnitten. Höchstens 6 Wörter.
+- tagline: der Profiltext, auf die Stelle zugeschnitten. Höchstens 60 Wörter. Auf denselben Fakten wie das Original.
+- productOrder: die Produktnamen in der Reihenfolge, die für diese Stelle am meisten überzeugt.
+- bulletRewrites: HÖCHSTENS DREI Einträge umformulieren, mit section und name (bei experience der Titel, bei products der Name). Nur Betonung verschieben, keine neuen Fakten.
 
 hinweise: HÖCHSTENS DREI Sätze auf Deutsch an Iver — was du warum betont hast, und welche Lücke er im Gespräch erklären können muss.
 
-LÄNGEN SIND VERBINDLICH. Zu lange Antworten werden abgeschnitten und sind unbrauchbar. Beginne die Antwort direkt mit der geschweiften Klammer, ohne Vorrede.
+LÄNGEN SIND VERBINDLICH. Beginne die Antwort direkt mit der geschweiften Klammer, ohne Vorrede.
 
 Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences:
-{"lang":"de"|"en","role":string,"recipient":string[],"subject":string,"headline":string,"paragraphs":string[],"signOff":string,"cvOverrides":{"role":string,"tagline":string,"productOrder":string[],"bulletRewrites":[{"section":"products"|"experience","name":string,"bullets":string[]}]},"hinweise":string[]}`;
+{"lang":"de"|"en","role":string,"recipient":string[],"subject":string,"salutation":string,"headline":string,"paragraphs":string[],"closing":string,"signOff":string,"cvOverrides":{"role":string,"tagline":string,"productOrder":string[],"bulletRewrites":[{"section":"products"|"experience","name":string,"bullets":string[]}]},"hinweise":string[]}`;
 
 export async function draftApplication(input: {
-  lang: "de" | "en";
+  lang: Lang;
   title: string;
   employer: string;
   place: string;
@@ -98,6 +102,8 @@ export async function draftApplication(input: {
 }): Promise<ApplicationDraft> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY fehlt.");
+
+  const { cv } = await loadCv(input.lang);
 
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), CALL_TIMEOUT_MS);
@@ -115,7 +121,7 @@ export async function draftApplication(input: {
       body: JSON.stringify({
         model: process.env.DRAFT_MODEL || DEFAULT_MODEL,
         max_tokens: 8000,
-        system: `${RULES}\n\nIVERS LEBENSLAUF (${input.lang}):\n${profileFor(input.lang)}`,
+        system: `${RULES}\n\nIVERS LEBENSLAUF (${input.lang}, Stand ivergentz.de):\n${profileFor(cv)}`,
         messages: [
           {
             role: "user",
@@ -177,31 +183,34 @@ export async function draftApplication(input: {
 
   const list = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+  const de = input.lang === "de";
 
   return {
-    lang: parsed.lang === "en" ? "en" : input.lang,
-    role: parsed.role ?? (cvData as any)[input.lang].role,
+    lang: input.lang,
+    role: parsed.role ?? cv.role,
     recipient: list(parsed.recipient),
     subject: parsed.subject ?? "",
+    salutation: parsed.salutation ?? (de ? "Sehr geehrte Damen und Herren," : "Dear Hiring Team,"),
     headline: parsed.headline ?? "",
     paragraphs: list(parsed.paragraphs),
-    signOff:
-      parsed.signOff ?? (input.lang === "de" ? "Mit freundlichen Grüßen" : "Kind regards"),
+    closing: parsed.closing ?? (de ? "Ich freue mich auf ein persönliches Gespräch." : "I look forward to hearing from you."),
+    signOff: parsed.signOff ?? (de ? "Mit freundlichen Grüßen" : "Kind regards"),
+    facts: { salary: "", notice: de ? "3 Monate" : "3 months" },
     cvOverrides: (parsed.cvOverrides ?? {}) as CvOverrides,
     hinweise: list(parsed.hinweise),
   };
 }
 
-/** Wendet die Anpassungen auf die CV-Daten an. Reine Umsortierung und Textersatz. */
-export function applyOverrides(lang: "de" | "en", overrides: CvOverrides) {
-  const base = JSON.parse(JSON.stringify((cvData as Record<string, any>)[lang]));
+/** Wendet die Anpassungen auf den Lebenslauf an. Reine Umsortierung und Textersatz. */
+export function applyOverrides(cv: Cv, overrides: CvOverrides): Cv {
+  const base = cloneCv(cv);
 
   if (overrides.role) base.role = overrides.role;
   if (overrides.tagline) base.tagline = overrides.tagline;
 
   if (overrides.productOrder?.length) {
     const order = overrides.productOrder;
-    base.products.sort((a: any, b: any) => {
+    base.products.sort((a, b) => {
       const ai = order.indexOf(a.name);
       const bi = order.indexOf(b.name);
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
@@ -209,11 +218,16 @@ export function applyOverrides(lang: "de" | "en", overrides: CvOverrides) {
   }
 
   for (const rewrite of overrides.bulletRewrites ?? []) {
-    const collection = rewrite.section === "products" ? base.products : base.experience;
-    const entry = collection.find(
-      (item: any) => item.name === rewrite.name || item.title === rewrite.name
-    );
-    if (entry && rewrite.bullets?.length) entry.bullets = rewrite.bullets;
+    if (!rewrite?.bullets?.length) continue;
+    if (rewrite.section === "products") {
+      const entry = base.products.find((item) => item.name === rewrite.name);
+      if (entry) entry.bullets = rewrite.bullets;
+    } else {
+      const entry = base.experience.find(
+        (item) => item.title === rewrite.name || item.company === rewrite.name
+      );
+      if (entry) entry.bullets = rewrite.bullets;
+    }
   }
 
   return base;

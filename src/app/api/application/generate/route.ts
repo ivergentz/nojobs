@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { draftApplication } from "@/lib/application";
+import { draftApplication, type ApplicationDraft } from "@/lib/application";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -13,18 +13,15 @@ export async function POST(request: Request) {
     const db = supabaseAdmin();
     const { data: job, error } = await db
       .from("jobs")
-      .select("uuid,source,title,title_de,employer_name,municipal,county,country,description")
+      .select("uuid,source,title,employer_name,municipal,county,country,description,application_draft")
       .eq("uuid", uuid)
       .maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!job) return NextResponse.json({ error: "Stelle nicht gefunden" }, { status: 404 });
 
-    // Standard Deutsch; englische Ausschreibungen lassen sich auf der Seite umstellen.
-    const sprache = lang ?? "de";
-
     const draft = await draftApplication({
-      lang: sprache,
+      lang: lang === "en" ? "en" : "de",
       title: (job.title as string) ?? "",
       employer: (job.employer_name as string) ?? "",
       place:
@@ -32,6 +29,12 @@ export async function POST(request: Request) {
         ((job.country as string) ?? ""),
       description: (job.description as string) ?? "",
     });
+
+    // Beim Neuentwurf eingetragenes Gehalt behalten.
+    const vorher = job.application_draft as ApplicationDraft | null;
+    if (vorher?.facts?.salary) {
+      draft.facts = { ...draft.facts, salary: vorher.facts.salary };
+    }
 
     const { error: writeError } = await db
       .from("jobs")
