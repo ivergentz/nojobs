@@ -50,7 +50,7 @@ const s = StyleSheet.create({
     fontFamily: "Plex",
     fontWeight: 600,
     fontSize: 7.2,
-    letterSpacing: 1.1,
+    letterSpacing: 0.2, // größere Sperrung zerlegt Wörter für Bewerbersysteme ("K E R N …")
     color: ACCENT,
     paddingTop: 3,
   },
@@ -75,8 +75,8 @@ const s = StyleSheet.create({
   entryHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   title: { fontFamily: "Oswald", fontWeight: 600, fontSize: 11.8, lineHeight: 1.25, color: INK, flex: 1, paddingRight: 10, letterSpacing: 0.2 },
   period: { fontFamily: "PlexMono", fontSize: 7.8, color: MUTE },
-  sub: { fontFamily: "Plex", fontWeight: 600, fontSize: 7.2, letterSpacing: 0.8, color: SOFT, marginTop: 2 },
-  status: { fontFamily: "Plex", fontSize: 7.2, fontWeight: 600, letterSpacing: 0.8, color: ACCENT },
+  sub: { fontFamily: "Plex", fontWeight: 600, fontSize: 7.2, letterSpacing: 0.2, color: SOFT, marginTop: 2 },
+  status: { fontFamily: "Plex", fontSize: 7.2, fontWeight: 600, letterSpacing: 0.2, color: ACCENT },
 
   bullets: { marginTop: 3 },
   bullet: { flexDirection: "row", marginBottom: 2 },

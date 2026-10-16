@@ -50,7 +50,7 @@ const s = StyleSheet.create({
   to: { fontFamily: "Plex", fontSize: 8.6, color: INK, lineHeight: 1.5 },
   date: { fontFamily: "Plex", fontSize: 8, color: MUTE },
 
-  kicker: { fontFamily: "Plex", fontWeight: 600, fontSize: 7, letterSpacing: 1.4, color: ACCENT, marginBottom: 4 },
+  kicker: { fontFamily: "Plex", fontWeight: 600, fontSize: 7, letterSpacing: 0.2, color: ACCENT, marginBottom: 4 },
   subject: { fontFamily: "Oswald", fontWeight: 600, fontSize: 20, lineHeight: 1.05, color: INK, marginBottom: 14 },
 
   salutation: { marginBottom: 7 },
@@ -69,7 +69,7 @@ const s = StyleSheet.create({
     marginBottom: 11,
   },
   fact: { flexDirection: "row", alignItems: "center", marginRight: 28 },
-  factLabel: { fontFamily: "Plex", fontWeight: 600, fontSize: 7, letterSpacing: 0.9, color: ACCENT, marginRight: 6 },
+  factLabel: { fontFamily: "Plex", fontWeight: 600, fontSize: 7, letterSpacing: 0.2, color: ACCENT, marginRight: 6 },
   factValue: { fontFamily: "Plex", fontWeight: 500, fontSize: 8.2, color: INK },
 
   closing: { marginBottom: 7 },
