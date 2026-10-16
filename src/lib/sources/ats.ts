@@ -17,7 +17,7 @@ export type Firma = {
   ats: Ats;
   /** Kennung im Bewerbersystem, z. B. "catworkx" aus catworkx.jobs.personio.de */
   slug: string;
-  /** Nur Personio: Domain, Standard jobs.personio.com (jobs.personio.de geht ebenfalls) */
+  /** Nur Personio: feste Domain. Ohne Angabe wird jobs.personio.com, dann jobs.personio.de probiert. */
   domain?: string;
   /** Greenhouse und Lever: "eu" für Firmen auf der EU-Instanz
    *  (erkennbar an job-boards.eu.greenhouse.io bzw. jobs.eu.lever.co) */
@@ -54,10 +54,16 @@ function xmlValue(block: string, tag: string): string | null {
 }
 
 async function personio(firma: Firma): Promise<AtsJob[]> {
-  const domain = firma.domain ?? "jobs.personio.com";
-  const base = `https://${firma.slug}.${domain}`;
-  const res = await fetchWithTimeout(`${base}/xml?language=de`, {}, 8_000);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  // Personio betreibt beide Domains; manche Firmen antworten nur auf einer.
+  const domains = firma.domain ? [firma.domain] : ["jobs.personio.com", "jobs.personio.de"];
+  let res: Response | null = null;
+  let base = "";
+  for (const domain of domains) {
+    base = `https://${firma.slug}.${domain}`;
+    res = await fetchWithTimeout(`${base}/xml?language=de`, {}, 8_000);
+    if (res.ok) break;
+  }
+  if (!res || !res.ok) throw new Error(`HTTP ${res?.status ?? "?"} (auf ${domains.join(" und ")})`);
   const xml = await res.text();
   const positions = xml.match(/<position>[\s\S]*?<\/position>/g) ?? [];
 

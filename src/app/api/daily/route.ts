@@ -21,7 +21,7 @@ export const maxDuration = 60;
 const SCHRITTE: Array<{ name: string; pfad: string; budget: number }> = [
   { name: "Karriereseiten", pfad: "/api/import-ats", budget: 10_000 },
   { name: "Google Jobs & Arbeitnow", pfad: "/api/import-sammel", budget: 10_000 },
-  { name: "Arbeitsagentur", pfad: "/api/import-de", budget: 20_000 },
+  { name: "Arbeitsagentur", pfad: "/api/import-de", budget: 14_000 },
   { name: "Aufräumen", pfad: "/api/cleanup", budget: 3_000 },
 ];
 

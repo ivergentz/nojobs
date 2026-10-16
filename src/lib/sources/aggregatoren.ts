@@ -67,7 +67,7 @@ export async function googleJobs(suche: { q: string; location: string }): Promis
     hl: "de",
     api_key: key,
   });
-  const res = await fetchWithTimeout(`https://serpapi.com/search.json?${params.toString()}`, {}, 15_000);
+  const res = await fetchWithTimeout(`https://serpapi.com/search.json?${params.toString()}`, {}, 25_000);
   if (!res.ok) throw new Error(`SerpApi HTTP ${res.status}: ${(await res.text()).slice(0, 150)}`);
   const body = (await res.json()) as { jobs_results?: any[]; error?: string };
   if (body.error && !/hasn't returned any results/i.test(body.error)) throw new Error(`SerpApi: ${body.error}`);
