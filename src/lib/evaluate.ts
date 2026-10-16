@@ -43,6 +43,8 @@ must_apply — Iver würde sich diese Woche bewerben. ALLE Bedingungen erfüllt:
 2. Arbeitsort Hamburg/Pendelnähe ODER überwiegend remote (etwa 3+ Tage pro Woche).
 3. Privatwirtschaft.
 
+ORT UNBEKANNT: Nennt die Anzeige keinen Arbeitsort und keinen Hinweis auf Hamburg oder Remote in Deutschland, ist die Stelle ignore. Stellen nur im Ausland (z. B. London, Indien, USA) sind immer ignore.
+
 worth_reading — NUR in diesen Fällen:
 - Rolle erfüllt Bedingung 1 und 3, aber der Ort passt nicht (anderer Ort, kein Remote) — Ort als cons.
 - Rolle erfüllt 2 und 3, ist aber nur nah dran: Produktrolle mit sehr speziellem Branchen-Muss, KI-Beratung mit Umsetzungsverantwortung, Digitalisierungsrolle mit klarem Gestaltungsauftrag, KI-Engineering in einem Produktteam.

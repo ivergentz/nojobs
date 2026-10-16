@@ -112,13 +112,23 @@ const REMOTE = ["remote", "home office", "homeoffice", "mobiles arbeiten", "anyw
 
 export function ortVerdict(
   ort: string,
-  remoteFlag?: boolean | null
-): { keep: true; art: "hamburg" | "remote" | "unklar" } | { keep: false; reason: string } {
+  remoteFlag?: boolean | null,
+  beschreibung?: string | null
+): { keep: true; art: "hamburg" | "remote" } | { keep: false; reason: string } {
   const o = ort.toLowerCase();
   if (HAMBURG.some((stadt) => o.includes(stadt))) return { keep: true, art: "hamburg" };
   if (remoteFlag === true || REMOTE.some((wort) => o.includes(wort))) return { keep: true, art: "remote" };
-  if (!o.trim()) return { keep: true, art: "unklar" };
-  return { keep: false, reason: "weder-hamburg-noch-remote" };
+  if (o.trim()) return { keep: false, reason: "weder-hamburg-noch-remote" };
+
+  // Kein Ort angegeben: im Anzeigentext nachsehen. Ohne Hinweis auf Hamburg
+  // oder Remote in Deutschland fliegt die Stelle raus — vorher landeten so
+  // internationale Stellen (London, Indien …) ohne Ortsangabe in der Inbox.
+  const text = (beschreibung ?? "").toLowerCase();
+  if (HAMBURG.some((stadt) => text.includes(stadt))) return { keep: true, art: "hamburg" };
+  const remoteImText = /remote|home ?office|mobiles arbeiten|ortsunabhängig/.test(text);
+  const deutschland = /deutschland|germany|dach\b|bundesweit|deutschlandweit/.test(text);
+  if (remoteImText && deutschland) return { keep: true, art: "remote" };
+  return { keep: false, reason: "ort-unbekannt" };
 }
 
 /** Schlüssel für Dubletten über Quellen hinweg: Firma + Titel, ohne (m/w/d) und Rechtsform. */

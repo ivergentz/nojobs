@@ -104,7 +104,7 @@ export async function GET(request: Request) {
         gruende[titel.reason.split(":")[0]] = (gruende[titel.reason.split(":")[0]] ?? 0) + 1;
         continue;
       }
-      const ort = ortVerdict(job.location, job.remote);
+      const ort = ortVerdict(job.location, job.remote, job.description);
       if (!ort.keep) {
         gruende[ort.reason] = (gruende[ort.reason] ?? 0) + 1;
         continue;

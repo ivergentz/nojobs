@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import LabelClient, { type LabelJob } from "./LabelClient";
-import { AKTIVE_QUELLEN } from "@/lib/quellen";
+import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,7 @@ export default async function LabelPage() {
   const { data, error } = await db
     .from("jobs")
     .select(
-      "uuid,title,employer_name,municipal,county,occupation_level1,sector,extent,application_due,application_url,description,published,salary_min_nok,salary_max_nok,salary_note"
+      "uuid,source,title,employer_name,municipal,county,occupation_level1,sector,extent,application_due,application_url,description,published,salary_min_nok,salary_max_nok,salary_note"
     )
     .eq("status", "ACTIVE")
     .in("source", AKTIVE_QUELLEN)
@@ -53,7 +53,9 @@ export default async function LabelPage() {
     title: (row.title as string) ?? "Ohne Titel",
     employer: (row.employer_name as string) ?? "—",
     place: [row.municipal, row.county].filter(Boolean).join(", ") || "—",
-    category: (row.occupation_level1 as string) ?? "—",
+    category: [QUELLEN_NAME[row.source as string] ?? row.source, row.occupation_level1]
+      .filter(Boolean)
+      .join(" · "),
     homeoffice: (row.sector as string) ?? null,
     extent: (row.extent as string) ?? null,
     due: (row.application_due as string) ?? null,
