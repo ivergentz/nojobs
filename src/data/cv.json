@@ -174,14 +174,6 @@
       {
         "name": "Englisch",
         "level": "Fließend / Business-tauglich"
-      },
-      {
-        "name": "Norwegisch",
-        "level": "Im Aufbau"
-      },
-      {
-        "name": "Schwedisch",
-        "level": "Im Aufbau"
       }
     ]
   },
@@ -360,14 +352,6 @@
       {
         "name": "English",
         "level": "Fluent / Business proficient"
-      },
-      {
-        "name": "Norwegian",
-        "level": "Learning"
-      },
-      {
-        "name": "Swedish",
-        "level": "Learning"
       }
     ]
   }

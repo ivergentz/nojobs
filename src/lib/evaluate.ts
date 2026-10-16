@@ -1,103 +1,93 @@
 /**
- * Der Recruiter-Schritt.
+ * Der Recruiter-Schritt: passt die Stelle zu Ivers Profil und zur Suche
+ * (Hamburg oder remote, Richtung (AI) Product)?
  *
- * Zwei Urteile, bewusst getrennt:
- *   fit       — passt der Inhalt zu Ivers Profil?
- *   language  — ist die Stelle ohne Skandinavisch machbar?
- *
- * Die Trennung ist wichtig, weil sieben von zehn seiner bisherigen Favoriten
- * inhaltlich passten, aber norwegischsprachig waren. Würde das Modell nur ein
- * Urteil fällen, ginge die Information verloren, wie viel Markt ein Sprachkurs
- * öffnen würde.
+ * Das Feld `language` gibt es in der Datenbank noch aus der Zeit mit Norwegen
+ * und Schweden. Es wird nicht mehr bewertet und nicht mehr geschrieben.
  */
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
+export const DEFAULT_MODEL = "claude-sonnet-5-5";
+
 export type Fit = "must_apply" | "worth_reading" | "ignore";
-export type Language = "english_ok" | "scandinavian_required" | "unclear";
 
 export type Evaluation = {
   fit: Fit;
-  language: Language;
   confidence: "high" | "medium" | "low";
   summary: string;
   pros: string[];
   cons: string[];
 };
 
-const PROFILE = `KANDIDAT: Iver Bohnes, Hamburg. EU-Bürger, keine Visumsfragen im EWR.
+const PROFILE = `KANDIDAT: Iver Bohnes (geb. Gentz), wohnt in Hamburg.
 
 Erfahrung:
-- Aktuell Produktverantwortung für interne Systeme im öffentlichen Sektor (VBG Hamburg): unternehmensweite Telefonieplattform, automatisierte Belegerfassung, KI-gestützte Verschlagwortung im Posteingang, Teilprojektleitung SharePoint/Teams-Rollout.
-- Davor Product Manager bei Robert Bosch (1 Jahr), Product Owner bei Emmora (7 Monate).
-- Davor Marketing und Sales am Flughafen Salzburg, danach freiberuflich.
-- Parallel Solo-Gründer von drei live betriebenen B2B-SaaS-Produkten: RankBrief (automatisiertes SEO-Reporting), sarahiver.de (mandantenfähige Hochzeitswebseiten), WERKRUF (lokales SEO für Handwerk). Baut komplett selbst: Next.js, Supabase, Stripe, LLM-Integration, Pricing, Go-to-Market.
+- Aktuell Produktverantwortung für interne Systeme und KI-Automatisierung im öffentlichen Sektor (VBG Hamburg, seit 2025): KI-gestützte Posteingangsverarbeitung (ca. 800 Eingänge pro Tag) — Use Cases mit Fachbereichen bewertet, On-Premise-Konzept erstellt und vor Entscheidern präsentiert, MVP selbst gebaut. Dazu Telefonieplattform und Teilprojektleitung SharePoint/Teams.
+- Davor Produktmanager Global (IT) bei Robert Bosch: interne SaaS-Lösungen, fünf neue internationale Märkte. Product Owner bei Emmora.
+- Davor Marketing und Sales am Flughafen Salzburg, danach selbstständig in Marketing und IT.
+- Parallel Solo-Gründer mehrerer B2B-SaaS-Produkte (RankBrief, sarahiver.de, WERKRUF). Baut und bootstrappt komplett selbst: Prototyp, MVP, laufende Weiterentwicklung, Pricing, Vermarktung über Ads, Social und Cold Outreach. Stack: Next.js, Supabase, Stripe, Claude API und weitere LLMs im Produkt.
 
-Einordnung der Seniorität: real etwa drei Jahre in Produktrollen plus das eigene Portfolio. Also solides Mid-Level bis unteres Senior — NICHT Head of Product, NICHT Director, NICHT Führung mehrerer PMs.
+Einordnung der Seniorität: real etwa drei Jahre in Produktrollen plus das eigene Portfolio. Solides Mid-Level bis Senior — NICHT Head of Product, NICHT Director, NICHT disziplinarische Führung mehrerer PMs.
 
-Alleinstellungsmerkmal: baut B2B-SaaS allein, von Pricing bis Deployment, mit LLMs im Produkt. Das ist der Grund, warum kleine Teams (20-500 Mitarbeitende) besser passen als Konzerne mit spezialisierten Produktrollen.
+Stärke: denkt Produkte ganzheitlich, von der Idee bis zum Markt, und setzt KI selbst praktisch um. Passt besonders zu Rollen, die KI-Initiativen aufbauen, Use Cases bewerten und selbst Prototypen liefern.
 
-Sprachen: Deutsch Muttersprache, Englisch fließend. KEIN Norwegisch, Dänisch, Schwedisch oder Niederländisch.
+Sprachen: Deutsch Muttersprache, Englisch fließend. Englischsprachige Stellen sind kein Problem.
 
-Zielmarkt: Norwegen, Schweden, Dänemark, Niederlande. Umzug in den nächsten 2-5 Jahren geplant.`;
+SUCHE: Hamburg und Umgebung, oder überwiegend remote aus Hamburg. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft. Gehaltsziel rund 85.000 € brutto im Jahr.`;
 
-const RULES = `BEWERTUNG "fit" — nur Inhalt, Sprache wird separat bewertet.
+const RULES = `BEWERTUNG "fit":
 
-must_apply — (AI) Produktrolle mit klarer Passung. Beispiele: Product Owner, Produktleder, Produktsjef, Product Manager, AI Product Lead. Auch Rollen mit anderem Titel, wenn der Kern Produktverantwortung für ein digitales Produkt oder eine Plattform ist. Digitalisierungs- und KI-Rådgiver-Rollen mit Gestaltungsauftrag zählen dazu.
+must_apply — (AI) Produktrolle mit klarer Passung, in Hamburg oder überwiegend remote. Beispiele: Product Owner, Product Manager, AI Product Manager, AI Program Manager, KI-Manager mit Gestaltungsauftrag. Auch Rollen mit anderem Titel, wenn der Kern Produktverantwortung für ein digitales Produkt, eine Plattform oder eine KI-Initiative ist.
 
-worth_reading — angrenzend, aber nicht im Kern. Etwa: Produktrolle mit starkem Branchenwissen als Muss, technische Rolle mit Produktanteil, Beratung mit Digitalisierungsfokus ohne Produktverantwortung.
+worth_reading — angrenzend, aber nicht im Kern. Etwa: Produktrolle mit starkem Branchenwissen als Muss, technische Rolle mit Produktanteil, Beratung mit KI- oder Digitalisierungsfokus ohne Produktverantwortung, Product Marketing.
 
-WICHTIG — interne Systeme zählen als Produktarbeit. Iver verantwortet aktuell interne Plattformen (Telefonie, Belegerfassung, SharePoint-Rollout) in einer Behörde. Rollen mit Verantwortung für ein INTERNES System oder eine interne Plattform sind daher mindestens worth_reading, auch wenn im Titel "Forvaltning", "Rådgiver", "Systemeier", "Low-code" oder "Plattform" steht statt "Produkt". Beispiele: Verantwortung für Microsoft 365, ServiceNow, SAP, eine Fachanwendung oder eine interne Entwicklungsplattform.
-Sie sind must_apply, wenn dazu Gestaltungsspielraum kommt: Roadmap, Weiterentwicklung, Anforderungsmanagement, Stakeholder-Steuerung.
-Sie bleiben ignore, wenn es reiner Betrieb ohne Gestaltung ist: Helpdesk, First und Second Level Support, Serveradministration, Netzwerkbetrieb, Rufbereitschaft.
+WICHTIG — interne Systeme zählen als Produktarbeit. Rollen mit Verantwortung für ein INTERNES System oder eine interne Plattform (Microsoft 365, ServiceNow, SAP, Fachanwendung, KI-Plattform) sind mindestens worth_reading, auch wenn der Titel "Applikationsmanager" oder "Systemverantwortlicher" lautet. must_apply, wenn Gestaltungsspielraum dazukommt: Roadmap, Weiterentwicklung, Anforderungsmanagement, Stakeholder-Steuerung.
+
+STANDORT — entscheidend:
+- Arbeitsort Hamburg oder Pendelnähe (Norderstedt, Pinneberg, Wedel, Ahrensburg, Lüneburg …): passt.
+- Anderer Ort: nur passend, wenn die Anzeige überwiegend Remote erlaubt (etwa 3+ Tage pro Woche oder "remote first"). Sonst ignore, mit Ort als cons.
+- Unklar: worth_reading, Standortfrage als cons.
+
+ÖFFENTLICHER DIENST: Iver will in die freie Wirtschaft. Stellen bei Behörden, Körperschaften oder im TVöD/TV-L höchstens worth_reading, als cons vermerken.
+
+GEHALT: Liegt eine Gehaltsangabe deutlich unter 80.000 €, als cons vermerken. Kein Ausschlussgrund.
 
 ignore — alles andere. Insbesondere:
-- Reine Entwicklerrollen (Fullstack, Backend, Frontend, Plattformingenieur) OHNE Produktverantwortung. Achtung: Low-code- und Konfigurationsrollen an einer internen Plattform fallen NICHT hierunter, siehe oben.
-- Reine Data-Analytics- und Data-Science-Rollen. Iver sucht ausdrücklich Richtung (AI) Product, nicht Datenanalyse — das steht auch nicht in seinem CV.
-- IT-Support, Systemadministration, Netzwerk, Infrastrukturbetrieb — sofern keine Systemverantwortung mit Gestaltungsspielraum dabei ist.
-- Forschung, Doktorandenstellen, Postdoc, sowie Stellen mit PhD als Anforderung.
-- Stellen, die eine nationale Sicherheitsfreigabe voraussetzen — für einen deutschen Bewerber ohne Wohnsitz im Land faktisch nicht erreichbar. Als cons vermerken.
-- Junior, Trainee, Praktikum, Lehre.
+- Reine Entwicklerrollen (Fullstack, Backend, Frontend, ML-Engineer) OHNE Produktverantwortung.
+- Reine Data-Analytics- und Data-Science-Rollen. Iver sucht Richtung (AI) Product, nicht Datenanalyse.
+- IT-Support, Systemadministration, Netzwerk, Infrastrukturbetrieb ohne Gestaltungsspielraum.
+- Vertrieb/Account Management ohne Produktverantwortung.
+- Forschung, Promotion, Stellen mit PhD als Anforderung.
+- Junior, Trainee, Praktikum, Werkstudent.
 - Head of Product und darüber, Director, Leitung mehrerer Produktteams.
-- Reine Projektleitung ohne Produktverantwortung (Bau, Beschaffung, Verwaltungsprojekte).
+- Reine Projektleitung ohne Produkt- oder KI-Bezug (Bau, Beschaffung, Verwaltungsprojekte).
+- Zeitarbeit und Personalvermittlung ohne erkennbaren Endkunden: höchstens worth_reading.
 
 Eine KI-Engineering-Rolle in einem Produktteam ist worth_reading, keine ignore — Iver baut selbst mit LLMs.
 
-BEWERTUNG "language":
-
-english_ok — Anzeige auf Englisch verfasst, ODER Arbeitssprache ausdrücklich Englisch, ODER international aufgestelltes Produktteam ohne Sprachanforderung im Text.
-scandinavian_required — Anzeige verlangt Norwegisch, Dänisch, Schwedisch oder eine skandinavische Sprache, in Wort oder Schrift. Gilt auch ohne ausdrückliche Forderung, wenn es sich um Kommune, Fylkeskommune, Region, Direktorat, Ministerium, Polizei, Gesundheitswesen oder eine andere Verwaltungsstelle mit Bürgerkontakt handelt — dort ist die Landessprache faktisch Voraussetzung.
-unclear — norwegisch-, dänisch- oder schwedischsprachige Anzeige eines privaten Unternehmens ohne erkennbare Sprachanforderung.
-
-Die Sprachbewertung ist unabhängig vom fit. Eine perfekt passende Stelle bei einer norwegischen Kommune bekommt fit=must_apply UND language=scandinavian_required.
-
 AUSGABE — Längen sind verbindlich, längere Antworten werden abgeschnitten und sind unbrauchbar:
-- summary: HÖCHSTENS 40 Wörter. Zwei Sätze auf Deutsch: was die Rolle ist, warum sie passt oder nicht. Keine Aufzählung der Aufgaben, keine Wiederholung des Anzeigentexts.
-- pros und cons: je HÖCHSTENS vier Stichpunkte à HÖCHSTENS 10 Wörter, auf Deutsch, konkret auf diesen Kandidaten bezogen. Keine Allgemeinplätze, keine ganzen Sätze.
+- summary: HÖCHSTENS 40 Wörter. Zwei Sätze auf Deutsch: was die Rolle ist, warum sie passt oder nicht. Keine Aufzählung der Aufgaben.
+- pros und cons: je HÖCHSTENS vier Stichpunkte à HÖCHSTENS 10 Wörter, auf Deutsch, konkret auf diesen Kandidaten bezogen. Keine Allgemeinplätze.
 - confidence: low, wenn die Anzeige zu vage ist, um die Rolle einzuordnen.
 
 ASYMMETRIE — die beiden Fehler sind unterschiedlich teuer:
-Ein zu großzügiges worth_reading kostet Iver dreißig Sekunden Lesezeit. Ein fälschlich ignoriertes Angebot sieht er nie wieder, weil es gar nicht erst in der Inbox erscheint.
+Ein zu großzügiges worth_reading kostet Iver dreißig Sekunden Lesezeit. Ein fälschlich ignoriertes Angebot sieht er nie wieder.
 Deshalb: Bei Unsicherheit zwischen ignore und worth_reading immer worth_reading wählen.
-Bei der Grenze zwischen worth_reading und must_apply dagegen streng bleiben — must_apply heißt "hierauf bewerbe ich mich diese Woche", nicht "das ist interessant".
+Bei der Grenze zwischen worth_reading und must_apply dagegen streng bleiben — must_apply heißt "hierauf bewerbe ich mich diese Woche".
 
 Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences und ohne Vorrede:
-{"fit": "must_apply"|"worth_reading"|"ignore", "language": "english_ok"|"scandinavian_required"|"unclear", "confidence": "high"|"medium"|"low", "summary": string, "pros": string[], "cons": string[]}`;
+{"fit": "must_apply"|"worth_reading"|"ignore", "confidence": "high"|"medium"|"low", "summary": string, "pros": string[], "cons": string[]}`;
 
 /**
  * Harte Obergrenze pro Aufruf. Ohne die kann ein einzelner langsamer Request
- * die ganze Serverless-Funktion über das 60-Sekunden-Limit ziehen und alle
- * parallel laufenden Bewertungen mitreißen.
+ * die ganze Serverless-Funktion über das 60-Sekunden-Limit ziehen.
  */
-const CALL_TIMEOUT_MS = 28_000;
+const CALL_TIMEOUT_MS = 25_000;
 
 /**
- * Robustes Parsen der Modellantwort.
- *
- * Drei Dinge gehen in der Praxis schief: Markdown-Fences um das JSON,
- * Vorrede vor der öffnenden Klammer, und rohe Zeilenumbrüche innerhalb von
- * String-Werten — letztere sind in JSON nicht erlaubt und lassen JSON.parse
- * scheitern, obwohl die Antwort inhaltlich vollständig ist.
+ * Robustes Parsen der Modellantwort: Markdown-Fences, Vorrede vor der
+ * Klammer und rohe Zeilenumbrüche in String-Werten.
  */
 function parseVerdict(raw: string): Partial<Evaluation> | null {
   const trimmed = raw
@@ -106,7 +96,6 @@ function parseVerdict(raw: string): Partial<Evaluation> | null {
     .replace(/```$/, "")
     .trim();
 
-  // Nur den Teil zwischen erster und letzter geschweifter Klammer nehmen.
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
   if (start === -1 || end <= start) return null;
@@ -114,7 +103,6 @@ function parseVerdict(raw: string): Partial<Evaluation> | null {
 
   const attempts = [
     candidate,
-    // Rohe Steuerzeichen in String-Werten maskieren.
     candidate.replace(/[\u0000-\u001f]/g, (char) =>
       char === "\n" ? "\\n" : char === "\t" ? "\\t" : ""
     ),
@@ -135,7 +123,8 @@ export async function evaluateAd(input: {
   title: string;
   employer: string;
   place: string;
-  category: string;
+  homeoffice: string;
+  salary: string;
   description: string;
 }): Promise<Evaluation> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -157,25 +146,26 @@ export async function evaluateAd(input: {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-      model: process.env.EVAL_MODEL ?? "claude-sonnet-5",
-      max_tokens: 1500,
-      system: `${PROFILE}\n\n${RULES}`,
-      messages: [
-        {
-          role: "user",
-          content: [
-            `Titel: ${input.title}`,
-            `Arbeitgeber: ${input.employer}`,
-            `Ort: ${input.place}`,
-            `Kategorie: ${input.category}`,
-            "",
-            // Gekürzt: die ersten 4000 Zeichen enthalten praktisch immer Rolle,
-            // Aufgaben und Anforderungen. Der Rest ist Benefits und Bewerbungsweg.
-            input.description.slice(0, 4000),
-          ].join("\n"),
-        },
-      ],
-    }),
+        model: process.env.EVAL_MODEL || DEFAULT_MODEL,
+        max_tokens: 1500,
+        system: `${PROFILE}\n\n${RULES}`,
+        messages: [
+          {
+            role: "user",
+            content: [
+              `Titel: ${input.title}`,
+              `Arbeitgeber: ${input.employer}`,
+              `Ort: ${input.place || "unbekannt"}`,
+              `Homeoffice laut Jobbörse: ${input.homeoffice || "keine Angabe"}`,
+              `Gehalt laut Jobbörse: ${input.salary || "keine Angabe"}`,
+              "",
+              // Die ersten 6000 Zeichen enthalten praktisch immer Rolle,
+              // Aufgaben, Anforderungen und Arbeitsmodell.
+              input.description ? input.description.slice(0, 6000) : "(keine Beschreibung verfügbar)",
+            ].join("\n"),
+          },
+        ],
+      }),
       cache: "no-store",
     });
   } catch (error) {
@@ -205,27 +195,20 @@ export async function evaluateAd(input: {
   const parsed = parseVerdict(raw);
 
   if (!parsed) {
-    // stop_reason sagt eindeutig, ob die Antwort am Token-Limit endete oder
-    // aus einem anderen Grund unbrauchbar ist. Vorher war das Raten.
     const reason = data.stop_reason ?? "unbekannt";
-    const head = raw.slice(0, 200);
-    const tail = raw.slice(-200);
     throw new Error(
       `Kein gültiges JSON (stop_reason: ${reason}, ${raw.length} Zeichen). ` +
-        `Anfang: ${head} ||| Ende: ${tail}`
+        `Anfang: ${raw.slice(0, 200)} ||| Ende: ${raw.slice(-200)}`
     );
   }
 
   const fits: Fit[] = ["must_apply", "worth_reading", "ignore"];
-  const languages: Language[] = ["english_ok", "scandinavian_required", "unclear"];
   const asList = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 
   return {
-    fit: fits.includes(parsed.fit as Fit) ? (parsed.fit as Fit) : "ignore",
-    language: languages.includes(parsed.language as Language)
-      ? (parsed.language as Language)
-      : "unclear",
+    // Unbekanntes Urteil: lieber anschauen als lautlos verlieren.
+    fit: fits.includes(parsed.fit as Fit) ? (parsed.fit as Fit) : "worth_reading",
     confidence:
       parsed.confidence === "high" || parsed.confidence === "medium" ? parsed.confidence : "low",
     summary: typeof parsed.summary === "string" ? parsed.summary : "",

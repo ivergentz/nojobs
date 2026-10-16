@@ -1,13 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { fetchNokToEur } from "@/lib/translate";
 import LabelClient, { type LabelJob } from "./LabelClient";
 
 export const dynamic = "force-dynamic";
 
 /**
- * NAV liefert die Beschreibung als HTML. Wir zeigen sie als reinen Text —
- * fremdes Markup gehört nicht ungeprüft in die Seite, und zum Beurteilen
- * reicht der Fließtext.
+ * Beschreibungen können HTML enthalten. Wir zeigen sie als reinen Text —
+ * fremdes Markup gehört nicht ungeprüft in die Seite.
  */
 function toPlainText(html: string | null): string {
   if (!html) return "";
@@ -29,25 +27,24 @@ function toPlainText(html: string | null): string {
 export default async function LabelPage() {
   const db = supabaseAdmin();
 
-  // IT zuerst — dort sitzen die echten Positivbeispiele. Danach die
-  // Bürokategorie als Quelle für harte Negativbeispiele.
-  const fx = await fetchNokToEur();
-
+  // Vorher auf die norwegischen Berufskategorien "IT" und "Kontor og økonomi"
+  // gefiltert — deutsche Stellen tauchten hier deshalb nie auf.
   const { data, error } = await db
     .from("jobs")
     .select(
-      "uuid,title,employer_name,municipal,county,occupation_level1,occupation_level2,extent,application_due,application_url,description,published,label,title_de,description_de,salary_min_nok,salary_max_nok,salary_note,translated_at"
+      "uuid,title,employer_name,municipal,county,occupation_level1,sector,extent,application_due,application_url,description,published,salary_min_nok,salary_max_nok,salary_note"
     )
     .eq("status", "ACTIVE")
+    .eq("source", "ba")
     .is("label", null)
-    .in("occupation_level1", ["IT", "Kontor og økonomi"])
-    .order("occupation_level1", { ascending: true })
-    .order("published", { ascending: false })
+    .not("description", "is", null)
+    .order("published", { ascending: false, nullsFirst: false })
     .limit(120);
 
   const { count: doneCount } = await db
     .from("jobs")
     .select("uuid", { count: "exact", head: true })
+    .eq("source", "ba")
     .not("label", "is", null);
 
   const jobs: LabelJob[] = (data ?? []).map((row) => ({
@@ -55,17 +52,15 @@ export default async function LabelPage() {
     title: (row.title as string) ?? "Ohne Titel",
     employer: (row.employer_name as string) ?? "—",
     place: [row.municipal, row.county].filter(Boolean).join(", ") || "—",
-    category: [row.occupation_level1, row.occupation_level2].filter(Boolean).join(" · ") || "—",
+    category: (row.occupation_level1 as string) ?? "—",
+    homeoffice: (row.sector as string) ?? null,
     extent: (row.extent as string) ?? null,
     due: (row.application_due as string) ?? null,
     url: (row.application_url as string) ?? null,
     description: toPlainText(row.description as string | null),
-    titleDe: (row.title_de as string) ?? null,
-    descriptionDe: (row.description_de as string) ?? null,
     salaryMin: (row.salary_min_nok as number) ?? null,
     salaryMax: (row.salary_max_nok as number) ?? null,
     salaryNote: (row.salary_note as string) ?? null,
-    translated: Boolean(row.translated_at),
   }));
 
   return (
@@ -87,7 +82,7 @@ export default async function LabelPage() {
         </p>
       )}
 
-      <LabelClient jobs={jobs} alreadyDone={doneCount ?? 0} fx={fx} />
+      <LabelClient jobs={jobs} alreadyDone={doneCount ?? 0} />
     </main>
   );
 }

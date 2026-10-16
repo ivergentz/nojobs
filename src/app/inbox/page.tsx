@@ -1,5 +1,4 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { fetchNokToEur } from "@/lib/translate";
 import InboxClient, { type InboxJob } from "./InboxClient";
 
 export const dynamic = "force-dynamic";
@@ -7,24 +6,44 @@ export const dynamic = "force-dynamic";
 const asList = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 
+/**
+ * Liest direkt aus `jobs` statt aus der View v_inbox. Die View filterte auf
+ * die alte Sprachbewertung (Skandinavisch) und kannte nur Norwegen/Schweden-
+ * Logik — die Bedingungen stehen jetzt sichtbar hier im Code.
+ */
 export default async function InboxPage() {
   const db = supabaseAdmin();
 
-  const [inbox, blocked, fx] = await Promise.all([
-    db.from("v_inbox").select("*").limit(120),
-    db.from("v_language_blocked").select("uuid", { count: "exact", head: true }),
-    fetchNokToEur(),
+  const [inbox, unbewertet] = await Promise.all([
+    db
+      .from("jobs")
+      .select(
+        "uuid,source,title,employer_name,municipal,county,country,sector,eval_fit,eval_confidence,eval_summary,eval_pros,eval_cons,application_due,application_url,salary_min_nok,salary_max_nok,salary_note,app_status,published"
+      )
+      .eq("status", "ACTIVE")
+      .eq("source", "ba")
+      .in("eval_fit", ["must_apply", "worth_reading"])
+      .in("app_status", ["neu", "interessant", "beworben", "interview"])
+      // "must_apply" sortiert alphabetisch vor "worth_reading".
+      .order("eval_fit", { ascending: true })
+      .order("published", { ascending: false, nullsFirst: false })
+      .limit(150),
+    db
+      .from("jobs")
+      .select("uuid", { count: "exact", head: true })
+      .eq("status", "ACTIVE")
+      .eq("source", "ba")
+      .is("evaluated_at", null),
   ]);
 
   const jobs: InboxJob[] = (inbox.data ?? []).map((row) => ({
     uuid: row.uuid as string,
-    source: (row.source as string) ?? "nav",
-    title: (row.title_de as string) ?? (row.title as string) ?? "Ohne Titel",
-    originalTitle: (row.title as string) ?? null,
+    title: (row.title as string) ?? "Ohne Titel",
     employer: (row.employer_name as string) ?? "—",
     place:
       [row.municipal, row.county].filter(Boolean).join(", ") ||
       ((row.country as string) ?? "—"),
+    homeoffice: (row.sector as string) ?? null,
     fit: (row.eval_fit as string) ?? "worth_reading",
     confidence: (row.eval_confidence as string) ?? "medium",
     summary: (row.eval_summary as string) ?? "",
@@ -36,27 +55,30 @@ export default async function InboxPage() {
     salaryMax: (row.salary_max_nok as number) ?? null,
     salaryNote: (row.salary_note as string) ?? null,
     status: (row.app_status as string) ?? "neu",
+    published: (row.published as string) ?? null,
   }));
+
+  const neu = jobs.filter((job) => job.status === "neu").length;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <header className="border-b border-rule pb-8">
-        <p className="text-sm text-muted">Career Inbox</p>
+        <p className="text-sm text-muted">Career Inbox · Hamburg & Remote</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          {jobs.filter((job) => job.status === "neu").length} neue Stellen
+          {neu === 1 ? "1 neue Stelle" : `${neu} neue Stellen`}
         </h1>
         {inbox.error && (
           <p className="mt-4 text-sm text-drop">Fehler: {inbox.error.message}</p>
         )}
-        {(blocked.count ?? 0) > 0 && (
+        {(unbewertet.count ?? 0) > 0 && (
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-            Dazu {blocked.count} Stellen, die inhaltlich passen, aber Skandinavisch verlangen. Die
-            liegen im Wartebereich und tauchen hier nicht auf.
+            {unbewertet.count} Stellen sind noch nicht bewertet und fehlen hier. Bewertet wird
+            jeden Morgen automatisch — oder sofort über die Steuerung.
           </p>
         )}
       </header>
 
-      <InboxClient jobs={jobs} fx={fx} />
+      <InboxClient jobs={jobs} />
     </main>
   );
 }

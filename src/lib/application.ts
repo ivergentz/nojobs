@@ -1,4 +1,5 @@
 import cvData from "@/data/cv.json";
+import { DEFAULT_MODEL } from "./evaluate";
 
 /**
  * Erzeugt einen Bewerbungsentwurf zu einer Stelle.
@@ -69,8 +70,8 @@ ANSCHREIBEN:
 - Absatz 1: warum diese Firma und diese Rolle, konkret aus der Ausschreibung. Kein Selbstlob.
 - Absatz 2: der stärkste Beleg aus Ivers Profil für genau diese Rolle.
 - Absatz 3: der zweitstärkste, oder ein offener Punkt ehrlich adressiert.
-- Absatz 4 optional: Verfügbarkeit, Umzugsbereitschaft, Sprache.
-- Sprache der Ausschreibung übernehmen. Schwedische oder norwegische Ausschreibung: englisch schreiben.
+- Absatz 4 optional: Verfügbarkeit (Kündigungsfrist 3 Monate), Arbeitsmodell.
+- Sprache: die vorgegebene Sprache der Unterlagen verwenden. Ist die Ausschreibung komplett englisch, trotzdem die vorgegebene Sprache nehmen und in hinweise empfehlen, auf Englisch umzustellen.
 - headline: ein Satz, der als Aufmacher über dem Fließtext steht. Höchstens 12 Wörter. Darf leer sein.
 - subject: Betreffzeile in Großbuchstaben-Optik, höchstens 8 Wörter, z. B. "BEWERBUNG ALS PRODUKTMANAGER" oder "APPLICATION — PRODUCT OWNER E-COMMERCE".
 - recipient: ein bis drei Zeilen, Firmenname und Ort. Nur was in der Ausschreibung steht. Keine erfundenen Ansprechpartner.
@@ -112,7 +113,7 @@ export async function draftApplication(input: {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: process.env.DRAFT_MODEL ?? "claude-sonnet-5",
+        model: process.env.DRAFT_MODEL || DEFAULT_MODEL,
         max_tokens: 8000,
         system: `${RULES}\n\nIVERS LEBENSLAUF (${input.lang}):\n${profileFor(input.lang)}`,
         messages: [

@@ -10,8 +10,13 @@ export const dynamic = "force-dynamic";
  *  2. Seit 14 Tagen unangetastet auf "neu".
  *
  * Beide setzen den Status auf "abgelaufen" statt zu löschen. Die Stellen
- * verschwinden aus der Inbox, bleiben aber auffindbar — sonst wäre es
- * genau der stille Verlust, gegen den der Rest des Systems gebaut ist.
+ * verschwinden aus der Inbox, bleiben aber auffindbar.
+ *
+ * Gemessen wird ab dem ersten Import (imported_at), nicht ab der
+ * Veröffentlichung: Bei der BA tragen neu geschaltete Anzeigen oft ein altes
+ * Erstveröffentlichungsdatum und wären sonst schon beim Import "abgelaufen".
+ * Der Import schreibt bekannte Stellen nicht neu, imported_at ist also das
+ * Datum, an dem die Stelle zum ersten Mal auftauchte.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -38,15 +43,11 @@ export async function GET(request: Request) {
 
     if (fristError) return NextResponse.json({ ok: false, error: fristError.message }, { status: 500 });
 
-    // Gemessen wird am Veröffentlichungsdatum, nicht am Import. Deutsche
-    // Anzeigen werden täglich neu importiert; ihr imported_at ist deshalb
-    // immer frisch und wäre als Alterungsmaß unbrauchbar.
     const { data: liegengeblieben, error: altError } = await db
       .from("jobs")
       .update({ app_status: "abgelaufen", app_status_at: new Date().toISOString() })
       .eq("app_status", "neu")
-      .not("published", "is", null)
-      .lt("published", cutoff)
+      .lt("imported_at", cutoff)
       .select("uuid");
 
     if (altError) return NextResponse.json({ ok: false, error: altError.message }, { status: 500 });

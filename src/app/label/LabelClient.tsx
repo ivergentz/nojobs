@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type LabelJob = {
   uuid: string;
@@ -8,20 +8,17 @@ export type LabelJob = {
   employer: string;
   place: string;
   category: string;
+  homeoffice: string | null;
   extent: string | null;
   due: string | null;
   url: string | null;
   description: string;
-  titleDe: string | null;
-  descriptionDe: string | null;
   salaryMin: number | null;
   salaryMax: number | null;
   salaryNote: string | null;
-  translated: boolean;
 };
 
 type Verdict = "must_apply" | "worth_reading" | "ignore";
-type Fx = { rate: number; date: string } | null;
 
 const BUTTONS: Array<{ verdict: Verdict; label: string; key: string; tone: string }> = [
   { verdict: "must_apply", label: "🔥 Bewerben", key: "1", tone: "border-keep text-keep" },
@@ -33,96 +30,27 @@ const PREVIEW_LENGTH = 900;
 
 const num = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
 
-function formatSalary(job: LabelJob, fx: Fx): string | null {
+function formatSalary(job: LabelJob): string | null {
   const { salaryMin, salaryMax, salaryNote } = job;
   if (salaryMin === null && salaryMax === null) return salaryNote;
-
   const low = salaryMin ?? (salaryMax as number);
   const high = salaryMax ?? (salaryMin as number);
-  const range =
-    low === high ? `${num.format(low)} NOK` : `${num.format(low)}–${num.format(high)} NOK`;
-
-  if (!fx) return salaryNote ? `${range} · ${salaryNote}` : range;
-
-  const eurLow = Math.round((low * fx.rate) / 1000) * 1000;
-  const eurHigh = Math.round((high * fx.rate) / 1000) * 1000;
-  const eur =
-    eurLow === eurHigh
-      ? `ca. ${num.format(eurLow)} €`
-      : `ca. ${num.format(eurLow)}–${num.format(eurHigh)} €`;
-
-  return salaryNote ? `${range} · ${eur} · ${salaryNote}` : `${range} · ${eur}`;
+  return low === high ? `${num.format(low)} €` : `${num.format(low)}–${num.format(high)} €`;
 }
 
 export default function LabelClient({
   jobs,
   alreadyDone,
-  fx,
 }: {
   jobs: LabelJob[];
   alreadyDone: number;
-  fx: Fx;
 }) {
   const [index, setIndex] = useState(0);
   const [history, setHistory] = useState<string[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const [german, setGerman] = useState(true);
 
-  const [fresh, setFresh] = useState<Record<string, Partial<LabelJob>>>({});
-  const [busy, setBusy] = useState<string | null>(null);
-  const requested = useRef<Set<string>>(new Set());
-
-  const base = jobs[index];
-  const job = base ? { ...base, ...(fresh[base.uuid] ?? {}) } : undefined;
-
-  const translate = useCallback(async (uuid: string) => {
-    if (requested.current.has(uuid)) return;
-    requested.current.add(uuid);
-    setBusy(uuid);
-    try {
-      const res = await fetch("/api/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uuid }),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        setFailed(body.error ?? `Übersetzung: HTTP ${res.status}`);
-        requested.current.delete(uuid);
-        return;
-      }
-      setFresh((prev) => ({
-        ...prev,
-        [uuid]: {
-          titleDe: body.title_de,
-          descriptionDe: body.description_de,
-          salaryMin: body.salary_min_nok,
-          salaryMax: body.salary_max_nok,
-          salaryNote: body.salary_note,
-          translated: true,
-        },
-      }));
-    } catch (error) {
-      setFailed(error instanceof Error ? error.message : String(error));
-      requested.current.delete(uuid);
-    } finally {
-      setBusy((current) => (current === uuid ? null : current));
-    }
-  }, []);
-
-  // Aktuelle Anzeige übersetzen, die nächste im Hintergrund vorladen —
-  // sonst wartet man bei jedem Klick auf das Modell.
-  useEffect(() => {
-    const current = jobs[index];
-    if (current && !current.translated && !fresh[current.uuid]) {
-      void translate(current.uuid);
-    }
-    const next = jobs[index + 1];
-    if (next && !next.translated && !fresh[next.uuid]) {
-      void translate(next.uuid);
-    }
-  }, [index, jobs, fresh, translate]);
+  const job = jobs[index];
 
   const save = useCallback(async (uuid: string, verdict: Verdict | null) => {
     try {
@@ -175,11 +103,6 @@ export default function LabelClient({
         void decide(match.verdict);
         return;
       }
-      if (event.key.toLowerCase() === "o") {
-        event.preventDefault();
-        setGerman((prev) => !prev);
-        return;
-      }
       if (event.key === "Backspace") {
         event.preventDefault();
         void undo();
@@ -209,13 +132,9 @@ export default function LabelClient({
     );
   }
 
-  const translating = busy === job.uuid && !job.descriptionDe;
-  const showGerman = german && Boolean(job.descriptionDe);
-  const title = showGerman ? job.titleDe ?? job.title : job.title;
-  const body = showGerman ? job.descriptionDe ?? job.description : job.description;
-  const long = body.length > PREVIEW_LENGTH;
-  const shown = expanded ? body : body.slice(0, PREVIEW_LENGTH);
-  const salary = formatSalary(job, fx);
+  const long = job.description.length > PREVIEW_LENGTH;
+  const shown = expanded ? job.description : job.description.slice(0, PREVIEW_LENGTH);
+  const salary = formatSalary(job);
 
   return (
     <div className="mt-8">
@@ -227,9 +146,10 @@ export default function LabelClient({
       </div>
 
       <article className="mt-6">
-        <h2 className="text-lg font-semibold leading-snug">{title}</h2>
+        <h2 className="text-lg font-semibold leading-snug">{job.title}</h2>
         <p className="mt-1 text-sm text-muted">
           {job.employer} · {job.place}
+          {job.homeoffice ? ` · ${job.homeoffice}` : ""}
           {job.extent ? ` · ${job.extent}` : ""}
         </p>
         {job.due && <p className="mt-1 text-sm text-muted">Frist: {job.due}</p>}
@@ -242,20 +162,7 @@ export default function LabelClient({
           )}
         </p>
 
-        <div className="mt-6 flex items-center gap-4 text-sm">
-          <button
-            type="button"
-            onClick={() => setGerman((prev) => !prev)}
-            disabled={!job.descriptionDe}
-            className="underline underline-offset-4 disabled:no-underline disabled:opacity-40"
-          >
-            {showGerman ? "Original anzeigen" : "Übersetzung anzeigen"}
-            <span className="ml-2 text-xs text-muted">O</span>
-          </button>
-          {translating && <span className="text-muted">wird übersetzt …</span>}
-        </div>
-
-        <p className="mt-4 whitespace-pre-line text-sm leading-relaxed">
+        <p className="mt-6 whitespace-pre-line text-sm leading-relaxed">
           {shown}
           {long && !expanded && "…"}
         </p>
@@ -278,7 +185,7 @@ export default function LabelClient({
               rel="noopener noreferrer"
               className="underline underline-offset-4"
             >
-              Original bei NAV öffnen
+              Anzeige öffnen
             </a>
           </p>
         )}
@@ -308,11 +215,6 @@ export default function LabelClient({
         </div>
 
         {failed && <p className="mt-3 text-sm text-drop">Fehler: {failed}</p>}
-        {fx && (
-          <p className="mt-3 text-xs text-muted">
-            Kurs {fx.rate.toFixed(4)} EUR/NOK, EZB-Referenz vom {fx.date}
-          </p>
-        )}
       </div>
     </div>
   );

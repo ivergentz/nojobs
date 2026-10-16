@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { buildMessage, findChatId, sendTelegram, type NotifyJob } from "@/lib/notify";
+import { runEvaluation } from "@/lib/run-evaluate";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
+/**
+ * Morgen-Cron: erst bewerten, was der nächtliche Import geholt hat, dann
+ * benachrichtigen. Die Bewertung lief vorher als letzter Schritt im
+ * Tageslauf und bekam dort regelmäßig keine Zeit mehr — die Inbox blieb leer.
+ *
+ * ?skipEval=1  — nur benachrichtigen
+ * ?dry=1       — Nachricht nur anzeigen, nicht senden
+ * ?chatid=1    — Einrichtungshilfe: Chat-ID des Bots
+ */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const secret = process.env.IMPORT_SECRET;
@@ -14,24 +24,32 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Einrichtungshilfe: ?chatid=1 liefert die Chat-ID des Bots.
     if (url.searchParams.get("chatid")) {
       return NextResponse.json({ ok: true, chats: await findChatId() });
     }
 
     const db = supabaseAdmin();
 
+    let bewertung: Awaited<ReturnType<typeof runEvaluation>> | { fehler: string } | null = null;
+    if (!url.searchParams.get("skipEval")) {
+      try {
+        bewertung = await runEvaluation(db, { budgetMs: 18_000 });
+      } catch (error) {
+        bewertung = { fehler: error instanceof Error ? error.message : String(error) };
+      }
+    }
+
     const { data, error } = await db
       .from("jobs")
-      .select("uuid,title,title_de,employer_name,municipal,county,country,eval_fit,eval_summary,application_url,application_due")
+      .select("uuid,title,employer_name,municipal,county,country,eval_fit,eval_summary,application_url,application_due")
       .eq("status", "ACTIVE")
+      .eq("source", "ba")
       .in("eval_fit", ["must_apply", "worth_reading"])
-      .neq("eval_language", "scandinavian_required")
       .eq("app_status", "neu")
       .is("notified_at", null)
       .limit(30);
 
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, error: error.message, bewertung }, { status: 500 });
 
     const rows = data ?? [];
     const hot = rows.filter((row) => row.eval_fit === "must_apply");
@@ -39,11 +57,17 @@ export async function GET(request: Request) {
     // Kein must_apply, keine Nachricht. Ein täglicher Leerlauf-Ping wäre der
     // schnellste Weg, die Benachrichtigung wegzuignorieren.
     if (hot.length === 0) {
-      return NextResponse.json({ ok: true, gesendet: false, grund: "kein must_apply offen", offen: rows.length });
+      return NextResponse.json({
+        ok: true,
+        gesendet: false,
+        grund: "kein must_apply offen",
+        offen: rows.length,
+        bewertung,
+      });
     }
 
     const jobs: NotifyJob[] = rows.map((row) => ({
-      title: (row.title_de as string) ?? (row.title as string) ?? "Ohne Titel",
+      title: (row.title as string) ?? "Ohne Titel",
       employer: (row.employer_name as string) ?? "—",
       place: [row.municipal, row.county].filter(Boolean).join(", ") || ((row.country as string) ?? "—"),
       fit: (row.eval_fit as string) ?? "worth_reading",
@@ -54,7 +78,12 @@ export async function GET(request: Request) {
 
     const base = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;
     if (url.searchParams.get("dry")) {
-      return NextResponse.json({ ok: true, gesendet: false, vorschau: buildMessage(jobs, `${base}/inbox`) });
+      return NextResponse.json({
+        ok: true,
+        gesendet: false,
+        vorschau: buildMessage(jobs, `${base}/inbox`),
+        bewertung,
+      });
     }
 
     await sendTelegram(buildMessage(jobs, `${base}/inbox`));
@@ -64,7 +93,13 @@ export async function GET(request: Request) {
       .update({ notified_at: new Date().toISOString() })
       .in("uuid", rows.map((row) => row.uuid as string));
 
-    return NextResponse.json({ ok: true, gesendet: true, stellen: rows.length, davonBewerben: hot.length });
+    return NextResponse.json({
+      ok: true,
+      gesendet: true,
+      stellen: rows.length,
+      davonBewerben: hot.length,
+      bewertung,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

@@ -37,13 +37,13 @@ export default async function StatsPage() {
   const db = supabaseAdmin();
 
   const [cursor, weekly, occupations, reasons, samples, matches, totals] = await Promise.all([
-    db.from("import_cursor").select("*").eq("id", "nav").maybeSingle(),
+    db.from("import_cursor").select("*").eq("id", "de").maybeSingle(),
     db.from("v_weekly_candidates").select("*").order("week_start", { ascending: false }).limit(8),
     db.from("v_occupation_distribution").select("*").order("jobs", { ascending: false }).limit(25),
     db.from("v_drop_reasons").select("*").order("drops", { ascending: false }).limit(15),
     db.from("v_drop_samples").select("*").limit(40),
     db.from("v_match_terms").select("*").order("jobs", { ascending: false }).limit(20),
-    db.from("jobs").select("uuid", { count: "exact", head: true }).eq("status", "ACTIVE"),
+    db.from("jobs").select("uuid", { count: "exact", head: true }).eq("status", "ACTIVE").eq("source", "ba"),
   ]);
 
   const cursorRow = (cursor.data ?? null) as CursorRow | null;
@@ -80,7 +80,7 @@ export default async function StatsPage() {
       <header className="border-b border-rule pb-10">
         <p className="text-sm text-muted">Career Inbox · Validierungslauf</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          Wie viel bleibt vom norwegischen Stellenmarkt übrig?
+          Wie viel bleibt vom Markt in Hamburg und remote übrig?
         </h1>
       </header>
 
@@ -91,24 +91,24 @@ export default async function StatsPage() {
             {average === null ? "—" : nf.format(average)}
           </span>
           <span className="max-w-[16rem] text-sm leading-snug text-muted">
-            Kandidaten pro abgeschlossener Woche, nach beiden Filterstufen
+            Kandidaten pro abgeschlossener Woche, nach Standortfilter
           </span>
         </div>
 
         {average !== null && (
           <p className="mt-6 max-w-xl text-sm leading-relaxed">
             {average >= 15
-              ? "Über der Schwelle von 15. Eine tägliche Inbox trägt sich, Sprint 1 kann so gebaut werden."
+              ? "Genug Material für eine tägliche Inbox."
               : average >= 5
-                ? "Unter 15. Für eine tägliche Inbox zu dünn — plane einen Montagsdigest, oder hol Quelle 2 nach vorn."
-                : "Zu wenig für ein eigenes Produkt aus dieser Quelle allein. Prüfe erst das Drop-Log unten, bevor du den Markt dafür verantwortlich machst."}
+                ? "Eher dünn. Prüfe die Suchbegriffe in normalize-de.ts, bevor du den Markt dafür verantwortlich machst."
+                : "Sehr wenig. Prüfe zuerst in der Steuerung, ob der Import fehlerfrei läuft."}
           </p>
         )}
 
         <div className="mt-10 space-y-3">
           {weeklyRows.length === 0 && (
             <p className="text-sm text-muted">
-              Noch keine Daten. Starte den Import über <code>/api/import?secret=…</code>.
+              Noch keine Daten. Starte den Import über die Steuerung.
             </p>
           )}
           {weeklyRows.map((row, index) => (
@@ -136,10 +136,7 @@ export default async function StatsPage() {
       <section className="border-b border-rule py-12">
         <h2 className="text-lg font-semibold tracking-tight">Berufskategorien</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-          {categoryCoverage}&nbsp;% der gespeicherten Anzeigen haben eine Kategorie. Unter etwa
-          80&nbsp;% trägt das Feld keinen Ausschlussfilter — dann bleibt es beim Titelfilter plus
-          LLM. Trage passende Werte in <code>OCCUPATION_EXCLUDE</code> ein, exakt so geschrieben wie
-          hier.
+          Hauptberuf laut Jobbörse. {categoryCoverage}&nbsp;% der gespeicherten Anzeigen haben einen.
         </p>
 
         <table className="mt-8 w-full text-sm">
@@ -165,8 +162,8 @@ export default async function StatsPage() {
       <section className="border-b border-rule py-12">
         <h2 className="text-lg font-semibold tracking-tight">Welcher Begriff hat durchgelassen?</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-          Jeder Treffer in Stufe A geht auf einen Begriff aus <code>TITLE_INCLUDE</code> zurück.
-          Steht ein Begriff hier weit oben und liefert trotzdem nichts Brauchbares, gehört er
+          Jede Stelle geht auf einen Suchbegriff aus <code>SUCHBEGRIFFE</code> zurück, mit Präfix
+          hamburg: oder remote:. Liefert ein Begriff viel und nichts Brauchbares, gehört er
           gestrichen oder verengt.
         </p>
 
@@ -191,8 +188,8 @@ export default async function StatsPage() {
       <section className="border-b border-rule py-12">
         <h2 className="text-lg font-semibold tracking-tight">Was der Filter aussortiert hat</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-          Der gefährliche Fehler ist nicht ein falscher Treffer, sondern eine passende Stelle, die
-          hier landet und nie in der Inbox auftaucht. Die Stichprobe unten ist zum Gegenlesen da.
+          Protokolliert werden Titel-Ausschlüsse (Praktikum, Werkstudent …). Standort-Absagen
+          werden nur gezählt, nicht gespeichert. Die Stichprobe unten ist zum Gegenlesen da.
         </p>
 
         <div className="mt-8 space-y-3">
@@ -228,16 +225,8 @@ export default async function StatsPage() {
             <dd className="tnum">{nf.format(activeJobs)}</dd>
           </div>
           <div className="flex justify-between border-t border-rule/60 py-2">
-            <dt className="text-muted">Feed-Einträge gelesen</dt>
+            <dt className="text-muted">Treffer im letzten Lauf</dt>
             <dd className="tnum">{nf.format(cursorRow?.items_seen ?? 0)}</dd>
-          </div>
-          <div className="flex justify-between border-t border-rule/60 py-2">
-            <dt className="text-muted">Seiten verarbeitet</dt>
-            <dd className="tnum">{nf.format(cursorRow?.pages_done ?? 0)}</dd>
-          </div>
-          <div className="flex justify-between border-t border-rule/60 py-2">
-            <dt className="text-muted">Feed steht bei</dt>
-            <dd className="tnum">{formatDate(cursorRow?.last_item_date ?? null)}</dd>
           </div>
           <div className="flex justify-between border-t border-rule/60 py-2">
             <dt className="text-muted">Letzter Lauf</dt>
@@ -246,19 +235,10 @@ export default async function StatsPage() {
           <div className="flex justify-between border-t border-rule/60 py-2">
             <dt className="text-muted">Status</dt>
             <dd className={running ? "text-drop" : "text-keep"}>
-              {cursorRow ? (running ? "Backfill läuft noch" : "Feed vollständig gelesen") : "nicht gestartet"}
+              {cursorRow ? (running ? "Details noch offen" : "aktuell") : "nicht gestartet"}
             </dd>
           </div>
         </dl>
-
-        {running && (
-          <p className="mt-6 max-w-xl leading-relaxed text-muted">
-            Ruf <code>/api/import?secret=…</code> erneut auf. Jeder Aufruf verarbeitet rund 45
-            Sekunden und macht dort weiter, wo der letzte aufgehört hat. Liegt „Feed steht bei"
-            weit in der Vergangenheit, hat der Einstiegspunkt nicht gegriffen — dann mit{" "}
-            <code>&amp;reset=purge</code> neu starten.
-          </p>
-        )}
 
         {cursorRow?.last_note && (
           <p className="mt-4 max-w-xl leading-relaxed text-muted">{cursorRow.last_note}</p>

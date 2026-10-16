@@ -59,7 +59,7 @@ export default async function ApplicationPage({
       <ApplicationClient
         uuid={job.uuid as string}
         draft={(job.application_draft as any) ?? null}
-        defaultLang={job.source === "ba" ? "de" : "en"}
+        defaultLang="de"
       />
     </main>
   );

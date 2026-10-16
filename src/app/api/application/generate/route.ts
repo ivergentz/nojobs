@@ -20,8 +20,8 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!job) return NextResponse.json({ error: "Stelle nicht gefunden" }, { status: 404 });
 
-    // Norwegische und schwedische Ausschreibungen werden auf Englisch beantwortet.
-    const sprache = lang ?? (job.source === "ba" ? "de" : "en");
+    // Standard Deutsch; englische Ausschreibungen lassen sich auf der Seite umstellen.
+    const sprache = lang ?? "de";
 
     const draft = await draftApplication({
       lang: sprache,

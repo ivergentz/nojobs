@@ -4,25 +4,19 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Ein Cron für alles.
+ * Nacht-Cron (04:00 UTC): Import Hamburg/Remote, danach Aufräumen.
  *
- * Vercel hat den sechsten Cron stillschweigend verworfen — /api/cleanup lief
- * nie. Statt sechs Einträge zu pflegen, ruft dieser Lauf die Schritte
- * nacheinander als eigene Serverless-Aufrufe auf und gibt jedem ein knappes
- * Zeitbudget. Im Dauerbetrieb sind die Tagesmengen klein; die großen Budgets
- * brauchte nur der Rückstand, und den erledigst du bei Bedarf über /admin.
+ * Bewertet wird NICHT hier, sondern im Morgen-Cron /api/notify. Vorher liefen
+ * drei Importe plus Bewertung in diesem einen 60-Sekunden-Aufruf; die
+ * Bewertung kam als vorletzter Schritt praktisch nie dran, und ohne
+ * Bewertung erscheint nichts in der Inbox.
  *
- * Bleibt ein Schritt unfertig, ist das unkritisch: Jeder Importer speichert
- * seinen Cursor, die Bewertung nimmt beim nächsten Mal, was offen ist.
+ * Bleibt der Import unfertig, ist das unkritisch: Er sucht ein 7-Tage-Fenster
+ * und holt beim nächsten Lauf nach, was fehlt.
  */
 
 const SCHRITTE: Array<{ name: string; pfad: string; budget: number }> = [
-  { name: "Norwegen", pfad: "/api/import", budget: 11_000 },
-  { name: "Schweden", pfad: "/api/import-se", budget: 11_000 },
-  { name: "Deutschland", pfad: "/api/import-de", budget: 11_000 },
-  // Kein days-Filter: bewertet wird alles ohne Urteil, unabhängig vom
-  // Veröffentlichungsdatum. Sonst fallen spät importierte Anzeigen lautlos weg.
-  { name: "Bewertung", pfad: "/api/evaluate?scope=all", budget: 14_000 },
+  { name: "Import Hamburg/Remote", pfad: "/api/import-de", budget: 32_000 },
   { name: "Aufräumen", pfad: "/api/cleanup", budget: 3_000 },
 ];
 
@@ -39,8 +33,7 @@ export async function GET(request: Request) {
   const ergebnisse: Array<Record<string, unknown>> = [];
 
   for (const schritt of SCHRITTE) {
-    // Genug Luft lassen, damit der letzte Schritt nicht ins Limit läuft.
-    if (Date.now() - startedAt > 50_000) {
+    if (Date.now() - startedAt > 52_000) {
       ergebnisse.push({ schritt: schritt.name, uebersprungen: "Zeit aufgebraucht" });
       continue;
     }
@@ -52,16 +45,21 @@ export async function GET(request: Request) {
 
     try {
       const res = await fetch(ziel, { cache: "no-store" });
-      const body = (await res.json()) as Record<string, unknown>;
+      const text = await res.text();
+      let body: Record<string, unknown> = {};
+      try {
+        body = JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        // z. B. Vercel-Fehlerseite bei Timeout oder Deployment-Schutz
+        body = { error: `keine JSON-Antwort (HTTP ${res.status}): ${text.slice(0, 120)}` };
+      }
       ergebnisse.push({
         schritt: schritt.name,
         status: res.status,
         done: body.done ?? null,
-        // Nur die Kennzahlen, die es tatsächlich gibt — je nach Schritt andere.
         kennzahlen: {
-          gespeichert: body.gespeichert ?? (body.thisRun as any)?.kept ?? null,
-          bewertet: body.evaluated ?? null,
-          offen: body.nochOffen ?? null,
+          gespeichert: body.gespeichert ?? null,
+          offen: body.offen ?? null,
           abgelaufen: body.fristAbgelaufen ?? null,
           liegengeblieben: body.liegengeblieben ?? null,
         },

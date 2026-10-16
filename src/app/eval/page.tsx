@@ -8,7 +8,6 @@ type Row = {
   employer_name: string | null;
   label: string;
   eval_fit: string | null;
-  eval_language: string | null;
   eval_summary: string | null;
 };
 
@@ -26,8 +25,9 @@ export default async function EvalPage() {
 
   const { data, error } = await db
     .from("jobs")
-    .select("uuid,title,employer_name,label,eval_fit,eval_language,eval_summary")
+    .select("uuid,title,employer_name,label,eval_fit,eval_summary")
     .eq("status", "ACTIVE")
+    .eq("source", "ba")
     .not("label", "is", null)
     .not("evaluated_at", "is", null)
     .limit(500);
@@ -57,10 +57,6 @@ export default async function EvalPage() {
   const noisy = rows.filter(
     (row) => row.eval_fit && RANK[row.eval_fit] > RANK[row.label] + 0
   );
-
-  const languageBlocked = rows.filter(
-    (row) => RANK[row.eval_fit ?? "ignore"] > 0 && row.eval_language === "scandinavian_required"
-  ).length;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
@@ -151,13 +147,7 @@ export default async function EvalPage() {
       )}
 
       <section className="py-12 text-sm">
-        <h2 className="text-lg font-semibold tracking-tight">Sprachfilter</h2>
-        <p className="mt-3 max-w-xl leading-relaxed text-muted">
-          {languageBlocked} inhaltlich passende Stellen scheitern an der Sprache. Das ist die Menge,
-          die ein Norwegischkurs zusätzlich öffnen würde.
-        </p>
-
-        <h3 className="mt-10 font-semibold">Fehlalarme</h3>
+        <h2 className="text-lg font-semibold tracking-tight">Fehlalarme</h2>
         <p className="mt-2 leading-relaxed text-muted">
           {noisy.length} Stellen stuft das Modell höher ein als du. Solange die Zahl klein bleibt,
           ist das der günstigere Fehler.

@@ -4,11 +4,10 @@ import { useState } from "react";
 
 export type InboxJob = {
   uuid: string;
-  source: string;
   title: string;
-  originalTitle: string | null;
   employer: string;
   place: string;
+  homeoffice: string | null;
   fit: string;
   confidence: string;
   summary: string;
@@ -20,54 +19,43 @@ export type InboxJob = {
   salaryMax: number | null;
   salaryNote: string | null;
   status: string;
+  published: string | null;
 };
 
-type Fx = { rate: number; date: string } | null;
-
 const num = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
-
-const LAND: Record<string, string> = { nav: "Norwegen", jobstream: "Schweden", ba: "Deutschland" };
 
 const STATUS: Array<{ key: string; label: string }> = [
   { key: "interessant", label: "Vormerken" },
   { key: "beworben", label: "Beworben" },
   { key: "interview", label: "Interview" },
+  { key: "absage", label: "Absage" },
   { key: "abgelegt", label: "Ablegen" },
 ];
 
-function salaryLine(job: InboxJob, fx: Fx): string | null {
+/** Diese Status verschwinden sofort aus der Liste. */
+const AUSGEBLENDET = ["abgelegt", "absage"];
+
+function salaryLine(job: InboxJob): string | null {
   if (job.salaryMin === null && job.salaryMax === null) return job.salaryNote;
-
-  // Deutschland liefert Euro strukturiert mit — keine Umrechnung nötig.
-  if (job.source === "ba") {
-    const low = job.salaryMin ?? (job.salaryMax as number);
-    const high = job.salaryMax ?? (job.salaryMin as number);
-    return low === high
-      ? `${num.format(low)} €`
-      : `${num.format(low)}–${num.format(high)} €`;
-  }
-  if (job.source !== "nav") return job.salaryNote;
-
   const low = job.salaryMin ?? (job.salaryMax as number);
   const high = job.salaryMax ?? (job.salaryMin as number);
-  const range =
-    low === high ? `${num.format(low)} NOK` : `${num.format(low)}–${num.format(high)} NOK`;
-  if (!fx) return range;
-
-  const eurLow = Math.round((low * fx.rate) / 1000) * 1000;
-  const eurHigh = Math.round((high * fx.rate) / 1000) * 1000;
-  const eur =
-    eurLow === eurHigh
-      ? `ca. ${num.format(eurLow)} €`
-      : `ca. ${num.format(eurLow)}–${num.format(eurHigh)} €`;
-  return `${range} · ${eur}`;
+  return low === high ? `${num.format(low)} €` : `${num.format(low)}–${num.format(high)} €`;
 }
 
-export default function InboxClient({ jobs, fx }: { jobs: InboxJob[]; fx: Fx }) {
+function datum(value: string | null): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+}
+
+export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
   const [state, setState] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState<string | null>(null);
 
   const setStatus = async (uuid: string, status: string) => {
+    const previous = state[uuid];
     setState((prev) => ({ ...prev, [uuid]: status }));
     try {
       const res = await fetch("/api/status", {
@@ -78,6 +66,13 @@ export default function InboxClient({ jobs, fx }: { jobs: InboxJob[]; fx: Fx }) 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setFailed(body.error ?? `HTTP ${res.status}`);
+        // Anzeige zurückdrehen, sonst sieht es gespeichert aus, ist es aber nicht.
+        setState((prev) => {
+          const next = { ...prev };
+          if (previous === undefined) delete next[uuid];
+          else next[uuid] = previous;
+          return next;
+        });
       } else {
         setFailed(null);
       }
@@ -86,13 +81,13 @@ export default function InboxClient({ jobs, fx }: { jobs: InboxJob[]; fx: Fx }) 
     }
   };
 
-  const visible = jobs.filter((job) => (state[job.uuid] ?? job.status) !== "abgelegt");
+  const visible = jobs.filter((job) => !AUSGEBLENDET.includes(state[job.uuid] ?? job.status));
 
   if (visible.length === 0) {
     return (
       <p className="mt-12 text-sm leading-relaxed">
-        Nichts Neues. Das ist bei zwei bis fünf passenden Stellen pro Woche der Normalfall, kein
-        Fehler.
+        Nichts Neues. Bei einer engen Suche ist das öfter der Normalfall, kein Fehler — die
+        Steuerung zeigt, ob Import und Bewertung gelaufen sind.
       </p>
     );
   }
@@ -104,8 +99,9 @@ export default function InboxClient({ jobs, fx }: { jobs: InboxJob[]; fx: Fx }) 
       <ul>
         {visible.map((job) => {
           const status = state[job.uuid] ?? job.status;
-          const salary = salaryLine(job, fx);
+          const salary = salaryLine(job);
           const hot = job.fit === "must_apply";
+          const seit = datum(job.published);
 
           return (
             <li key={job.uuid} className="border-b border-rule py-8">
@@ -116,12 +112,13 @@ export default function InboxClient({ jobs, fx }: { jobs: InboxJob[]; fx: Fx }) 
                     <span className="ml-2 font-normal text-muted">unsicher</span>
                   )}
                 </span>
-                <span className="text-muted">{LAND[job.source] ?? job.source}</span>
+                {seit && <span className="tnum text-muted">seit {seit}</span>}
               </div>
 
               <h2 className="mt-2 text-lg font-semibold leading-snug">{job.title}</h2>
               <p className="mt-1 text-sm text-muted">
                 {job.employer} · {job.place}
+                {job.homeoffice ? ` · ${job.homeoffice}` : ""}
                 {job.due ? ` · Frist ${job.due}` : ""}
               </p>
               {salary && <p className="mt-1 text-sm text-keep">{salary}</p>}
@@ -149,14 +146,15 @@ export default function InboxClient({ jobs, fx }: { jobs: InboxJob[]; fx: Fx }) 
 
               <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
                 {job.url && (
+                  // Öffnet nur die Anzeige. Vorher setzte der Klick automatisch
+                  // "beworben" — auch wenn man sich die Stelle nur ansehen wollte.
                   <a
                     href={job.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => void setStatus(job.uuid, "beworben")}
                     className="rounded border border-keep px-4 py-2 text-keep"
                   >
-                    Zur Bewerbung
+                    Anzeige öffnen
                   </a>
                 )}
                 <a

@@ -6,25 +6,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * Steuerung für die Hintergrundläufe.
  *
  * Jeder Serverless-Aufruf arbeitet nur sein Zeitbudget ab und gibt dann auf.
- * Bisher hieß das: URL im Browser aufrufen, Antwort lesen, neu laden, wieder
- * von vorn. Diese Seite macht dieselbe Schleife im Client — mit Abbruch,
- * Fortschritt und Protokoll.
+ * Diese Seite ruft denselben Endpunkt in einer Schleife auf, bis er fertig
+ * meldet — mit Abbruch, Fortschritt und Protokoll.
  */
 
 type State = {
   aktiv: number;
   unbewertet: number;
-  unbewertet4Tage: number;
   inbox: number;
-  blockiert: number;
+  mustApply: number;
   ungelabelt: number;
-  nav: number;
-  se: number;
+  hamburg: number;
+  remote: number;
   modell: string;
   cursors: Array<{
     id: string;
     at_end: boolean | null;
-    last_item_date: string | null;
     last_run_at: string | null;
     last_note: string | null;
   }>;
@@ -32,23 +29,37 @@ type State = {
 
 type LogEntry = { zeit: string; text: string; fehler?: boolean };
 
-const MAX_RUNS = 60;
+const MAX_RUNS = 30;
+
+function wann(value: string | null): string {
+  if (!value) return "noch nie";
+  return new Date(value).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+}
 
 export default function AdminClient() {
   const [secret, setSecret] = useState("");
   const [state, setState] = useState<State | null>(null);
+  const [stateError, setStateError] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
-  const [days, setDays] = useState("4");
+  const [days, setDays] = useState("7");
   const stop = useRef(false);
 
   useEffect(() => {
-    setSecret(window.localStorage.getItem("ci-secret") ?? "");
+    try {
+      setSecret(window.localStorage.getItem("ci-secret") ?? "");
+    } catch {
+      /* Speicher nicht verfügbar */
+    }
   }, []);
 
   const saveSecret = (value: string) => {
     setSecret(value);
-    window.localStorage.setItem("ci-secret", value);
+    try {
+      window.localStorage.setItem("ci-secret", value);
+    } catch {
+      /* Speicher nicht verfügbar */
+    }
   };
 
   const say = (text: string, fehler = false) =>
@@ -60,9 +71,14 @@ export default function AdminClient() {
     try {
       const res = await fetch("/api/state", { cache: "no-store" });
       const body = await res.json();
-      if (res.ok) setState(body as State);
-    } catch {
-      /* stiller Fehlschlag, der nächste Durchlauf versucht es erneut */
+      if (res.ok) {
+        setState(body as State);
+        setStateError(null);
+      } else {
+        setStateError(body.error ?? `HTTP ${res.status}`);
+      }
+    } catch (error) {
+      setStateError(error instanceof Error ? error.message : String(error));
     }
   }, []);
 
@@ -94,7 +110,14 @@ export default function AdminClient() {
 
       try {
         const res = await fetch(build(), { cache: "no-store" });
-        const body = await res.json();
+        const text = await res.text();
+        let body: any;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          say(`${name}: keine JSON-Antwort (HTTP ${res.status}) — vermutlich Zeitlimit`, true);
+          break;
+        }
 
         if (!res.ok || body.ok === false) {
           say(`${name}: ${body.error ?? `HTTP ${res.status}`}`, true);
@@ -118,47 +141,28 @@ export default function AdminClient() {
     await refresh();
   };
 
-  const importNav = () =>
-    loop(
-      "Import Norwegen",
-      () => `/api/import?secret=${encodeURIComponent(secret)}`,
-      (body) => body.done === true,
-      (body) =>
-        `${body.thisRun?.items ?? 0} gelesen, ${body.thisRun?.kept ?? 0} gespeichert, Stand ${
-          body.feedPosition?.slice(0, 16) ?? "?"
-        }`
-    );
-
-  const importSe = () =>
-    loop(
-      "Import Schweden",
-      () => `/api/import-se?secret=${encodeURIComponent(secret)}`,
-      (body) => body.done === true,
-      (body) =>
-        `${body.gelesen ?? 0} gelesen, ${body.gespeichert ?? 0} gespeichert, Stand ${
-          body.naechsterStart?.slice(0, 16) ?? "?"
-        }`
-    );
-
   const importDe = () =>
     loop(
-      "Import Deutschland",
+      "Import",
       () => `/api/import-de?secret=${encodeURIComponent(secret)}`,
       (body) => body.done === true,
       (body) =>
-        `${body.fortschritt ?? "?"} Begriffe, ${body.treffer ?? 0} Treffer, ${
-          body.gespeichert ?? 0
-        } gespeichert`
+        `${body.treffer ?? 0} Treffer, ${body.kandidaten ?? 0} in Hamburg/Remote, ` +
+        `${body.gespeichert ?? 0} neu gespeichert, ${body.offen ?? 0} offen` +
+        (body.suchfehler?.length ? ` · Suchfehler: ${body.suchfehler[0]}` : "")
     );
 
   const daily = () =>
     loop(
-      "Tageslauf",
+      "Nachtlauf",
       () => `/api/daily?secret=${encodeURIComponent(secret)}`,
       () => true,
       (body) =>
         (body.ergebnisse ?? [])
-          .map((e: any) => `${e.schritt}: ${e.fehler ? "Fehler" : e.done === false ? "offen" : "ok"}`)
+          .map(
+            (e: any) =>
+              `${e.schritt}: ${e.fehler ? `Fehler (${e.fehler})` : e.done === false ? "offen" : "ok"}`
+          )
           .join(" · ")
     );
 
@@ -170,12 +174,28 @@ export default function AdminClient() {
         (withDays ? `&days=${encodeURIComponent(days)}` : ""),
       (body) => (body.evaluated ?? 0) === 0,
       (body) =>
-        `${body.evaluated ?? 0} bewertet, ${body.failed ?? 0} Fehler, ${
-          body.nochOffen ?? 0
-        } offen`
+        `${body.evaluated ?? 0} bewertet, ${body.failed ?? 0} Fehler, ${body.nochOffen ?? 0} offen` +
+        (body.fehlerbeispiele?.length ? ` · ${body.fehlerbeispiele[0]}` : "")
+    );
+
+  const notify = (dry: boolean) =>
+    loop(
+      dry ? "Telegram-Vorschau" : "Telegram senden",
+      () =>
+        `/api/notify?secret=${encodeURIComponent(secret)}&skipEval=1` + (dry ? "&dry=1" : ""),
+      () => true,
+      (body) =>
+        body.vorschau
+          ? body.vorschau.replace(/<[^>]+>/g, "").slice(0, 300)
+          : body.gesendet
+            ? `${body.stellen} Stellen gesendet`
+            : `nicht gesendet: ${body.grund ?? "?"}`
     );
 
   const zahl = (value: number) => new Intl.NumberFormat("de-DE").format(value);
+  const cursor = state?.cursors.find((entry) => entry.id === "de") ?? null;
+
+  const button = "rounded border px-4 py-2 text-sm disabled:opacity-40";
 
   return (
     <div className="mt-8">
@@ -190,20 +210,23 @@ export default function AdminClient() {
         />
       </label>
       <p className="mt-2 text-xs text-muted">
-        Bleibt im Browser gespeichert und steht nicht mehr in der Adressleiste.
+        Bleibt im Browser gespeichert und steht nicht in der Adressleiste.
       </p>
+
+      {stateError && (
+        <p className="mt-6 text-sm text-drop">Status nicht lesbar: {stateError}</p>
+      )}
 
       {state && (
         <section className="mt-10 border-t border-rule pt-8">
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {[
               { label: "in der Inbox", value: state.inbox },
+              { label: "davon bewerben", value: state.mustApply },
               { label: "noch zu bewerten", value: state.unbewertet },
-              { label: "davon letzte 4 Tage", value: state.unbewertet4Tage },
-              { label: "Sprache blockiert", value: state.blockiert },
-              { label: "Stellen Norwegen", value: state.nav },
-              { label: "Stellen Schweden", value: state.se },
               { label: "aktiv gesamt", value: state.aktiv },
+              { label: "Hamburg", value: state.hamburg },
+              { label: "Remote", value: state.remote },
               { label: "ungelabelt", value: state.ungelabelt },
             ].map((entry) => (
               <div key={entry.label}>
@@ -214,16 +237,10 @@ export default function AdminClient() {
           </div>
 
           <p className="mt-6 text-xs text-muted">Bewertungsmodell: {state.modell}</p>
-
-          <ul className="mt-4 space-y-1 text-xs text-muted">
-            {state.cursors.map((cursor) => (
-              <li key={cursor.id}>
-                {cursor.id === "nav" ? "Norwegen" : cursor.id === "se" ? "Schweden" : "Deutschland"}: Stand{" "}
-                {cursor.last_item_date?.slice(0, 16) ?? "—"} ·{" "}
-                {cursor.at_end ? "aktuell" : "Rückstand"}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-1 text-xs text-muted">
+            Letzter Import: {wann(cursor?.last_run_at ?? null)}
+            {cursor?.last_note ? ` — ${cursor.last_note}` : ""}
+          </p>
         </section>
       )}
 
@@ -231,52 +248,38 @@ export default function AdminClient() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => void daily()}
-            disabled={Boolean(running)}
-            className="rounded border border-keep px-4 py-2 text-sm text-keep disabled:opacity-40"
-          >
-            Tageslauf
-          </button>
-          <button
-            type="button"
-            onClick={() => void importNav()}
-            disabled={Boolean(running)}
-            className="rounded border border-ink px-4 py-2 text-sm disabled:opacity-40"
-          >
-            Import Norwegen
-          </button>
-          <button
-            type="button"
-            onClick={() => void importSe()}
-            disabled={Boolean(running)}
-            className="rounded border border-ink px-4 py-2 text-sm disabled:opacity-40"
-          >
-            Import Schweden
-          </button>
-          <button
-            type="button"
             onClick={() => void importDe()}
             disabled={Boolean(running)}
-            className="rounded border border-ink px-4 py-2 text-sm disabled:opacity-40"
+            className={`${button} border-ink`}
           >
-            Import Deutschland
+            1 · Import
           </button>
           <button
             type="button"
             onClick={() => void evaluate("all", true)}
             disabled={Boolean(running)}
-            className="rounded border border-keep px-4 py-2 text-sm text-keep disabled:opacity-40"
+            className={`${button} border-keep text-keep`}
           >
-            Bewerten, letzte
+            2 · Bewerten, letzte
           </button>
           <input
             value={days}
-            onChange={(event) => setDays(event.target.value.replace(/\D/g, "") || "4")}
+            onChange={(event) => setDays(event.target.value.replace(/\D/g, "") || "7")}
             className="w-14 rounded border border-rule bg-transparent px-2 py-2 text-center text-sm"
             aria-label="Tage"
           />
           <span className="text-sm text-muted">Tage</span>
+        </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void daily()}
+            disabled={Boolean(running)}
+            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+          >
+            Nachtlauf testen
+          </button>
           <button
             type="button"
             onClick={() => void evaluate("all", false)}
@@ -292,6 +295,14 @@ export default function AdminClient() {
             className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
           >
             nur gelabelte
+          </button>
+          <button
+            type="button"
+            onClick={() => void notify(true)}
+            disabled={Boolean(running)}
+            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+          >
+            Telegram-Vorschau
           </button>
 
           {running && (

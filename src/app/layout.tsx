@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Career Inbox",
-  description: "Kuratierte Stellen aus Norwegen und Schweden.",
+  description: "Kuratierte (AI-)Produktstellen in Hamburg und remote.",
+  robots: { index: false, follow: false },
 };
 
 const NAV = [
@@ -20,9 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="de">
       <body className="min-h-screen antialiased">
         <nav className="border-b border-rule">
-          <ul className="mx-auto flex max-w-3xl gap-5 px-6 py-3 text-sm">
+          <ul className="mx-auto flex max-w-3xl gap-5 overflow-x-auto px-6 py-3 text-sm">
             {NAV.map((entry) => (
-              <li key={entry.href}>
+              <li key={entry.href} className="shrink-0">
                 <Link href={entry.href} className="text-muted hover:text-ink">
                   {entry.label}
                 </Link>
