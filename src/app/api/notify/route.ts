@@ -70,7 +70,15 @@ export async function GET(request: Request) {
       .is("notified_at", null)
       .limit(30);
 
-    if (error) return NextResponse.json({ ok: false, error: error.message, bewertung }, { status: 500 });
+    if (error) {
+      // Datenbank weg (z. B. pausiert): wenigstens Bescheid geben.
+      try {
+        await sendTelegram(`⚠️ Career Inbox: Datenbank nicht erreichbar — keine Stellen gelesen.\n${error.message}`);
+      } catch {
+        /* nichts zu machen */
+      }
+      return NextResponse.json({ ok: false, error: error.message, bewertung }, { status: 500 });
+    }
 
     const rows = data ?? [];
     const hot = rows.filter((row) => row.eval_fit === "must_apply");

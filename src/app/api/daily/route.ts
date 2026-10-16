@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
 import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
+import { sendTelegram } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,6 +29,24 @@ const SCHRITTE: Array<{ name: string; pfad: string; budget: number }> = [
 export async function GET(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ error: "nicht autorisiert" }, { status: 401 });
+  }
+
+  // Erst prüfen, ob die Datenbank erreichbar ist. Pausiert Supabase das
+  // Projekt (Free Plan nach 7 Tagen Inaktivität), scheitert alles Weitere —
+  // und das Log kann es nicht einmal festhalten. Dann per Telegram melden.
+  try {
+    const { error } = await supabaseAdmin().from("import_cursor").select("id").limit(1);
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    const meldung = error instanceof Error ? error.message : String(error);
+    try {
+      await sendTelegram(
+        `⚠️ Career Inbox: Datenbank nicht erreichbar — Nachtlauf abgebrochen.\n${meldung}\n\nVermutlich hat Supabase das Projekt pausiert. Im Supabase-Dashboard „Resume project“ klicken.`
+      );
+    } catch {
+      /* Telegram auch nicht erreichbar — mehr geht nicht */
+    }
+    return NextResponse.json({ ok: false, error: `Datenbank nicht erreichbar: ${meldung}` }, { status: 503 });
   }
 
   const secret = process.env.IMPORT_SECRET;
