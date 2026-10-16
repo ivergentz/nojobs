@@ -6,9 +6,9 @@
  * und Schweden. Es wird nicht mehr bewertet und nicht mehr geschrieben.
  */
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+import { callClaudeTool, DEFAULT_MODEL } from "./claude";
 
-export const DEFAULT_MODEL = "claude-sonnet-5-5";
+export { DEFAULT_MODEL };
 
 export type Fit = "must_apply" | "worth_reading" | "ignore";
 
@@ -76,48 +76,25 @@ Ein zu großzügiges worth_reading kostet Iver dreißig Sekunden Lesezeit. Ein f
 Deshalb: Bei Unsicherheit zwischen ignore und worth_reading immer worth_reading wählen.
 Bei der Grenze zwischen worth_reading und must_apply dagegen streng bleiben — must_apply heißt "hierauf bewerbe ich mich diese Woche".
 
-Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences und ohne Vorrede:
-{"fit": "must_apply"|"worth_reading"|"ignore", "confidence": "high"|"medium"|"low", "summary": string, "pros": string[], "cons": string[]}`;
+Gib dein Urteil über das Werkzeug "urteil" ab.`;
+
+const SCHEMA = {
+  type: "object",
+  properties: {
+    fit: { type: "string", enum: ["must_apply", "worth_reading", "ignore"] },
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+    summary: { type: "string", description: "Höchstens 40 Wörter, Deutsch." },
+    pros: { type: "array", items: { type: "string" }, maxItems: 4 },
+    cons: { type: "array", items: { type: "string" }, maxItems: 4 },
+  },
+  required: ["fit", "confidence", "summary", "pros", "cons"],
+};
 
 /**
  * Harte Obergrenze pro Aufruf. Ohne die kann ein einzelner langsamer Request
  * die ganze Serverless-Funktion über das 60-Sekunden-Limit ziehen.
  */
 const CALL_TIMEOUT_MS = 25_000;
-
-/**
- * Robustes Parsen der Modellantwort: Markdown-Fences, Vorrede vor der
- * Klammer und rohe Zeilenumbrüche in String-Werten.
- */
-function parseVerdict(raw: string): Partial<Evaluation> | null {
-  const trimmed = raw
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
-
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start === -1 || end <= start) return null;
-  const candidate = trimmed.slice(start, end + 1);
-
-  const attempts = [
-    candidate,
-    candidate.replace(/[\u0000-\u001f]/g, (char) =>
-      char === "\n" ? "\\n" : char === "\t" ? "\\t" : ""
-    ),
-  ];
-
-  for (const attempt of attempts) {
-    try {
-      return JSON.parse(attempt) as Partial<Evaluation>;
-    } catch {
-      /* nächster Versuch */
-    }
-  }
-
-  return null;
-}
 
 export async function evaluateAd(input: {
   title: string;
@@ -127,80 +104,26 @@ export async function evaluateAd(input: {
   salary: string;
   description: string;
 }): Promise<Evaluation> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY fehlt in den Umgebungsvariablen.");
-  }
-
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), CALL_TIMEOUT_MS);
-
-  let res: Response;
-  try {
-    res = await fetch(ANTHROPIC_URL, {
-      signal: abort.signal,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.EVAL_MODEL || DEFAULT_MODEL,
-        max_tokens: 1500,
-        system: `${PROFILE}\n\n${RULES}`,
-        messages: [
-          {
-            role: "user",
-            content: [
-              `Titel: ${input.title}`,
-              `Arbeitgeber: ${input.employer}`,
-              `Ort: ${input.place || "unbekannt"}`,
-              `Homeoffice laut Jobbörse: ${input.homeoffice || "keine Angabe"}`,
-              `Gehalt laut Jobbörse: ${input.salary || "keine Angabe"}`,
-              "",
-              // Die ersten 6000 Zeichen enthalten praktisch immer Rolle,
-              // Aufgaben, Anforderungen und Arbeitsmodell.
-              input.description ? input.description.slice(0, 6000) : "(keine Beschreibung verfügbar)",
-            ].join("\n"),
-          },
-        ],
-      }),
-      cache: "no-store",
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Zeitüberschreitung nach ${CALL_TIMEOUT_MS / 1000}s`);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Anthropic API: HTTP ${res.status} — ${body.slice(0, 300)}`);
-  }
-
-  const data = (await res.json()) as {
-    content?: Array<{ type: string; text?: string }>;
-    stop_reason?: string;
-  };
-
-  const raw = (data.content ?? [])
-    .filter((block) => block.type === "text")
-    .map((block) => block.text ?? "")
-    .join("");
-
-  const parsed = parseVerdict(raw);
-
-  if (!parsed) {
-    const reason = data.stop_reason ?? "unbekannt";
-    throw new Error(
-      `Kein gültiges JSON (stop_reason: ${reason}, ${raw.length} Zeichen). ` +
-        `Anfang: ${raw.slice(0, 200)} ||| Ende: ${raw.slice(-200)}`
-    );
-  }
+  const parsed = await callClaudeTool<Partial<Evaluation>>({
+    model: process.env.EVAL_MODEL || DEFAULT_MODEL,
+    system: `${PROFILE}\n\n${RULES}`,
+    user: [
+      `Titel: ${input.title}`,
+      `Arbeitgeber: ${input.employer}`,
+      `Ort: ${input.place || "unbekannt"}`,
+      `Homeoffice laut Jobbörse: ${input.homeoffice || "keine Angabe"}`,
+      `Gehalt laut Jobbörse: ${input.salary || "keine Angabe"}`,
+      "",
+      // Die ersten 6000 Zeichen enthalten praktisch immer Rolle,
+      // Aufgaben, Anforderungen und Arbeitsmodell.
+      input.description ? input.description.slice(0, 6000) : "(keine Beschreibung verfügbar)",
+    ].join("\n"),
+    toolName: "urteil",
+    toolDescription: "Urteil zur Passung einer Stellenanzeige für Iver.",
+    schema: SCHEMA,
+    maxTokens: 1500,
+    timeoutMs: CALL_TIMEOUT_MS,
+  });
 
   const fits: Fit[] = ["must_apply", "worth_reading", "ignore"];
   const asList = (value: unknown): string[] =>

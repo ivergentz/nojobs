@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL } from "./evaluate";
+import { callClaudeTool, DEFAULT_MODEL } from "./claude";
 import { cloneCv, loadCv, type Cv, type Lang } from "./cv-source";
 
 /**
@@ -15,7 +15,6 @@ import { cloneCv, loadCv, type Cv, type Lang } from "./cv-source";
  * ein Interview zu verlieren.
  */
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const CALL_TIMEOUT_MS = 90_000;
 
 export type CvOverrides = {
@@ -88,10 +87,47 @@ LEBENSLAUF-ANPASSUNG (cvOverrides):
 
 hinweise: HÖCHSTENS DREI Sätze auf Deutsch an Iver — was du warum betont hast, und welche Lücke er im Gespräch erklären können muss.
 
-LÄNGEN SIND VERBINDLICH. Beginne die Antwort direkt mit der geschweiften Klammer, ohne Vorrede.
+LÄNGEN SIND VERBINDLICH. Gib den Entwurf über das Werkzeug "entwurf" ab.`;
 
-Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown-Fences:
-{"lang":"de"|"en","role":string,"recipient":string[],"subject":string,"salutation":string,"headline":string,"paragraphs":string[],"closing":string,"signOff":string,"cvOverrides":{"role":string,"tagline":string,"productOrder":string[],"bulletRewrites":[{"section":"products"|"experience","name":string,"bullets":string[]}]},"hinweise":string[]}`;
+const STR = { type: "string" };
+const LIST = { type: "array", items: STR };
+
+const SCHEMA = {
+  type: "object",
+  properties: {
+    role: STR,
+    recipient: LIST,
+    subject: STR,
+    salutation: STR,
+    headline: STR,
+    paragraphs: LIST,
+    closing: STR,
+    signOff: STR,
+    cvOverrides: {
+      type: "object",
+      properties: {
+        role: STR,
+        tagline: STR,
+        productOrder: LIST,
+        bulletRewrites: {
+          type: "array",
+          maxItems: 3,
+          items: {
+            type: "object",
+            properties: {
+              section: { type: "string", enum: ["products", "experience"] },
+              name: STR,
+              bullets: LIST,
+            },
+            required: ["section", "name", "bullets"],
+          },
+        },
+      },
+    },
+    hinweise: LIST,
+  },
+  required: ["recipient", "subject", "headline", "paragraphs", "cvOverrides", "hinweise"],
+};
 
 export async function draftApplication(input: {
   lang: Lang;
@@ -100,86 +136,27 @@ export async function draftApplication(input: {
   place: string;
   description: string;
 }): Promise<ApplicationDraft> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY fehlt.");
 
   const { cv } = await loadCv(input.lang);
 
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), CALL_TIMEOUT_MS);
-
-  let res: Response;
-  try {
-    res = await fetch(ANTHROPIC_URL, {
-      signal: abort.signal,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.DRAFT_MODEL || DEFAULT_MODEL,
-        max_tokens: 8000,
-        system: `${RULES}\n\nIVERS LEBENSLAUF (${input.lang}, Stand ivergentz.de):\n${profileFor(cv)}`,
-        messages: [
-          {
-            role: "user",
-            content: [
-              `Sprache der Unterlagen: ${input.lang}`,
-              `Stelle: ${input.title}`,
-              `Arbeitgeber: ${input.employer}`,
-              `Ort: ${input.place}`,
-              "",
-              "Ausschreibung:",
-              input.description.slice(0, 12000),
-            ].join("\n"),
-          },
-        ],
-      }),
-      cache: "no-store",
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Zeitüberschreitung beim Entwurf.");
-    }
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!res.ok) {
-    throw new Error(`Anthropic API: HTTP ${res.status} — ${(await res.text()).slice(0, 300)}`);
-  }
-
-  const data = (await res.json()) as {
-    content?: Array<{ type: string; text?: string }>;
-    stop_reason?: string;
-  };
-  const raw = (data.content ?? [])
-    .filter((block) => block.type === "text")
-    .map((block) => block.text ?? "")
-    .join("");
-
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end <= start) {
-    const bloecke = (data.content ?? []).map((block) => block.type).join(", ") || "keine";
-    throw new Error(
-      `Kein JSON. stop_reason: ${data.stop_reason ?? "?"}, Blocktypen: ${bloecke}, ` +
-        `Textlänge: ${raw.length}. Anfang: ${raw.slice(0, 300) || "(leer)"}`
-    );
-  }
-
-  const candidate = raw.slice(start, end + 1);
-  let parsed: Partial<ApplicationDraft>;
-  try {
-    parsed = JSON.parse(candidate) as Partial<ApplicationDraft>;
-  } catch {
-    parsed = JSON.parse(
-      candidate.replace(/[\u0000-\u001f]/g, (char) => (char === "\n" ? "\\n" : ""))
-    ) as Partial<ApplicationDraft>;
-  }
+  const parsed = await callClaudeTool<Partial<ApplicationDraft>>({
+    model: process.env.DRAFT_MODEL || DEFAULT_MODEL,
+    system: `${RULES}\n\nIVERS LEBENSLAUF (${input.lang}, Stand ivergentz.de):\n${profileFor(cv)}`,
+    user: [
+      `Sprache der Unterlagen: ${input.lang}`,
+      `Stelle: ${input.title}`,
+      `Arbeitgeber: ${input.employer}`,
+      `Ort: ${input.place}`,
+      "",
+      "Ausschreibung:",
+      input.description.slice(0, 12000),
+    ].join("\n"),
+    toolName: "entwurf",
+    toolDescription: "Bewerbungsentwurf: Anschreiben und Anpassungen am Lebenslauf.",
+    schema: SCHEMA,
+    maxTokens: 8000,
+    timeoutMs: CALL_TIMEOUT_MS,
+  });
 
   const list = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
