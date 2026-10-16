@@ -19,6 +19,7 @@ const TIME_BUDGET_DEFAULT = 25_000;
  * ?scope=all      — alle aktiven Stellen (Standard)
  * ?force=1        — vorhandene Bewertungen überschreiben (nach Prompt-Änderung)
  * ?days=N         — nur Stellen der letzten N Tage
+ * ?neuVor=ISO     — alles neu bewerten, was vor diesem Zeitpunkt bewertet wurde
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
       budgetMs: Math.min(Number(url.searchParams.get("budget") ?? TIME_BUDGET_DEFAULT), 30_000),
       scope: url.searchParams.get("scope") === "labeled" ? "labeled" : "all",
       force: url.searchParams.get("force") === "1",
+      neuVor: url.searchParams.get("neuVor"),
       days: url.searchParams.get("days") ? Number(url.searchParams.get("days")) : null,
       limit: Number(url.searchParams.get("limit") ?? "60"),
     });

@@ -29,6 +29,8 @@ export async function runEvaluation(
     budgetMs: number;
     scope?: "all" | "labeled";
     force?: boolean;
+    /** Neu bewerten, was vor diesem Zeitpunkt bewertet wurde (ISO). Läuft nicht im Kreis. */
+    neuVor?: string | null;
     days?: number | null;
     limit?: number;
   }
@@ -46,7 +48,11 @@ export async function runEvaluation(
     .limit(options.limit ?? 60);
 
   if (options.scope === "labeled") query = query.not("label", "is", null);
-  if (!options.force) query = query.is("evaluated_at", null);
+  if (options.neuVor) {
+    query = query.or(`evaluated_at.is.null,evaluated_at.lt.${options.neuVor}`);
+  } else if (!options.force) {
+    query = query.is("evaluated_at", null);
+  }
   if (options.days) {
     const from = new Date(Date.now() - options.days * 24 * 60 * 60 * 1000);
     query = query.gte("published", from.toISOString());
@@ -56,6 +62,7 @@ export async function runEvaluation(
   if (error) throw new Error(`Stellen lesen: ${error.message}`);
 
   const jobs = data ?? [];
+  const beispiele = jobs.length ? await ladeBeispiele(db, new Set(jobs.map((job) => job.uuid as string))) : "";
 
   for (let i = 0; i < jobs.length; i += CONCURRENCY) {
     if (Date.now() - startedAt > options.budgetMs) break;
@@ -77,6 +84,7 @@ export async function runEvaluation(
             homeoffice: (job.sector as string) ?? "",
             salary,
             description: (job.description as string) ?? "",
+            beispiele,
           });
 
           const { error: writeError } = await db
@@ -110,4 +118,43 @@ export async function runEvaluation(
     .is("evaluated_at", null);
 
   return { ...stats, nochOffen: remaining ?? 0, fehlerbeispiele: errors };
+}
+
+const LABEL_TEXT: Record<string, string> = {
+  must_apply: "BEWERBEN",
+  worth_reading: "ANSCHAUEN",
+  ignore: "IGNORIEREN",
+};
+
+/**
+ * Ivers eigene Labels als Beispiele für das Modell: alle "Bewerben", ein Teil
+ * "Anschauen", und vor allem "Ignorieren"-Fälle, die das Modell bisher zu
+ * hoch eingestuft hat — genau dort lag das Rauschen.
+ *
+ * Die Stellen, die gerade bewertet werden, sind ausgeschlossen. Sonst würde
+ * die Kalibrierung sich selbst abschreiben.
+ */
+async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Promise<string> {
+  const { data } = await db
+    .from("jobs")
+    .select("uuid,title,employer_name,municipal,sector,label,eval_fit")
+    .not("label", "is", null)
+    .order("labeled_at", { ascending: false, nullsFirst: false })
+    .limit(600);
+
+  const rows = (data ?? []).filter((row) => !ausschliessen.has(row.uuid as string) && row.title);
+  const bewerben = rows.filter((row) => row.label === "must_apply").slice(0, 30);
+  const anschauen = rows.filter((row) => row.label === "worth_reading").slice(0, 15);
+  const ignoriertAberHoch = rows
+    .filter((row) => row.label === "ignore" && (row.eval_fit === "must_apply" || row.eval_fit === "worth_reading"))
+    .slice(0, 30);
+  const ignoriertRest = rows
+    .filter((row) => row.label === "ignore" && !ignoriertAberHoch.includes(row))
+    .slice(0, Math.max(0, 40 - ignoriertAberHoch.length));
+
+  const zeile = (row: Record<string, unknown>) =>
+    `- [${LABEL_TEXT[row.label as string]}] ${row.title} — ${row.employer_name ?? "?"}, ${row.municipal ?? "Ort?"}` +
+    (row.sector ? ` (${row.sector})` : "");
+
+  return [...bewerben, ...anschauen, ...ignoriertAberHoch, ...ignoriertRest].map(zeile).join("\n");
 }

@@ -191,17 +191,22 @@ export default function AdminClient() {
           .join(" · ")
     );
 
-  const evaluate = (scope: "all" | "labeled", withDays: boolean) =>
-    loop(
-      scope === "all" ? `Bewerten${withDays ? ` (${days} Tage)` : " (alles)"}` : "Bewerten (gelabelt)",
+  /** neu = true: auch bereits Bewertetes noch einmal mit dem aktuellen Prompt bewerten. */
+  const evaluate = (scope: "all" | "labeled", withDays: boolean, neu = false) => {
+    const neuVor = new Date().toISOString();
+    return loop(
+      (scope === "all" ? `Bewerten${withDays ? ` (${days} Tage)` : " (alles)"}` : "Bewerten (gelabelt)") +
+        (neu ? " — neu" : ""),
       () =>
         `/api/evaluate?secret=${encodeURIComponent(secret)}&scope=${scope}` +
-        (withDays ? `&days=${encodeURIComponent(days)}` : ""),
+        (withDays ? `&days=${encodeURIComponent(days)}` : "") +
+        (neu ? `&neuVor=${encodeURIComponent(neuVor)}` : ""),
       (body) => (body.evaluated ?? 0) === 0,
       (body) =>
         `${body.evaluated ?? 0} bewertet, ${body.failed ?? 0} Fehler, ${body.nochOffen ?? 0} offen` +
         (body.fehlerbeispiele?.length ? ` · ${body.fehlerbeispiele[0]}` : "")
     );
+  };
 
   const notify = (mode: "dry" | "test" | "full") =>
     loop(
@@ -348,6 +353,22 @@ export default function AdminClient() {
             className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
           >
             nur gelabelte
+          </button>
+          <button
+            type="button"
+            onClick={() => void evaluate("labeled", false, true)}
+            disabled={Boolean(running)}
+            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+          >
+            gelabelte neu bewerten
+          </button>
+          <button
+            type="button"
+            onClick={() => void evaluate("all", false, true)}
+            disabled={Boolean(running)}
+            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+          >
+            alles neu bewerten
           </button>
           <button
             type="button"

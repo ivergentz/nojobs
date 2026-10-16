@@ -48,6 +48,22 @@ export default async function EvalPage() {
   const agree = rows.filter((row) => row.label === row.eval_fit).length;
   const rate = rows.length ? Math.round((agree / rows.length) * 100) : 0;
 
+  // Die zwei Zahlen, auf die es ankommt:
+  // Trefferquote — von dem, was Iver sehen will, zeigt das Modell wie viel?
+  // Präzision — von dem, was das Modell zeigt, will Iver wie viel sehen?
+  const positiv = (fit: string | null) => fit === "must_apply" || fit === "worth_reading";
+  const willSehen = rows.filter((row) => positiv(row.label));
+  const gezeigt = rows.filter((row) => positiv(row.eval_fit));
+  const beides = rows.filter((row) => positiv(row.label) && positiv(row.eval_fit));
+  const prozent = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+  const trefferquote = prozent(beides.length, willSehen.length);
+  const praezision = prozent(beides.length, gezeigt.length);
+  const modellBewerben = rows.filter((row) => row.eval_fit === "must_apply");
+  const bewerbenPraezision = prozent(
+    modellBewerben.filter((row) => row.label === "must_apply").length,
+    modellBewerben.length
+  );
+
   // Übersehene Treffer: Iver sagt bewerben oder anschauen, das Modell ignoriert.
   // Das ist der teure Fehler — was hier landet, sieht er nie wieder.
   const missed = rows.filter(
@@ -71,12 +87,31 @@ export default async function EvalPage() {
       {error && <p className="mt-8 text-sm text-drop">Fehler: {error.message}</p>}
 
       <section className="border-b border-rule py-12">
-        <div className="flex items-baseline gap-4">
-          <span className="tnum text-7xl font-semibold leading-none">{rate}%</span>
-          <span className="max-w-[16rem] text-sm leading-snug text-muted">
-            Übereinstimmung über {rows.length} beurteilte Stellen
-          </span>
+        <div className="grid gap-8 sm:grid-cols-3">
+          <div>
+            <p className="tnum text-5xl font-semibold leading-none">{trefferquote}%</p>
+            <p className="mt-2 text-sm leading-snug text-muted">
+              Trefferquote: von {willSehen.length} Stellen, die du sehen willst, zeigt das Modell{" "}
+              {beides.length}
+            </p>
+          </div>
+          <div>
+            <p className="tnum text-5xl font-semibold leading-none">{praezision}%</p>
+            <p className="mt-2 text-sm leading-snug text-muted">
+              Präzision: von {gezeigt.length} Stellen in der Inbox willst du {beides.length} sehen
+            </p>
+          </div>
+          <div>
+            <p className="tnum text-5xl font-semibold leading-none">{bewerbenPraezision}%</p>
+            <p className="mt-2 text-sm leading-snug text-muted">
+              der {modellBewerben.length} „Bewerben“-Empfehlungen hättest du auch so bewertet
+            </p>
+          </div>
         </div>
+        <p className="mt-6 text-xs text-muted">
+          Exakte Übereinstimmung über alle {rows.length} Stellen: {rate} %. Ziel: Trefferquote über 85 %,
+          Präzision über 50 %.
+        </p>
 
         <p className="mt-6 max-w-xl text-sm leading-relaxed">
           {missed.length === 0

@@ -56,7 +56,9 @@ export async function callClaudeJson<T>(options: {
       body: JSON.stringify({
         model: options.model,
         max_tokens: options.maxTokens,
-        system: options.system,
+        // Der Systemteil (Profil, Regeln, Beispiele) ist bei allen Aufrufen eines
+        // Laufs gleich — Prompt-Caching spart dafür Kosten und Zeit.
+        system: [{ type: "text", text: options.system, cache_control: { type: "ephemeral" } }],
         output_config: { format: { type: "json_schema", schema: strict(options.schema) } },
         messages: [{ role: "user", content: options.user }],
       }),

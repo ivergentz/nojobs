@@ -28,53 +28,45 @@ Erfahrung:
 - Davor Marketing und Sales am Flughafen Salzburg, danach selbstständig in Marketing und IT.
 - Parallel Solo-Gründer mehrerer B2B-SaaS-Produkte (RankBrief, sarahiver.de, WERKRUF). Baut und bootstrappt komplett selbst: Prototyp, MVP, laufende Weiterentwicklung, Pricing, Vermarktung über Ads, Social und Cold Outreach. Stack: Next.js, Supabase, Stripe, Claude API und weitere LLMs im Produkt.
 
-Einordnung der Seniorität: real etwa drei Jahre in Produktrollen plus das eigene Portfolio. Solides Mid-Level bis Senior — NICHT Head of Product, NICHT Director, NICHT disziplinarische Führung mehrerer PMs.
+Einordnung der Seniorität: rund drei Jahre in Produktrollen plus das eigene Portfolio, davor zehn Jahre Business und Marketing. Iver ist ausdrücklich offen für Führungsrollen (Teamlead, Head of, Director) im Produkt-, KI- oder Digitalbereich.
 
 Stärke: denkt Produkte ganzheitlich, von der Idee bis zum Markt, und setzt KI selbst praktisch um. Passt besonders zu Rollen, die KI-Initiativen aufbauen, Use Cases bewerten und selbst Prototypen liefern.
 
 Sprachen: Deutsch Muttersprache, Englisch fließend. Englischsprachige Stellen sind kein Problem.
 
-SUCHE: Hamburg und Umgebung, oder überwiegend remote aus Hamburg. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft. Gehaltsziel rund 85.000 € brutto im Jahr.`;
+SUCHE: Hamburg und Umgebung, oder überwiegend remote aus Hamburg. Für eine wirklich herausragende Stelle käme auch ein anderer Ort in Frage. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft — öffentlicher Dienst kommt nicht in Frage. Gehaltsziel rund 85.000 € brutto im Jahr.`;
 
-const RULES = `BEWERTUNG "fit":
+const RULES = `BEWERTUNG "fit". Iver liest jede Stelle, die nicht "ignore" ist. Die Inbox soll klein und treffsicher sein — Rauschen ist hier der Hauptfehler.
 
-must_apply — (AI) Produktrolle mit klarer Passung, in Hamburg oder überwiegend remote. Beispiele: Product Owner, Product Manager, AI Product Manager, AI Program Manager, KI-Manager mit Gestaltungsauftrag. Auch Rollen mit anderem Titel, wenn der Kern Produktverantwortung für ein digitales Produkt, eine Plattform oder eine KI-Initiative ist.
+must_apply — Iver würde sich diese Woche bewerben. ALLE Bedingungen erfüllt:
+1. Kern der Rolle ist Produktverantwortung oder Leitung einer KI-/Digital-Initiative: Product Owner, Product Manager, AI Product Manager, AI Program Manager, KI-Manager mit Gestaltungsauftrag, Head of Product/AI/Digital, Teamlead Produkt. Verantwortung für eine interne Plattform oder Fachanwendung zählt, wenn Roadmap und Weiterentwicklung dazugehören.
+2. Arbeitsort Hamburg/Pendelnähe ODER überwiegend remote (etwa 3+ Tage pro Woche).
+3. Privatwirtschaft.
 
-worth_reading — angrenzend, aber nicht im Kern. Etwa: Produktrolle mit starkem Branchenwissen als Muss, technische Rolle mit Produktanteil, Beratung mit KI- oder Digitalisierungsfokus ohne Produktverantwortung, Product Marketing.
+worth_reading — NUR in diesen Fällen:
+- Rolle erfüllt Bedingung 1 und 3, aber der Ort passt nicht (anderer Ort, kein Remote) — Ort als cons.
+- Rolle erfüllt 2 und 3, ist aber nur nah dran: Produktrolle mit sehr speziellem Branchen-Muss, KI-Beratung mit Umsetzungsverantwortung, Digitalisierungsrolle mit klarem Gestaltungsauftrag, KI-Engineering in einem Produktteam.
+Im Zweifel zwischen worth_reading und ignore: ignore, außer KI oder Produktverantwortung stehen ausdrücklich im Kern der Aufgaben.
 
-WICHTIG — interne Systeme zählen als Produktarbeit. Rollen mit Verantwortung für ein INTERNES System oder eine interne Plattform (Microsoft 365, ServiceNow, SAP, Fachanwendung, KI-Plattform) sind mindestens worth_reading, auch wenn der Titel "Applikationsmanager" oder "Systemverantwortlicher" lautet. must_apply, wenn Gestaltungsspielraum dazukommt: Roadmap, Weiterentwicklung, Anforderungsmanagement, Stakeholder-Steuerung.
+ignore — insbesondere:
+- ÖFFENTLICHER DIENST jeder Art: Behörden, Kommunen und kommunale Unternehmen (Stadtwerke, Wasser, Verkehrsbetriebe), Sparkassen, Körperschaften, Bundeswehr-IT (BWI), Unikliniken, Stellen nach TVöD/TV-L/TV-V. Immer ignore.
+- Vertrieb, Account Management, Presales, Go-to-Market ohne Produktverantwortung.
+- Klassisches Marketing (Brand, Media, Kampagnen, Messen), auch "Product Marketing" ohne Produktverantwortung.
+- Reine Entwicklerrollen, Data Analytics, Data Science, Data Engineering, BI.
+- IT-Betrieb, Support, Administration, SAP-Customizing ohne Produktrolle.
+- Projektleitung ohne Produkt- oder KI-Bezug (Bau, Beschaffung, ERP-Rollout, Verwaltung).
+- HR, Finance, Einkauf, Recht — auch wenn "Digital" oder "Transformation" im Titel steht.
+- Junior, Trainee, Praktikum, Werkstudent; Forschung und PhD-Stellen.
+- Personalvermittler ohne erkennbaren Endkunden, wenn die Rolle selbst nicht klar must_apply wäre.
 
-STANDORT — entscheidend:
-- Arbeitsort Hamburg oder Pendelnähe (Norderstedt, Pinneberg, Wedel, Ahrensburg, Lüneburg …): passt.
-- Anderer Ort: nur passend, wenn die Anzeige überwiegend Remote erlaubt (etwa 3+ Tage pro Woche oder "remote first"). Sonst ignore, mit Ort als cons.
-- Unklar: worth_reading, Standortfrage als cons.
+Führungsrollen (Teamlead, Head of, Director) im Produkt-, KI- oder Digitalbereich sind ausdrücklich erwünscht und NICHT wegen Seniorität abzuwerten.
 
-ÖFFENTLICHER DIENST: Iver will in die freie Wirtschaft. Stellen bei Behörden, Körperschaften oder im TVöD/TV-L höchstens worth_reading, als cons vermerken.
+GEHALT: Liegt eine Angabe deutlich unter 80.000 €, als cons vermerken. Kein Ausschlussgrund.
 
-GEHALT: Liegt eine Gehaltsangabe deutlich unter 80.000 €, als cons vermerken. Kein Ausschlussgrund.
-
-ignore — alles andere. Insbesondere:
-- Reine Entwicklerrollen (Fullstack, Backend, Frontend, ML-Engineer) OHNE Produktverantwortung.
-- Reine Data-Analytics- und Data-Science-Rollen. Iver sucht Richtung (AI) Product, nicht Datenanalyse.
-- IT-Support, Systemadministration, Netzwerk, Infrastrukturbetrieb ohne Gestaltungsspielraum.
-- Vertrieb/Account Management ohne Produktverantwortung.
-- Forschung, Promotion, Stellen mit PhD als Anforderung.
-- Junior, Trainee, Praktikum, Werkstudent.
-- Head of Product und darüber, Director, Leitung mehrerer Produktteams.
-- Reine Projektleitung ohne Produkt- oder KI-Bezug (Bau, Beschaffung, Verwaltungsprojekte).
-- Zeitarbeit und Personalvermittlung ohne erkennbaren Endkunden: höchstens worth_reading.
-
-Eine KI-Engineering-Rolle in einem Produktteam ist worth_reading, keine ignore — Iver baut selbst mit LLMs.
-
-AUSGABE — Längen sind verbindlich, längere Antworten werden abgeschnitten und sind unbrauchbar:
-- summary: HÖCHSTENS 40 Wörter. Zwei Sätze auf Deutsch: was die Rolle ist, warum sie passt oder nicht. Keine Aufzählung der Aufgaben.
-- pros und cons: je HÖCHSTENS vier Stichpunkte à HÖCHSTENS 10 Wörter, auf Deutsch, konkret auf diesen Kandidaten bezogen. Keine Allgemeinplätze.
+AUSGABE:
+- summary: HÖCHSTENS 40 Wörter. Zwei Sätze auf Deutsch: was die Rolle ist, warum sie passt oder nicht.
+- pros und cons: je HÖCHSTENS vier Stichpunkte à HÖCHSTENS 10 Wörter, auf Deutsch, konkret auf Iver bezogen.
 - confidence: low, wenn die Anzeige zu vage ist, um die Rolle einzuordnen.
-
-ASYMMETRIE — die beiden Fehler sind unterschiedlich teuer:
-Ein zu großzügiges worth_reading kostet Iver dreißig Sekunden Lesezeit. Ein fälschlich ignoriertes Angebot sieht er nie wieder.
-Deshalb: Bei Unsicherheit zwischen ignore und worth_reading immer worth_reading wählen.
-Bei der Grenze zwischen worth_reading und must_apply dagegen streng bleiben — must_apply heißt "hierauf bewerbe ich mich diese Woche".
 
 Antworte im vorgegebenen JSON-Format.`;
 
@@ -103,10 +95,14 @@ export async function evaluateAd(input: {
   homeoffice: string;
   salary: string;
   description: string;
+  /** Ivers eigene Urteile als Beispiele (siehe run-evaluate.ts). */
+  beispiele?: string;
 }): Promise<Evaluation> {
   const parsed = await callClaudeJson<Partial<Evaluation>>({
     model: process.env.EVAL_MODEL || DEFAULT_MODEL,
-    system: `${PROFILE}\n\n${RULES}`,
+    system: input.beispiele
+      ? `${PROFILE}\n\n${RULES}\n\nIVERS EIGENE URTEILE ÜBER FRÜHERE STELLEN — so entscheidet er. Orientiere dich daran. Widerspricht ein Beispiel einer Regel oben (etwa öffentlicher Dienst), gilt die Regel.\n${input.beispiele}`
+      : `${PROFILE}\n\n${RULES}`,
     user: [
       `Titel: ${input.title}`,
       `Arbeitgeber: ${input.employer}`,
