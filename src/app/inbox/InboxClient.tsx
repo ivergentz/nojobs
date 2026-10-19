@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { FruehereBewerbung } from "@/lib/firma";
 
 export type InboxJob = {
   uuid: string;
@@ -21,7 +22,34 @@ export type InboxJob = {
   status: string;
   published: string | null;
   quelle: string;
+  frueher: FruehereBewerbung[];
 };
+
+const STATUS_TEXT: Record<string, string> = {
+  beworben: "beworben",
+  interview: "im Interview",
+  absage: "Absage erhalten",
+};
+
+function Warnung({ frueher }: { frueher: FruehereBewerbung[] }) {
+  if (!frueher.length) return null;
+  const gleiche = frueher.find((f) => f.gleicheStelle);
+  return (
+    <div className="mt-4 rounded border border-drop/40 bg-drop/5 px-3 py-2 text-sm text-drop">
+      <p className="font-semibold">
+        {gleiche ? "⚠️ Auf diese Stelle hast du dich schon beworben" : "⚠️ Achtung – bereits eine Bewerbung bei diesem Unternehmen"}
+      </p>
+      <ul className="mt-1 space-y-0.5">
+        {frueher.map((f) => (
+          <li key={f.uuid}>
+            {f.title} — {STATUS_TEXT[f.status] ?? f.status}
+            {f.datum ? ` am ${datum(f.datum)}` : ""}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 const num = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
 
@@ -172,6 +200,8 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
                 {job.due ? ` · Frist ${job.due}` : ""}
               </p>
               {salary && <p className="mt-1 text-sm text-keep">{salary}</p>}
+
+              {(status === "neu" || status === "interessant") && <Warnung frueher={job.frueher} />}
 
               {job.summary && <p className="mt-4 text-sm leading-relaxed">{job.summary}</p>}
 

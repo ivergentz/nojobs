@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { buildMessage, findChatId, sendTelegram, type NotifyJob } from "@/lib/notify";
 import { runEvaluation } from "@/lib/run-evaluate";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
+import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -95,6 +96,24 @@ export async function GET(request: Request) {
       });
     }
 
+    const { data: bewerbungen } = await db
+      .from("jobs")
+      .select("uuid,employer_name,title,app_status,app_status_at")
+      .in("app_status", BEWORBEN_STATUS)
+      .gte("app_status_at", new Date(Date.now() - WARN_TAGE * 864e5).toISOString())
+      .limit(300);
+
+    const warnungFuer = (row: Record<string, unknown>): string | null => {
+      const frueher = findeFruehere(
+        { uuid: row.uuid as string, employer: (row.employer_name as string) ?? null, title: (row.title as string) ?? null },
+        (bewerbungen ?? []) as any
+      );
+      if (!frueher.length) return null;
+      return frueher.some((f) => f.gleicheStelle)
+        ? "Auf diese Stelle schon beworben"
+        : `Schon beworben bei ${row.employer_name}: ${frueher[0].title}`;
+    };
+
     const jobs: NotifyJob[] = rows.map((row) => ({
       title: (row.title as string) ?? "Ohne Titel",
       employer: (row.employer_name as string) ?? "—",
@@ -103,6 +122,7 @@ export async function GET(request: Request) {
       summary: (row.eval_summary as string) ?? "",
       url: (row.application_url as string) ?? null,
       due: (row.application_due as string) ?? null,
+      warnung: warnungFuer(row),
     }));
 
     const base = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;

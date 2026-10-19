@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import InboxClient, { type InboxJob } from "./InboxClient";
 import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
+import { findeFruehere } from "@/lib/firma";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,15 @@ export default async function InboxPage() {
     error: neuQuery.error ?? verfolgtQuery.error,
   };
 
+  // Alle eigenen Bewerbungen — für die Warnung "bereits bei dieser Firma beworben".
+  const bewerbungen = (verfolgtQuery.data ?? []).map((row) => ({
+    uuid: row.uuid as string,
+    employer_name: (row.employer_name as string) ?? null,
+    title: (row.title as string) ?? null,
+    app_status: (row.app_status as string) ?? "",
+    app_status_at: (row.app_status_at as string) ?? null,
+  }));
+
   const jobs: InboxJob[] = (inbox.data ?? []).map((row) => ({
     uuid: row.uuid as string,
     title: (row.title as string) ?? "Ohne Titel",
@@ -77,6 +87,10 @@ export default async function InboxPage() {
       row.source === "google" && row.occupation_level1
         ? `Google Jobs, ${String(row.occupation_level1)}`
         : QUELLEN_NAME[row.source as string] ?? String(row.source),
+    frueher: findeFruehere(
+      { uuid: row.uuid as string, employer: (row.employer_name as string) ?? null, title: (row.title as string) ?? null },
+      bewerbungen
+    ),
   }));
 
   const neu = jobs.filter((job) => job.status === "neu").length;

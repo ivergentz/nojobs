@@ -15,6 +15,8 @@ export type NotifyJob = {
   place: string;
   fit: string;
   summary: string;
+  /** Hinweis, falls schon eine Bewerbung bei dieser Firma läuft. */
+  warnung?: string | null;
   url: string | null;
   due: string | null;
 };
@@ -40,6 +42,7 @@ export function buildMessage(jobs: NotifyJob[], inboxUrl: string): string {
   for (const job of hot) {
     lines.push("");
     lines.push(`🔥 <b>${escapeHtml(job.title)}</b>`);
+    if (job.warnung) lines.push(`⚠️ ${escapeHtml(job.warnung)}`);
     lines.push(`${escapeHtml(job.employer)} · ${escapeHtml(job.place)}`);
     if (job.due) lines.push(`Frist: ${escapeHtml(job.due)}`);
     if (job.summary) lines.push(escapeHtml(job.summary));
@@ -50,7 +53,7 @@ export function buildMessage(jobs: NotifyJob[], inboxUrl: string): string {
     lines.push("");
     lines.push(`Dazu ${rest.length} zum Anschauen:`);
     for (const job of rest.slice(0, 8)) {
-      lines.push(`👍 ${escapeHtml(job.title)} — ${escapeHtml(job.employer)}`);
+      lines.push(`👍 ${escapeHtml(job.title)} — ${escapeHtml(job.employer)}${job.warnung ? " ⚠️ schon beworben" : ""}`);
     }
   }
 

@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import ApplicationClient from "./ApplicationClient";
 import FragenClient from "./FragenClient";
 import { CV_BASE, loadCv } from "@/lib/cv-source";
+import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,13 @@ export default async function ApplicationPage({
     .eq("uuid", uuid)
     .maybeSingle();
 
+  const { data: bewerbungen } = await db
+    .from("jobs")
+    .select("uuid,employer_name,title,app_status,app_status_at")
+    .in("app_status", BEWORBEN_STATUS)
+    .gte("app_status_at", new Date(Date.now() - WARN_TAGE * 864e5).toISOString())
+    .limit(300);
+
   if (error || !job) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
@@ -36,8 +44,35 @@ export default async function ApplicationPage({
     );
   }
 
+  const frueher = findeFruehere(
+    { uuid: job.uuid as string, employer: (job.employer_name as string) ?? null, title: (job.title as string) ?? null },
+    (bewerbungen ?? []) as any
+  );
+  const fmt = (d: string | null) =>
+    d ? new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
+      {frueher.length > 0 && (
+        <div className="mb-8 rounded border border-drop/40 bg-drop/5 px-4 py-3 text-sm text-drop">
+          <p className="font-semibold">
+            {frueher.some((f) => f.gleicheStelle)
+              ? "⚠️ Auf diese Stelle hast du dich schon beworben"
+              : "⚠️ Achtung – bereits eine Bewerbung bei diesem Unternehmen"}
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {frueher.map((f) => (
+              <li key={f.uuid}>
+                {f.title} — {f.status === "absage" ? "Absage" : f.status === "interview" ? "Interview" : "beworben"}
+                {f.datum ? ` am ${fmt(f.datum)}` : ""}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs">
+            Eine zweite Bewerbung kann trotzdem sinnvoll sein — dann im Anschreiben kurz darauf eingehen.
+          </p>
+        </div>
+      )}
       <header className="border-b border-rule pb-6">
         <p className="text-sm text-muted">Bewerbung</p>
         <h1 className="mt-2 text-xl font-semibold leading-snug">
