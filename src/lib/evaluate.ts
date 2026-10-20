@@ -34,34 +34,34 @@ Stärke: denkt Produkte ganzheitlich, von der Idee bis zum Markt, und setzt KI s
 
 Sprachen: Deutsch Muttersprache, Englisch fließend. Englischsprachige Stellen sind kein Problem.
 
-SUCHE: Hamburg und Umgebung, oder überwiegend remote aus Hamburg. Für eine wirklich herausragende Stelle käme auch ein anderer Ort in Frage. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft — öffentlicher Dienst kommt nicht in Frage. Gehaltsziel rund 85.000 € brutto im Jahr.`;
+SUCHE: Rollen mit KI im Kern — das ist das wichtigste Kriterium. Bevorzugt Hamburg und Umgebung oder überwiegend remote; KI-Rollen anderswo in Deutschland mit Homeoffice-Anteil schaut er sich an. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft; öffentliche Arbeitgeber nur ausnahmsweise bei starker KI-Rolle. Gehaltsziel rund 85.000 € brutto im Jahr.`;
 
-const RULES = `BEWERTUNG "fit". Iver liest jede Stelle, die nicht "ignore" ist. Die Inbox soll klein und treffsicher sein — Rauschen ist hier der Hauptfehler.
+const RULES = `BEWERTUNG "fit". Iver liest jede Stelle, die nicht "ignore" ist. Die Inbox soll klein und treffsicher sein.
 
-must_apply — Iver würde sich diese Woche bewerben. ALLE Bedingungen erfüllt:
-1. Kern der Rolle ist Produktverantwortung oder Leitung einer KI-/Digital-Initiative: Product Owner, Product Manager, AI Product Manager, AI Program Manager, KI-Manager mit Gestaltungsauftrag, Head of Product/AI/Digital, Teamlead Produkt. Verantwortung für eine interne Plattform oder Fachanwendung zählt, wenn Roadmap und Weiterentwicklung dazugehören.
-2. Arbeitsort Hamburg/Pendelnähe ODER überwiegend remote (etwa 3+ Tage pro Woche).
+SCHRITT 1 — HAUPTKRITERIUM: STEHT KI IM KERN DER ROLLE?
+KI-Kern heißt: Die Aufgaben drehen sich überwiegend um KI, LLMs, GenAI, Agenten, KI-gestützte oder intelligente Automatisierung (auch No-Code/Low-Code-Automatisierung mit n8n, Make, Zapier) oder den Aufbau von KI-Produkten bzw. KI-Initiativen. Es reicht NICHT, dass KI im Firmenprofil, als "Plus" oder in einem Nebensatz vorkommt.
+→ Kein KI-Kern: ignore. Das gilt ausdrücklich auch für klassische Product-Manager- und Product-Owner-Stellen in Hamburg (E-Commerce, Versicherung, Banking, Energie, Hardware, Plattformen ohne KI-Fokus), für allgemeine Digitalisierung ohne KI-Bezug und für Product Marketing.
+
+SCHRITT 2 — NUR BEI KI-KERN: EINSTUFUNG
+
+must_apply — ALLE Bedingungen erfüllt:
+1. Produkt- oder Gestaltungsrolle mit KI-Kern: KI-/AI Product Owner, AI Product Manager, AI Program Manager, KI-Manager/AI Specialist mit Gestaltungsauftrag, Leitung einer KI-Initiative, Head of AI/Product mit KI-Fokus, Product Owner einer KI- oder Automatisierungsplattform, Projektleitung KI/Automatisierung mit Umsetzungsverantwortung.
+2. Arbeitsort Hamburg oder Pendelnähe (Norderstedt, Ahrensburg, Pinneberg, Lüneburg …) ODER klar überwiegend remote ("Remote möglich", "100 % Homeoffice", "remote within Germany").
 3. Privatwirtschaft.
 
-ORT UNBEKANNT: Nennt die Anzeige keinen Arbeitsort und keinen Hinweis auf Hamburg oder Remote in Deutschland, ist die Stelle ignore. Stellen nur im Ausland (z. B. London, Indien, USA) sind immer ignore.
+worth_reading — KI-Kern vorhanden, aber eine Einschränkung:
+- Anderer Ort in Deutschland mit nur "Homeoffice möglich" oder Teil-Homeoffice (etwa Köln, Essen, München, Nürnberg). Ort und unklare Remote-Regelung als cons.
+- KI-Engineering, KI-Architektur oder KI-Beratung/Presales/Go-to-Market mit KI im Kern (AI Engineer, KI-Engineer, AI Solution Architect, AI Consultant, AI GTM Lead, Forward Deployed Engineer) — egal wo in Deutschland oder remote.
+- Öffentlicher Dienst oder öffentlich getragene Arbeitgeber (Behörden, Anstalten öffentlichen Rechts, Sparkassen, BWI, kommunale Unternehmen, Kliniken in öffentlicher Trägerschaft, TVöD/TV-L) mit KI-Kern. Öffentlichen Dienst als cons nennen. NIE must_apply.
+- KI-Rolle über Personaldienstleister oder Arbeitnehmerüberlassung.
 
-worth_reading — NUR in diesen Fällen:
-- Rolle erfüllt Bedingung 1 und 3, aber der Ort passt nicht (anderer Ort, kein Remote) — Ort als cons.
-- Rolle erfüllt 2 und 3, ist aber nur nah dran: Produktrolle mit sehr speziellem Branchen-Muss, KI-Beratung mit Umsetzungsverantwortung, Digitalisierungsrolle mit klarem Gestaltungsauftrag, KI-Engineering in einem Produktteam.
-Im Zweifel zwischen worth_reading und ignore: ignore, außer KI oder Produktverantwortung stehen ausdrücklich im Kern der Aufgaben.
+ignore trotz KI-Bezug:
+- Stellen nur im Ausland (z. B. Zürich, London, Indien, USA) ohne Remote aus Deutschland.
+- Kein Arbeitsort erkennbar und kein Hinweis auf Deutschland oder Remote.
+- Reiner KI-Vertrieb (Account Management, Quota) ohne Gestaltung; Junior, Trainee, Praktikum, Werkstudent, PhD/Forschung.
+- KI nur als Werkzeug in einer Marketing-, HR-, Finance- oder Vertriebsrolle (z. B. "KI-Manager" für Outbound-Kampagnen).
 
-ignore — insbesondere:
-- ÖFFENTLICHER DIENST jeder Art: Behörden, Kommunen und kommunale Unternehmen (Stadtwerke, Wasser, Verkehrsbetriebe), Sparkassen, Körperschaften, Bundeswehr-IT (BWI), Unikliniken, Stellen nach TVöD/TV-L/TV-V. Immer ignore.
-- Vertrieb, Account Management, Presales, Go-to-Market ohne Produktverantwortung.
-- Klassisches Marketing (Brand, Media, Kampagnen, Messen), auch "Product Marketing" ohne Produktverantwortung.
-- Reine Entwicklerrollen, Data Analytics, Data Science, Data Engineering, BI.
-- IT-Betrieb, Support, Administration, SAP-Customizing ohne Produktrolle.
-- Projektleitung ohne Produkt- oder KI-Bezug (Bau, Beschaffung, ERP-Rollout, Verwaltung).
-- HR, Finance, Einkauf, Recht — auch wenn "Digital" oder "Transformation" im Titel steht.
-- Junior, Trainee, Praktikum, Werkstudent; Forschung und PhD-Stellen.
-- Personalvermittler ohne erkennbaren Endkunden, wenn die Rolle selbst nicht klar must_apply wäre.
-
-Führungsrollen (Teamlead, Head of, Director) im Produkt-, KI- oder Digitalbereich sind ausdrücklich erwünscht und NICHT wegen Seniorität abzuwerten.
+Führungsrollen (Teamlead, Head of, Director) mit KI-Kern sind ausdrücklich erwünscht und NICHT wegen Seniorität abzuwerten. Geforderte Berufsjahre sind kein Ausschlussgrund — als cons vermerken.
 
 GEHALT: Liegt eine Angabe deutlich unter 80.000 €, als cons vermerken. Kein Ausschlussgrund.
 
