@@ -11,7 +11,6 @@
     { "name": "InnoGames", "ats": "lever", "slug": "innogames", "region": "eu" },
     { "name": "MOIA", "ats": "greenhouse", "slug": "moia" },
     { "name": "Haiilo", "ats": "personio", "slug": "haiilo", "aktiv": false },
-    { "name": "catworkx", "ats": "personio", "slug": "catworkx" },
     { "name": "New Work SE (XING)", "ats": "smartrecruiters", "slug": "NewWorkSE" },
     { "name": "Enpal", "ats": "ashby", "slug": "enpal" },
     { "name": "Langdock", "ats": "ashby", "slug": "langdock" },
