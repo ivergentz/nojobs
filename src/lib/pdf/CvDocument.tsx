@@ -141,7 +141,7 @@ function Bullets({ items }: { items: string[] }) {
   );
 }
 
-export default function CvDocument({ cv, lang }: { cv: Cv; lang: "de" | "en" }) {
+export default function CvDocument({ cv, lang, webHref }: { cv: Cv; lang: "de" | "en"; webHref?: string }) {
   const L = cv.labels;
   const c = cv.contact;
   return (
@@ -167,8 +167,8 @@ export default function CvDocument({ cv, lang }: { cv: Cv; lang: "de" | "en" }) 
               <Text style={s.dot}>·</Text>
               <Text>{c.phone}</Text>
               <Text style={s.dot}>·</Text>
-              {/* Bei Bewerbungen der persönliche Link (iverbohnes.de/firma) — klickbar */}
-              <Link src={c.web.startsWith("http") ? c.web : `https://${c.web}`} style={{ color: SOFT, textDecoration: "none" }}>
+              {/* Sichtbar die Domain, Klick führt auf den persönlichen Bewerbungs-Link */}
+              <Link src={webHref ?? (c.web.startsWith("http") ? c.web : `https://${c.web}`)} style={{ color: SOFT, textDecoration: "none" }}>
                 {c.web.replace(/^https?:\/\//, "")}
               </Link>
             </View>

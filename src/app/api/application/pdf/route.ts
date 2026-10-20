@@ -6,7 +6,7 @@ import { applyOverrides, type ApplicationDraft } from "@/lib/application";
 import { loadCv } from "@/lib/cv-source";
 import CvDocument from "@/lib/pdf/CvDocument";
 import LetterDocument from "@/lib/pdf/LetterDocument";
-import { ensureRef, trackingLink } from "@/lib/tracking";
+import { ensureRef, TRACKING_DOMAIN, trackingLink } from "@/lib/tracking";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -53,12 +53,15 @@ export async function GET(request: Request) {
     const lang = draft.lang === "en" ? "en" : "de";
     const { cv: cvRoh, quelle } = await loadCv(lang);
     const ref = await ensureRef(db, uuid);
-    const cv = ref ? { ...cvRoh, contact: { ...cvRoh.contact, web: trackingLink(ref).text } } : cvRoh;
+    // Sichtbar steht nur die Domain (iverbohnes.de), der Klick führt auf den
+    // persönlichen Link (iverbohnes.de/firma) — so wird der Aufruf zugeordnet.
+    const cv = { ...cvRoh, contact: { ...cvRoh.contact, web: TRACKING_DOMAIN } };
+    const webHref = ref ? trackingLink(ref).href : `https://${TRACKING_DOMAIN}`;
 
     const element =
       doc === "cv"
-        ? React.createElement(CvDocument, { cv: applyOverrides(cv, draft.cvOverrides ?? {}), lang })
-        : React.createElement(LetterDocument, { data: draft, cv });
+        ? React.createElement(CvDocument, { cv: applyOverrides(cv, draft.cvOverrides ?? {}), lang, webHref })
+        : React.createElement(LetterDocument, { data: draft, cv, webHref });
 
     const buffer = await renderToBuffer(element as any);
     const firma = slug((job.employer_name as string) ?? "bewerbung");

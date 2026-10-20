@@ -120,7 +120,7 @@ function Paragraph({ text }: { text: string }) {
   );
 }
 
-export default function LetterDocument({ data, cv }: { data: LetterData; cv: Cv }) {
+export default function LetterDocument({ data, cv, webHref: href }: { data: LetterData; cv: Cv; webHref?: string }) {
   const de = data.lang === "de";
   const today = new Date().toLocaleDateString(de ? "de-DE" : "en-GB", {
     day: "numeric",
@@ -129,9 +129,9 @@ export default function LetterDocument({ data, cv }: { data: LetterData; cv: Cv 
     timeZone: "Europe/Berlin",
   });
 
-  // Bei Bewerbungen steht hier der persönliche Link (iverbohnes.de/firma).
+  // Sichtbar die Domain; der Klick führt auf den persönlichen Bewerbungs-Link.
   const webText = cv.contact.web.replace(/^https?:\/\//, "");
-  const webHref = cv.contact.web.startsWith("http") ? cv.contact.web : `https://${cv.contact.web}`;
+  const webHref = href ?? (cv.contact.web.startsWith("http") ? cv.contact.web : `https://${cv.contact.web}`);
 
   const salary = data.facts?.salary?.trim();
   const notice = data.facts?.notice?.trim();
@@ -208,7 +208,10 @@ export default function LetterDocument({ data, cv }: { data: LetterData; cv: Cv 
         </View>
 
         <Text style={s.footer} fixed>
-          {de ? "Anlage: Lebenslauf" : "Enclosure: CV"} · {webText}
+          {de ? "Anlage: Lebenslauf" : "Enclosure: CV"} ·{" "}
+          <Link src={webHref} style={{ color: MUTE, textDecoration: "none" }}>
+            {webText}
+          </Link>
         </Text>
       </Page>
     </Document>

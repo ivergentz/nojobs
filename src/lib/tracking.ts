@@ -2,15 +2,15 @@
  * Bewerbungs-Tracking: jede Bewerbung bekommt einen persönlichen Link
  * (iverbohnes.de/otto). Die Website meldet Aufrufe an /api/visit.
  *
- * TRACKING_DOMAIN (Vercel-Variable) bestimmt die Domain im Link.
- * Ohne Eintrag: ivergentz.de. Sobald iverbohnes.de läuft, dort eintragen.
+ * TRACKING_DOMAIN (Vercel-Variable) kann die Domain überschreiben.
+ * Ohne Eintrag: iverbohnes.de.
  */
 
 import { firmaKern } from "./firma";
 
 type Db = any;
 
-export const TRACKING_DOMAIN = (process.env.TRACKING_DOMAIN || "ivergentz.de")
+export const TRACKING_DOMAIN = (process.env.TRACKING_DOMAIN || "iverbohnes.de")
   .replace(/^https?:\/\//, "")
   .replace(/\/+$/, "");
 
