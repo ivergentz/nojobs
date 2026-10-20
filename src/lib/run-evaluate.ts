@@ -59,8 +59,24 @@ export async function runEvaluation(
     query = query.gte("published", from.toISOString());
   }
 
-  const { data, error } = await query;
-  if (error) throw new Error(`Stellen lesen: ${error.message}`);
+  // Kurze Verbindungsabbrüche zu Supabase ("terminated", "fetch failed")
+  // kommen vor — bis zu zweimal neu versuchen, bevor der Lauf abbricht.
+  let data: Record<string, unknown>[] | null = null;
+  let letzterFehler = "";
+  for (let versuch = 0; versuch < 3; versuch++) {
+    try {
+      const antwort = await query;
+      if (!antwort.error) {
+        data = antwort.data as Record<string, unknown>[];
+        break;
+      }
+      letzterFehler = antwort.error.message;
+    } catch (err) {
+      letzterFehler = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    }
+    await new Promise((r) => setTimeout(r, 800 * (versuch + 1)));
+  }
+  if (!data) throw new Error(`Stellen lesen: ${letzterFehler}`);
 
   const jobs = data ?? [];
   const beispiele = jobs.length ? await ladeBeispiele(db, new Set(jobs.map((job) => job.uuid as string))) : "";
