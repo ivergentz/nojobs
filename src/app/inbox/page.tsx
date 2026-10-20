@@ -20,11 +20,11 @@ export default async function InboxPage() {
   const SPALTEN =
     "uuid,source,occupation_level1,title,employer_name,municipal,county,country,sector,eval_fit,eval_confidence,eval_summary,eval_pros,eval_cons,application_due,application_url,salary_min_nok,salary_max_nok,salary_note,app_status,app_status_at,published";
 
-  const [neuQuery, verfolgtQuery, unbewertet] = await Promise.all([
+  const laden = (spalten: string) => Promise.all([
     // Reiter "Neu": aktive, positiv bewertete Stellen ohne Bearbeitung
     db
       .from("jobs")
-      .select(SPALTEN)
+      .select(spalten)
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)
       .in("eval_fit", ["must_apply", "worth_reading"])
@@ -38,7 +38,7 @@ export default async function InboxPage() {
     // verschwinden, nur weil die Firma die Stelle vom Netz nimmt.
     db
       .from("jobs")
-      .select(SPALTEN)
+      .select(spalten)
       .in("app_status", ["interessant", "beworben", "interview", "absage", "abgelegt"])
       .order("app_status_at", { ascending: false, nullsFirst: false })
       .limit(400),
@@ -50,21 +50,25 @@ export default async function InboxPage() {
       .is("evaluated_at", null),
   ]);
 
+  // Mit Suchspur laden; fehlt die Spalte noch (suchspur.sql), ohne.
+  let [neuQuery, verfolgtQuery, unbewertet] = await laden(`${SPALTEN},eval_spur`);
+  if (neuQuery.error || verfolgtQuery.error) [neuQuery, verfolgtQuery, unbewertet] = await laden(SPALTEN);
+
   // Aufrufe der persönlichen Links. Eigene Abfrage: Fehlt die Tabelle noch
   // (SQL nicht ausgeführt), bleibt die Inbox trotzdem heil.
-  const verfolgteIds = (verfolgtQuery.data ?? []).map((row) => row.uuid as string);
+  const verfolgteIds = ((verfolgtQuery.data ?? []) as unknown as Array<Record<string, unknown>>).map((row) => row.uuid as string);
   const { data: besucheRoh } = verfolgteIds.length
     ? await db.from("besuche").select("*").in("job_uuid", verfolgteIds).limit(2000)
     : { data: [] };
   const besuche = besucheJeStelle((besucheRoh ?? []) as Besuch[]);
 
   const inbox = {
-    data: [...(neuQuery.data ?? []), ...(verfolgtQuery.data ?? [])],
+    data: [...(neuQuery.data ?? []), ...(verfolgtQuery.data ?? [])] as unknown as Array<Record<string, unknown>>,
     error: neuQuery.error ?? verfolgtQuery.error,
   };
 
   // Alle eigenen Bewerbungen — für die Warnung "bereits bei dieser Firma beworben".
-  const bewerbungen = (verfolgtQuery.data ?? []).map((row) => ({
+  const bewerbungen = ((verfolgtQuery.data ?? []) as unknown as Array<Record<string, unknown>>).map((row) => ({
     uuid: row.uuid as string,
     employer_name: (row.employer_name as string) ?? null,
     title: (row.title as string) ?? null,
@@ -97,6 +101,7 @@ export default async function InboxPage() {
         ? `Google Jobs, ${String(row.occupation_level1)}`
         : QUELLEN_NAME[row.source as string] ?? String(row.source),
     besuche: besuche.get(row.uuid as string) ?? null,
+    spur: (row.eval_spur as string) ?? null,
     frueher: findeFruehere(
       { uuid: row.uuid as string, employer: (row.employer_name as string) ?? null, title: (row.title as string) ?? null },
       bewerbungen

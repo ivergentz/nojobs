@@ -10,6 +10,8 @@ type Row = {
   label: string;
   eval_fit: string | null;
   eval_summary: string | null;
+  eval_spur?: string | null;
+  labeled_at?: string | null;
 };
 
 const LABELS: Record<string, string> = {
@@ -24,16 +26,20 @@ const ORDER = ["must_apply", "worth_reading", "ignore"];
 export default async function EvalPage() {
   const db = supabaseAdmin();
 
-  const { data, error } = await db
-    .from("jobs")
-    .select("uuid,title,employer_name,label,eval_fit,eval_summary")
-    .eq("status", "ACTIVE")
-    .in("source", AKTIVE_QUELLEN)
-    .not("label", "is", null)
-    .not("evaluated_at", "is", null)
-    .limit(500);
+  const lesen = (spalten: string) =>
+    db
+      .from("jobs")
+      .select(spalten)
+      .eq("status", "ACTIVE")
+      .in("source", AKTIVE_QUELLEN)
+      .not("label", "is", null)
+      .not("evaluated_at", "is", null)
+      .limit(500);
+  // Mit Suchspur lesen; fehlt die Spalte noch (suchspur.sql), ohne.
+  let { data, error } = await lesen("uuid,title,employer_name,label,eval_fit,eval_summary,eval_spur,labeled_at");
+  if (error) ({ data, error } = await lesen("uuid,title,employer_name,label,eval_fit,eval_summary"));
 
-  const rows = (data ?? []) as Row[];
+  const rows = (data ?? []) as unknown as Row[];
 
   const matrix: Record<string, Record<string, number>> = {};
   for (const mine of ORDER) {
@@ -63,6 +69,22 @@ export default async function EvalPage() {
     modellBewerben.filter((row) => row.label === "must_apply").length,
     modellBewerben.length
   );
+
+  // Präzision je Suchspur (KI vs. Career Upgrade).
+  const spuren = [
+    { key: "ki", name: "🤖 KI & Automation" },
+    { key: "upgrade", name: "⬆️ Career Upgrade" },
+  ].map((sp) => {
+    const vorschlaege = rows.filter((row) => row.eval_spur === sp.key && positiv(row.eval_fit));
+    return { ...sp, gezeigt: vorschlaege.length, gewollt: vorschlaege.filter((row) => positiv(row.label)).length };
+  });
+  const upgradeAlt = rows.filter(
+    (row) =>
+      row.eval_spur === "upgrade" &&
+      positiv(row.eval_fit) &&
+      row.label === "ignore" &&
+      String(row.labeled_at ?? "") < "2026-10-20T12:00:00Z"
+  ).length;
 
   // Übersehene Treffer: Iver sagt bewerben oder anschauen, das Modell ignoriert.
   // Das ist der teure Fehler — was hier landet, sieht er nie wieder.
@@ -119,6 +141,39 @@ export default async function EvalPage() {
             : `${missed.length} übersehene Treffer. Jeder davon wäre in der Inbox nie aufgetaucht — das ist der teure Fehler, nicht die Fehlalarme.`}
         </p>
       </section>
+
+      {spuren.some((sp) => sp.gezeigt > 0) && (
+        <section className="border-b border-rule py-12">
+          <h2 className="text-lg font-semibold tracking-tight">Nach Suchspur</h2>
+          <table className="mt-6 w-full text-sm">
+            <thead>
+              <tr className="border-b border-rule text-left text-muted">
+                <th className="py-2 font-normal">Spur</th>
+                <th className="py-2 text-right font-normal">Vorschläge</th>
+                <th className="py-2 text-right font-normal">davon gewollt</th>
+                <th className="py-2 text-right font-normal">Präzision</th>
+              </tr>
+            </thead>
+            <tbody>
+              {spuren.map((sp) => (
+                <tr key={sp.key} className="border-b border-rule/60">
+                  <td className="py-2">{sp.name}</td>
+                  <td className="tnum py-2 text-right">{sp.gezeigt}</td>
+                  <td className="tnum py-2 text-right">{sp.gewollt}</td>
+                  <td className="tnum py-2 text-right">{sp.gezeigt ? `${prozent(sp.gewollt, sp.gezeigt)} %` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {upgradeAlt > 0 && (
+            <p className="mt-4 max-w-xl text-xs leading-relaxed text-muted">
+              {upgradeAlt} Upgrade-Vorschläge hast du vor Einführung der Spur als „Ignorieren“ gelabelt. Sie
+              zählen hier als Fehlalarm, auch wenn du sie heute anders sehen würdest. Wer mag: in der Inbox
+              anschauen und neu labeln.
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="border-b border-rule py-12">
         <h2 className="text-lg font-semibold tracking-tight">Wo es auseinandergeht</h2>

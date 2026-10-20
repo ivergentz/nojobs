@@ -25,7 +25,11 @@ export type InboxJob = {
   quelle: string;
   frueher: FruehereBewerbung[];
   besuche: BesuchsSumme | null;
+  /** Suchspur: "ki" (KI & Automation) oder "upgrade" (Career Upgrade). */
+  spur: string | null;
 };
+
+const SPUR_TEXT: Record<string, string> = { ki: "🤖 KI", upgrade: "⬆️ Career Upgrade" };
 
 const STATUS_TEXT: Record<string, string> = {
   beworben: "beworben",
@@ -101,6 +105,7 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
   const [state, setState] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState<string | null>(null);
   const [reiter, setReiter] = useState("neu");
+  const [spurFilter, setSpurFilter] = useState<"alle" | "ki" | "upgrade">("alle");
 
   // Gewählten Reiter in der Adresse merken (#beworben), damit Neuladen ihn behält.
   useEffect(() => {
@@ -141,7 +146,9 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
 
   const statusVon = (job: InboxJob) => state[job.uuid] ?? job.status;
   const anzahl = (key: string) => jobs.filter((job) => statusVon(job) === key).length;
-  const visible = jobs.filter((job) => statusVon(job) === reiter);
+  const imReiter = jobs.filter((job) => statusVon(job) === reiter);
+  const visible = imReiter.filter((job) => spurFilter === "alle" || (job.spur ?? "ki") === spurFilter);
+  const hatUpgrade = imReiter.some((job) => job.spur === "upgrade");
 
   return (
     <div className="mt-6">
@@ -169,6 +176,31 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
         })}
       </nav>
 
+      {hatUpgrade && (
+        <div className="mt-4 flex flex-wrap gap-2 text-sm">
+          {([
+            ["alle", "Alle"],
+            ["ki", "🤖 KI & Automation"],
+            ["upgrade", "⬆️ Career Upgrade"],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSpurFilter(key)}
+              aria-pressed={spurFilter === key}
+              className={`rounded-full border px-3 py-1 ${
+                spurFilter === key ? "border-ink bg-ink text-paper" : "border-rule text-muted hover:text-ink"
+              }`}
+            >
+              {label}
+              <span className="tnum ml-1.5 text-xs opacity-70">
+                {key === "alle" ? imReiter.length : imReiter.filter((job) => (job.spur ?? "ki") === key).length}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {failed && <p className="mt-4 text-sm text-drop">Nicht gespeichert: {failed}</p>}
 
       {visible.length === 0 && <p className="mt-10 text-sm leading-relaxed">{LEER[reiter]}</p>}
@@ -187,6 +219,9 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
                   {hot ? "🔥 Bewerben" : "👍 Anschauen"}
                   {job.confidence === "low" && (
                     <span className="ml-2 font-normal text-muted">unsicher</span>
+                  )}
+                  {job.spur === "upgrade" && (
+                    <span className="ml-2 font-normal text-ink">· {SPUR_TEXT.upgrade}</span>
                   )}
                 </span>
                 <span className="text-right text-xs text-muted">

@@ -104,17 +104,22 @@ export async function runEvaluation(
             beispiele,
           });
 
-          const { error: writeError } = await db
+          const felder = {
+            eval_fit: result.fit,
+            eval_confidence: result.confidence,
+            eval_summary: result.summary,
+            eval_pros: result.pros,
+            eval_cons: result.cons,
+            evaluated_at: new Date().toISOString(),
+          };
+          let { error: writeError } = await db
             .from("jobs")
-            .update({
-              eval_fit: result.fit,
-              eval_confidence: result.confidence,
-              eval_summary: result.summary,
-              eval_pros: result.pros,
-              eval_cons: result.cons,
-              evaluated_at: new Date().toISOString(),
-            })
+            .update({ ...felder, eval_spur: result.spur })
             .eq("uuid", job.uuid as string);
+          // Spalte eval_spur fehlt noch (SQL suchspur.sql nicht ausgeführt): ohne Spur speichern.
+          if (writeError && /eval_spur/.test(writeError.message)) {
+            ({ error: writeError } = await db.from("jobs").update(felder).eq("uuid", job.uuid as string));
+          }
 
           if (writeError) throw new Error(writeError.message);
           stats.evaluated += 1;
@@ -137,6 +142,11 @@ export async function runEvaluation(
   return { ...stats, nochOffen: remaining ?? 0, fehlerbeispiele: errors };
 }
 
+/** Ab hier gibt es Suchspur B (Career Upgrade). */
+const SPUR_B_START = "2026-10-20T12:00:00Z";
+const UPGRADE_TITEL = /senior|lead|head|director|leiter|leitung|transformation/i;
+const KI_TITEL = /\bki\b|\bai\b|künstl|genai|llm|agentic|automati|machine learning/i;
+
 const LABEL_TEXT: Record<string, string> = {
   must_apply: "BEWERBEN",
   worth_reading: "ANSCHAUEN",
@@ -154,7 +164,7 @@ const LABEL_TEXT: Record<string, string> = {
  */
 async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Promise<string> {
   // Mit Begründungen lesen; fehlen die Spalten noch (SQL nicht ausgeführt), ohne.
-  const basis = "uuid,title,employer_name,municipal,sector,label,eval_fit";
+  const basis = "uuid,title,employer_name,municipal,sector,label,eval_fit,labeled_at";
   const erster = await db
     .from("jobs")
     .select(`${basis},label_gruende,label_notiz`)
@@ -171,8 +181,17 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
       .limit(600));
   }
 
+  // Ältere "Ignorieren"-Urteile über Senior-/Lead-/Head-Rollen ohne KI stammen aus
+  // der Zeit vor Suchspur B — sie würden dem Modell beibringen, genau diese
+  // Stellen wegzuwerfen. Ab SPUR_B_START gelten neue Urteile wieder normal.
+  const veraltet = (row: Record<string, unknown>) =>
+    row.label === "ignore" &&
+    String(row.labeled_at ?? "") < SPUR_B_START &&
+    UPGRADE_TITEL.test(String(row.title ?? "")) &&
+    !KI_TITEL.test(String(row.title ?? ""));
+
   const rows = ((data ?? []) as Array<Record<string, unknown>>).filter(
-    (row) => !ausschliessen.has(row.uuid as string) && row.title
+    (row) => !ausschliessen.has(row.uuid as string) && row.title && !veraltet(row)
   );
   const hatGrund = (row: Record<string, unknown>) =>
     (Array.isArray(row.label_gruende) && row.label_gruende.length > 0) || Boolean(row.label_notiz);

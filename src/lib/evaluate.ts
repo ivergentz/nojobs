@@ -12,8 +12,12 @@ export { DEFAULT_MODEL };
 
 export type Fit = "must_apply" | "worth_reading" | "ignore";
 
+/** Suchspur: A = KI & Automatisierung, B = Career Upgrade (Level-/Gehaltssprung ohne KI-Kern). */
+export type Spur = "ki" | "upgrade" | "keine";
+
 export type Evaluation = {
   fit: Fit;
+  spur: Spur;
   confidence: "high" | "medium" | "low";
   summary: string;
   pros: string[];
@@ -34,15 +38,17 @@ Stärke: denkt Produkte ganzheitlich, von der Idee bis zum Markt, und setzt KI s
 
 Sprachen: Deutsch Muttersprache, Englisch fließend. Englischsprachige Stellen sind kein Problem.
 
-SUCHE: Rollen mit KI im Kern — das ist das wichtigste Kriterium. Bevorzugt Hamburg und Umgebung oder überwiegend remote; KI-Rollen anderswo in Deutschland mit Homeoffice-Anteil schaut er sich an. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft; öffentliche Arbeitgeber nur ausnahmsweise bei starker KI-Rolle. Gehaltsziel rund 85.000 € brutto im Jahr.`;
+SUCHE in zwei Spuren. Spur A (Hauptspur): Rollen mit KI im Kern. Spur B (Career Upgrade): Senior-, Lead- und Head-of-Rollen in Produkt und Digital ohne KI-Kern, wenn sie einen klaren Karriere- oder Gehaltssprung bedeuten (ab 90.000 €). Bevorzugt Hamburg und Umgebung oder überwiegend remote; KI-Rollen anderswo in Deutschland mit Homeoffice-Anteil schaut er sich an. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft; öffentliche Arbeitgeber nur ausnahmsweise bei starker KI-Rolle. Gehaltsziel: Spur A ab rund 85.000 €, Spur B ab 90.000 € brutto im Jahr.`;
 
 const RULES = `BEWERTUNG "fit". Iver liest jede Stelle, die nicht "ignore" ist. Die Inbox soll klein und treffsicher sein.
 
 SCHRITT 1 — HAUPTKRITERIUM: STEHT KI IM KERN DER ROLLE?
 KI-Kern heißt: Die Aufgaben drehen sich überwiegend um KI, LLMs, GenAI, Agenten, KI-gestützte oder intelligente Automatisierung (auch No-Code/Low-Code-Automatisierung mit n8n, Make, Zapier) oder den Aufbau von KI-Produkten bzw. KI-Initiativen. Es reicht NICHT, dass KI im Firmenprofil, als "Plus" oder in einem Nebensatz vorkommt.
-→ Kein KI-Kern: ignore. Das gilt ausdrücklich auch für klassische Product-Manager- und Product-Owner-Stellen in Hamburg (E-Commerce, Versicherung, Banking, Energie, Hardware, Plattformen ohne KI-Fokus), für allgemeine Digitalisierung ohne KI-Bezug und für Product Marketing.
+→ KI-Kern vorhanden: spur "ki", weiter mit SCHRITT 2.
+→ Kein KI-Kern: weiter mit SCHRITT 3 (Career Upgrade). Passt auch das nicht: spur "keine", fit ignore.
+Passt eine Stelle zu beiden Spuren, gilt immer spur "ki" — jede Stelle wird nur einmal eingeordnet.
 
-SCHRITT 2 — NUR BEI KI-KERN: EINSTUFUNG
+SCHRITT 2 — SPUR "ki": EINSTUFUNG
 
 must_apply — ALLE Bedingungen erfüllt:
 1. Produkt- oder Gestaltungsrolle mit KI-Kern: KI-/AI Product Owner, AI Product Manager, AI Program Manager, KI-Manager/AI Specialist mit Gestaltungsauftrag, Leitung einer KI-Initiative, Head of AI/Product mit KI-Fokus, Product Owner einer KI- oder Automatisierungsplattform, Projektleitung KI/Automatisierung mit Umsetzungsverantwortung.
@@ -61,6 +67,18 @@ ignore trotz KI-Bezug:
 - Reiner KI-Vertrieb (Account Management, Quota) ohne Gestaltung; Junior, Trainee, Praktikum, Werkstudent, PhD/Forschung.
 - KI nur als Werkzeug in einer Marketing-, HR-, Finance- oder Vertriebsrolle (z. B. "KI-Manager" für Outbound-Kampagnen).
 
+SCHRITT 3 — SPUR "upgrade" (CAREER UPGRADE, OHNE KI-KERN)
+Gesucht sind Stellen, die für Iver einen klaren Karriere- oder Gehaltssprung bedeuten. Gehaltsziel ab 90.000 €.
+Passend NUR, wenn ALLE Punkte erfüllt sind:
+1. Level-Sprung erkennbar: Head of Product, Head of Digital, Director/Leitung Produkt oder Digital, Lead Product Owner / Lead Product Manager, Leitung Digitalisierung oder Digital Transformation mit Gestaltungs- und Budgetverantwortung, oder Senior Product Manager bei einer Produktfirma mit digitalem Kernprodukt (SaaS, Plattform, Scale-up, großer Digitalbereich).
+2. Arbeitsort Hamburg/Pendelnähe oder klar überwiegend remote. Andere Orte: ignore.
+3. Privatwirtschaft. Öffentlicher Dienst: ignore.
+4. Nennt die Anzeige ein Gehalt, muss es 90.000 € oder mehr erreichen können; liegt es klar darunter: ignore. Fehlt die Angabe, entscheidet das Level — dann "Gehalt nicht angegeben" als cons.
+Einstufung bei spur "upgrade":
+- must_apply: Head of / Director / Leitung mit Führungsverantwortung, oder Lead/Senior-Produktrolle mit genanntem Gehalt ab 90.000 €.
+- worth_reading: Senior- oder Lead-Rolle ohne Gehaltsangabe, bei der das Level plausibel ist.
+NICHT upgrade (ignore): normale Product-Manager-/Product-Owner-Stellen ohne Senior-, Lead- oder Leitungsbezug; Senior-Rollen in Fachbereichen ohne digitales Produkt (z. B. Versicherungs- oder Bankprodukte, Hardware); IT-Leitung, Projektleitung, PMO, Beratung, Personaldienstleister; Product Marketing.
+
 Führungsrollen (Teamlead, Head of, Director) mit KI-Kern sind ausdrücklich erwünscht und NICHT wegen Seniorität abzuwerten. Geforderte Berufsjahre sind kein Ausschlussgrund — als cons vermerken.
 
 GEHALT: Liegt eine Angabe deutlich unter 80.000 €, als cons vermerken. Kein Ausschlussgrund.
@@ -76,12 +94,13 @@ const SCHEMA = {
   type: "object",
   properties: {
     fit: { type: "string", enum: ["must_apply", "worth_reading", "ignore"] },
+    spur: { type: "string", enum: ["ki", "upgrade", "keine"] },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     summary: { type: "string", description: "Höchstens 40 Wörter, Deutsch." },
     pros: { type: "array", items: { type: "string" } },
     cons: { type: "array", items: { type: "string" } },
   },
-  required: ["fit", "confidence", "summary", "pros", "cons"],
+  required: ["fit", "spur", "confidence", "summary", "pros", "cons"],
 };
 
 /**
@@ -103,7 +122,7 @@ export async function evaluateAd(input: {
   const parsed = await callClaudeJson<Partial<Evaluation>>({
     model: process.env.EVAL_MODEL || DEFAULT_MODEL,
     system: input.beispiele
-      ? `${PROFILE}\n\n${RULES}\n\nIVERS EIGENE URTEILE ÜBER FRÜHERE STELLEN — so entscheidet er. Orientiere dich daran. Widerspricht ein Beispiel einer Regel oben (etwa öffentlicher Dienst), gilt die Regel.\n${input.beispiele}`
+      ? `${PROFILE}\n\n${RULES}\n\nIVERS EIGENE URTEILE ÜBER FRÜHERE STELLEN — so entscheidet er. Orientiere dich daran. Widerspricht ein Beispiel einer Regel oben (etwa öffentlicher Dienst oder Spur "upgrade", die es bei älteren Urteilen noch nicht gab), gilt die Regel.\n${input.beispiele}`
       : `${PROFILE}\n\n${RULES}`,
     user: [
       `Titel: ${input.title}`,
@@ -128,6 +147,7 @@ export async function evaluateAd(input: {
   return {
     // Unbekanntes Urteil: lieber anschauen als lautlos verlieren.
     fit: fits.includes(parsed.fit as Fit) ? (parsed.fit as Fit) : "worth_reading",
+    spur: parsed.spur === "ki" || parsed.spur === "upgrade" ? parsed.spur : "keine",
     confidence:
       parsed.confidence === "high" || parsed.confidence === "medium" ? parsed.confidence : "low",
     summary: typeof parsed.summary === "string" ? parsed.summary : "",

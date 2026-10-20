@@ -61,15 +61,20 @@ export async function GET(request: Request) {
       }
     }
 
-    const { data, error } = await db
-      .from("jobs")
-      .select("uuid,title,employer_name,municipal,county,country,eval_fit,eval_summary,application_url,application_due")
-      .eq("status", "ACTIVE")
-      .in("source", AKTIVE_QUELLEN)
-      .in("eval_fit", ["must_apply", "worth_reading"])
-      .eq("app_status", "neu")
-      .is("notified_at", null)
-      .limit(30);
+    const offene = (spalten: string) =>
+      db
+        .from("jobs")
+        .select(spalten)
+        .eq("status", "ACTIVE")
+        .in("source", AKTIVE_QUELLEN)
+        .in("eval_fit", ["must_apply", "worth_reading"])
+        .eq("app_status", "neu")
+        .is("notified_at", null)
+        .limit(30);
+    const SPALTEN = "uuid,title,employer_name,municipal,county,country,eval_fit,eval_summary,application_url,application_due";
+    // Mit Suchspur lesen; fehlt die Spalte noch (suchspur.sql), ohne.
+    let { data, error } = await offene(`${SPALTEN},eval_spur`);
+    if (error && /eval_spur/.test(error.message)) ({ data, error } = await offene(SPALTEN));
 
     if (error) {
       // Datenbank weg (z. B. pausiert): wenigstens Bescheid geben.
@@ -81,7 +86,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: false, error: error.message, bewertung }, { status: 500 });
     }
 
-    const rows = data ?? [];
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
     const hot = rows.filter((row) => row.eval_fit === "must_apply");
 
     // Kein must_apply, keine Nachricht. Ein täglicher Leerlauf-Ping wäre der
@@ -123,6 +128,7 @@ export async function GET(request: Request) {
       url: (row.application_url as string) ?? null,
       due: (row.application_due as string) ?? null,
       warnung: warnungFuer(row),
+      spur: (row.eval_spur as string) ?? null,
     }));
 
     const base = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;

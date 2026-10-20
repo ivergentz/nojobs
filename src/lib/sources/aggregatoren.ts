@@ -42,6 +42,8 @@ export const GOOGLE_SUCHEN: Array<{ q: string; location: string }> = [
   { q: "KI Manager", location: "Hamburg, Germany" },
   { q: "AI Program Manager", location: "Hamburg, Germany" },
   { q: "AI Product Manager remote", location: "Germany" },
+  // Suchspur B (Career Upgrade). 7 Suchen pro Tag ≈ 217 im Monat — unter den 250 des Gratis-Kontingents.
+  { q: "Head of Digital Product", location: "Hamburg, Germany" },
 ];
 
 /** "vor 3 Tagen" / "3 days ago" → ungefähres Datum. */

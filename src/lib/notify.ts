@@ -19,6 +19,8 @@ export type NotifyJob = {
   warnung?: string | null;
   url: string | null;
   due: string | null;
+  /** Suchspur: "ki" oder "upgrade" (Career Upgrade). */
+  spur?: string | null;
 };
 
 function escapeHtml(value: string): string {
@@ -29,31 +31,49 @@ function escapeHtml(value: string): string {
 }
 
 export function buildMessage(jobs: NotifyJob[], inboxUrl: string): string {
-  const hot = jobs.filter((job) => job.fit === "must_apply");
-  const rest = jobs.filter((job) => job.fit !== "must_apply");
+  // Zwei Suchspuren: KI & Automation (Hauptspur) und Career Upgrade.
+  const upgrade = jobs.filter((job) => job.spur === "upgrade");
+  const ki = jobs.filter((job) => job.spur !== "upgrade");
+  const hot = ki.filter((job) => job.fit === "must_apply");
+  const rest = ki.filter((job) => job.fit !== "must_apply");
+  const upgradeHot = upgrade.filter((job) => job.fit === "must_apply");
+  const upgradeRest = upgrade.filter((job) => job.fit !== "must_apply");
 
-  const lines: string[] = [];
-  lines.push(
-    hot.length === 1
-      ? "<b>Eine neue Stelle zum Bewerben</b>"
-      : `<b>${hot.length} neue Stellen zum Bewerben</b>`
-  );
-
-  for (const job of hot) {
+  const block = (job: NotifyJob, icon: string, lines: string[]) => {
     lines.push("");
-    lines.push(`🔥 <b>${escapeHtml(job.title)}</b>`);
+    lines.push(`${icon} <b>${escapeHtml(job.title)}</b>`);
     if (job.warnung) lines.push(`⚠️ ${escapeHtml(job.warnung)}`);
     lines.push(`${escapeHtml(job.employer)} · ${escapeHtml(job.place)}`);
     if (job.due) lines.push(`Frist: ${escapeHtml(job.due)}`);
     if (job.summary) lines.push(escapeHtml(job.summary));
     if (job.url) lines.push(job.url);
-  }
+  };
+  const kurz = (job: NotifyJob, icon: string) =>
+    `${icon} ${escapeHtml(job.title)} — ${escapeHtml(job.employer)}${job.warnung ? " ⚠️ schon beworben" : ""}`;
+
+  const lines: string[] = [];
+  const anzahlBewerben = hot.length + upgradeHot.length;
+  lines.push(
+    anzahlBewerben === 1
+      ? "<b>Eine neue Stelle zum Bewerben</b>"
+      : `<b>${anzahlBewerben} neue Stellen zum Bewerben</b>`
+  );
+
+  for (const job of hot) block(job, "🔥", lines);
 
   if (rest.length > 0) {
     lines.push("");
     lines.push(`Dazu ${rest.length} zum Anschauen:`);
-    for (const job of rest.slice(0, 8)) {
-      lines.push(`👍 ${escapeHtml(job.title)} — ${escapeHtml(job.employer)}${job.warnung ? " ⚠️ schon beworben" : ""}`);
+    for (const job of rest.slice(0, 8)) lines.push(kurz(job, "👍"));
+  }
+
+  if (upgrade.length > 0) {
+    lines.push("");
+    lines.push("<b>⬆️ Career Upgrade</b>");
+    for (const job of upgradeHot) block(job, "🔥", lines);
+    if (upgradeRest.length > 0) {
+      if (upgradeHot.length > 0) lines.push("");
+      for (const job of upgradeRest.slice(0, 5)) lines.push(kurz(job, "👍"));
     }
   }
 

@@ -39,6 +39,13 @@ export const SUCHBEGRIFFE = [
   "Digital Product Manager",
   "Digitalisierungsmanager",
   "Produktmanager Digitalisierung",
+  // Career Upgrade (Suchspur B): Führungs- und Senior-Rollen, auch ohne KI
+  "Head of Product",
+  "Head of Digital",
+  "Lead Product Owner",
+  "Director Product",
+  "Digital Transformation Manager",
+  "Leitung Digitalisierung",
   // SaaS und Growth
   "SaaS Product Manager",
   "Product Marketing Manager",
