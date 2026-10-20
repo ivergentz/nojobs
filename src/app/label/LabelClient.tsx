@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GRUENDE_ANSCHAUEN, GRUENDE_IGNORE } from "@/lib/gruende";
 
 export type LabelJob = {
   uuid: string;
@@ -49,22 +50,30 @@ export default function LabelClient({
   const [history, setHistory] = useState<string[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  // Nach "Anschauen" oder "Ignorieren": kurz fragen, warum.
+  const [pending, setPending] = useState<Verdict | null>(null);
+  const [gruende, setGruende] = useState<string[]>([]);
+  const [notiz, setNotiz] = useState("");
+  const notizRef = useRef<HTMLInputElement>(null);
 
   const job = jobs[index];
+  const auswahl = pending === "ignore" ? GRUENDE_IGNORE : pending === "worth_reading" ? GRUENDE_ANSCHAUEN : [];
 
-  const save = useCallback(async (uuid: string, verdict: Verdict | null) => {
+  const save = useCallback(async (uuid: string, verdict: Verdict | null, extra?: { gruende: string[]; notiz: string }) => {
     try {
       const res = await fetch("/api/label", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uuid, label: verdict }),
+        body: JSON.stringify({ uuid, label: verdict, ...(extra ?? {}) }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setFailed(body.error ?? `HTTP ${res.status}`);
         return false;
       }
-      setFailed(null);
+      // Urteil gespeichert; die Begründung evtl. nicht (SQL fehlt) — dann Hinweis.
+      const ok = await res.json().catch(() => ({}));
+      setFailed(ok.warnung ?? null);
       return true;
     } catch (error) {
       setFailed(error instanceof Error ? error.message : String(error));
@@ -72,19 +81,55 @@ export default function LabelClient({
     }
   }, []);
 
+  const weiter = useCallback(() => {
+    if (!job) return;
+    setHistory((prev) => [...prev, job.uuid]);
+    setExpanded(false);
+    setPending(null);
+    setGruende([]);
+    setNotiz("");
+    setIndex((prev) => prev + 1);
+  }, [job]);
+
   const decide = useCallback(
     async (verdict: Verdict) => {
       if (!job) return;
+      // Das Urteil wird sofort gespeichert — die Begründung ist ein Zusatz.
       const ok = await save(job.uuid, verdict);
       if (!ok) return;
-      setHistory((prev) => [...prev, job.uuid]);
-      setExpanded(false);
-      setIndex((prev) => prev + 1);
+      if (verdict === "must_apply") weiter();
+      else setPending(verdict);
     },
-    [job, save]
+    [job, save, weiter]
   );
 
+  /** Begründung speichern (oder überspringen) und zur nächsten Stelle. */
+  const abschliessen = useCallback(
+    async (mitGrund: boolean) => {
+      if (!job || !pending) return;
+      if (mitGrund && (gruende.length > 0 || notiz.trim())) {
+        const ok = await save(job.uuid, pending, { gruende, notiz });
+        if (!ok) return;
+      }
+      weiter();
+    },
+    [job, pending, gruende, notiz, save, weiter]
+  );
+
+  const toggle = useCallback((key: string) => {
+    setGruende((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  }, []);
+
   const undo = useCallback(async () => {
+    // Steht gerade die Begründungsfrage offen: Urteil dieser Stelle aufheben.
+    if (pending && job) {
+      const ok = await save(job.uuid, null);
+      if (!ok) return;
+      setPending(null);
+      setGruende([]);
+      setNotiz("");
+      return;
+    }
     const last = history[history.length - 1];
     if (!last) return;
     const ok = await save(last, null);
@@ -92,11 +137,37 @@ export default function LabelClient({
     setHistory((prev) => prev.slice(0, -1));
     setExpanded(false);
     setIndex((prev) => Math.max(0, prev - 1));
-  }, [history, save]);
+  }, [history, save, pending, job]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const imFeld = (event.target as HTMLElement | null)?.tagName === "INPUT";
+
+      if (pending) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void abschliessen(true);
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          void abschliessen(false);
+        } else if (!imFeld && /^[1-9]$/.test(event.key)) {
+          const grund = auswahl[Number(event.key) - 1];
+          if (grund) {
+            event.preventDefault();
+            toggle(grund.key);
+          }
+        } else if (!imFeld && event.key === "n") {
+          event.preventDefault();
+          notizRef.current?.focus();
+        } else if (!imFeld && event.key === "Backspace") {
+          event.preventDefault();
+          void undo();
+        }
+        return;
+      }
+
+      if (imFeld) return;
       const match = BUTTONS.find((button) => button.key === event.key);
       if (match) {
         event.preventDefault();
@@ -110,7 +181,7 @@ export default function LabelClient({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [decide, undo]);
+  }, [decide, undo, pending, abschliessen, auswahl, toggle]);
 
   if (jobs.length === 0) {
     return (
@@ -192,6 +263,64 @@ export default function LabelClient({
       </article>
 
       <div className="sticky bottom-0 mt-10 border-t border-rule bg-paper py-5">
+        {pending ? (
+          <div>
+            <p className="text-sm font-semibold">
+              {pending === "ignore" ? "👎 Ignoriert — warum?" : "👍 Anschauen — warum nicht Bewerben?"}
+              <span className="ml-2 font-normal text-muted">Mehrfachauswahl, optional</span>
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {auswahl.map((grund, i) => {
+                const an = gruende.includes(grund.key);
+                return (
+                  <button
+                    key={grund.key}
+                    type="button"
+                    onClick={() => toggle(grund.key)}
+                    aria-pressed={an}
+                    className={`rounded-full border px-3 py-1.5 text-sm ${
+                      an ? "border-ink bg-ink text-paper" : "border-rule text-ink hover:border-ink"
+                    }`}
+                  >
+                    <span className={`mr-1.5 text-xs ${an ? "text-paper/70" : "text-muted"}`}>{i + 1}</span>
+                    {grund.label}
+                  </button>
+                );
+              })}
+            </div>
+            <input
+              ref={notizRef}
+              value={notiz}
+              onChange={(event) => setNotiz(event.target.value)}
+              placeholder="Notiz (optional, Taste n) — z. B. „nur 2 Tage Homeoffice“"
+              maxLength={300}
+              className="mt-3 w-full rounded border border-rule bg-paper px-3 py-2 text-sm outline-none focus:border-ink"
+            />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void abschliessen(true)}
+                className="rounded border border-ink px-4 py-2 text-sm"
+              >
+                Weiter <span className="ml-1 text-xs text-muted">Enter</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void abschliessen(false)}
+                className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4"
+              >
+                Ohne Grund <span className="text-xs">Esc</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void undo()}
+                className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4"
+              >
+                Urteil ändern
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="flex flex-wrap gap-3">
           {BUTTONS.map((button) => (
             <button
@@ -213,6 +342,7 @@ export default function LabelClient({
             Zurück
           </button>
         </div>
+        )}
 
         {failed && <p className="mt-3 text-sm text-drop">Fehler: {failed}</p>}
       </div>

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { evaluateAd } from "./evaluate";
 import { AKTIVE_QUELLEN } from "./quellen";
+import { grundText } from "./gruende";
 
 /**
  * Bewertet offene Stellen in Blöcken, zeitbudgetiert.
@@ -127,34 +128,102 @@ const LABEL_TEXT: Record<string, string> = {
 };
 
 /**
- * Ivers eigene Labels als Beispiele für das Modell: alle "Bewerben", ein Teil
- * "Anschauen", und vor allem "Ignorieren"-Fälle, die das Modell bisher zu
- * hoch eingestuft hat — genau dort lag das Rauschen.
+ * Ivers eigene Urteile als Beispiele für das Modell: Labels (mit Begründung,
+ * sofern angegeben), echte Bewerbungen und in der Inbox abgelegte Vorschläge.
+ * Wird bei JEDEM Bewertungslauf frisch geladen — neue Labels wirken also ab
+ * dem nächsten Lauf, ohne dass etwas neu eingestellt werden muss.
  *
  * Die Stellen, die gerade bewertet werden, sind ausgeschlossen. Sonst würde
  * die Kalibrierung sich selbst abschreiben.
  */
 async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Promise<string> {
-  const { data } = await db
+  // Mit Begründungen lesen; fehlen die Spalten noch (SQL nicht ausgeführt), ohne.
+  const basis = "uuid,title,employer_name,municipal,sector,label,eval_fit";
+  const erster = await db
     .from("jobs")
-    .select("uuid,title,employer_name,municipal,sector,label,eval_fit")
+    .select(`${basis},label_gruende,label_notiz`)
     .not("label", "is", null)
     .order("labeled_at", { ascending: false, nullsFirst: false })
     .limit(600);
+  let data: unknown[] | null = erster.data;
+  if (erster.error) {
+    ({ data } = await db
+      .from("jobs")
+      .select(basis)
+      .not("label", "is", null)
+      .order("labeled_at", { ascending: false, nullsFirst: false })
+      .limit(600));
+  }
 
-  const rows = (data ?? []).filter((row) => !ausschliessen.has(row.uuid as string) && row.title);
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).filter(
+    (row) => !ausschliessen.has(row.uuid as string) && row.title
+  );
+  const hatGrund = (row: Record<string, unknown>) =>
+    (Array.isArray(row.label_gruende) && row.label_gruende.length > 0) || Boolean(row.label_notiz);
+  // Begründete Beispiele zuerst — sie sagen dem Modell mehr als ein nacktes Urteil.
+  const sortiert = [...rows.filter(hatGrund), ...rows.filter((row) => !hatGrund(row))];
+
   const bewerben = rows.filter((row) => row.label === "must_apply").slice(0, 30);
-  const anschauen = rows.filter((row) => row.label === "worth_reading").slice(0, 15);
-  const ignoriertAberHoch = rows
+  const anschauen = sortiert.filter((row) => row.label === "worth_reading").slice(0, 15);
+  const ignoriertAberHoch = sortiert
     .filter((row) => row.label === "ignore" && (row.eval_fit === "must_apply" || row.eval_fit === "worth_reading"))
     .slice(0, 30);
-  const ignoriertRest = rows
+  const ignoriertRest = sortiert
     .filter((row) => row.label === "ignore" && !ignoriertAberHoch.includes(row))
     .slice(0, Math.max(0, 40 - ignoriertAberHoch.length));
 
-  const zeile = (row: Record<string, unknown>) =>
-    `- [${LABEL_TEXT[row.label as string]}] ${row.title} — ${row.employer_name ?? "?"}, ${row.municipal ?? "Ort?"}` +
-    (row.sector ? ` (${row.sector})` : "");
+  const zeile = (row: Record<string, unknown>) => {
+    const gruende = Array.isArray(row.label_gruende) ? (row.label_gruende as string[]).map(grundText) : [];
+    const notiz = typeof row.label_notiz === "string" && row.label_notiz ? `„${row.label_notiz}“` : "";
+    const warum = [...gruende, notiz].filter(Boolean).join("; ");
+    return (
+      `- [${LABEL_TEXT[row.label as string]}] ${row.title} — ${row.employer_name ?? "?"}, ${row.municipal ?? "Ort?"}` +
+      (row.sector ? ` (${row.sector})` : "") +
+      (warum ? ` → Grund: ${warum}` : "")
+    );
+  };
 
-  return [...bewerben, ...anschauen, ...ignoriertAberHoch, ...ignoriertRest].map(zeile).join("\n");
+  // Häufigste Gründe über ALLE Labels — das Muster hinter den Einzelfällen.
+  const zaehler = new Map<string, number>();
+  for (const row of rows) {
+    if (!Array.isArray(row.label_gruende)) continue;
+    for (const key of row.label_gruende as string[]) {
+      const k = `${row.label === "ignore" ? "Ignoriert" : "Nur Anschauen"}: ${grundText(key)}`;
+      zaehler.set(k, (zaehler.get(k) ?? 0) + 1);
+    }
+  }
+  const muster = Array.from(zaehler.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([k, n]) => `- ${k} (${n}×)`);
+
+  // Inbox-Entscheidungen als zusätzliche Signale: wo du dich beworben hast, ist
+  // ein stärkeres "Ja" als jedes Label; "Ablegen" einer vorgeschlagenen Stelle
+  // ist genau der Fehlalarm, den das Modell lernen soll zu vermeiden.
+  const { data: inboxData } = await db
+    .from("jobs")
+    .select("uuid,title,employer_name,municipal,sector,app_status")
+    .in("app_status", ["beworben", "interview", "absage", "abgelegt"])
+    .is("label", null)
+    .order("app_status_at", { ascending: false, nullsFirst: false })
+    .limit(200);
+  const inbox = ((inboxData ?? []) as Array<Record<string, unknown>>).filter(
+    (row) => !ausschliessen.has(row.uuid as string) && row.title && !String(row.uuid).startsWith("manuell-")
+  );
+  const inboxZeile = (row: Record<string, unknown>) =>
+    `- [${row.app_status === "abgelegt" ? "IGNORIEREN — in der Inbox abgelegt" : "BEWERBEN — hat sich beworben"}] ${row.title} — ${row.employer_name ?? "?"}, ${row.municipal ?? "Ort?"}` +
+    (row.sector ? ` (${row.sector})` : "");
+  const beworbenZeilen = inbox.filter((row) => row.app_status !== "abgelegt").slice(0, 25).map(inboxZeile);
+  const abgelegtZeilen = inbox.filter((row) => row.app_status === "abgelegt").slice(0, 20).map(inboxZeile);
+
+  const beispiele = [
+    ...beworbenZeilen,
+    ...bewerben.map(zeile),
+    ...anschauen.map(zeile),
+    ...abgelegtZeilen,
+    ...[...ignoriertAberHoch, ...ignoriertRest].map(zeile),
+  ].join("\n");
+  return muster.length
+    ? `HÄUFIGSTE GRÜNDE FÜR SEINE ABLEHNUNGEN (gewichte diese Punkte entsprechend):\n${muster.join("\n")}\n\nEINZELNE URTEILE:\n${beispiele}`
+    : beispiele;
 }
