@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, Link, StyleSheet } from "@react-pdf/renderer";
 import type { Cv } from "../cv-source";
 import { COLORS, portraitUrl, registerFonts } from "./fonts";
 
@@ -167,7 +167,10 @@ export default function CvDocument({ cv, lang }: { cv: Cv; lang: "de" | "en" }) 
               <Text style={s.dot}>·</Text>
               <Text>{c.phone}</Text>
               <Text style={s.dot}>·</Text>
-              <Text>{c.web}</Text>
+              {/* Bei Bewerbungen der persönliche Link (iverbohnes.de/firma) — klickbar */}
+              <Link src={c.web.startsWith("http") ? c.web : `https://${c.web}`} style={{ color: SOFT, textDecoration: "none" }}>
+                {c.web.replace(/^https?:\/\//, "")}
+              </Link>
             </View>
           </View>
           {/* eslint-disable-next-line jsx-a11y/alt-text */}

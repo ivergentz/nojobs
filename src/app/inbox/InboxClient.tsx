@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { FruehereBewerbung } from "@/lib/firma";
+import type { BesuchsSumme } from "@/lib/tracking";
 
 export type InboxJob = {
   uuid: string;
@@ -23,6 +24,7 @@ export type InboxJob = {
   published: string | null;
   quelle: string;
   frueher: FruehereBewerbung[];
+  besuche: BesuchsSumme | null;
 };
 
 const STATUS_TEXT: Record<string, string> = {
@@ -202,6 +204,16 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
               {salary && <p className="mt-1 text-sm text-keep">{salary}</p>}
 
               {(status === "neu" || status === "interessant") && <Warnung frueher={job.frueher} />}
+
+              {["beworben", "interview", "absage"].includes(status) && (
+                <p className={`mt-3 text-sm ${job.besuche ? "font-semibold text-keep" : "text-muted"}`}>
+                  {job.besuche
+                    ? `👀 Seite ${job.besuche.anzahl}× geöffnet · zuletzt ${datum(job.besuche.zuletzt)}${
+                        job.besuche.cv ? " · Lebenslauf angesehen" : ""
+                      }`
+                    : "Seite noch nicht geöffnet"}
+                </p>
+              )}
 
               {job.summary && <p className="mt-4 text-sm leading-relaxed">{job.summary}</p>}
 

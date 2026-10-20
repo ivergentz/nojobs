@@ -13,6 +13,7 @@ const NAV = [
   { href: "/label", label: "Labeln" },
   { href: "/eval", label: "Kalibrierung" },
   { href: "/stats", label: "Statistik" },
+  { href: "/analytics", label: "Analytics" },
   { href: "/admin", label: "Steuerung" },
   { href: "/log", label: "Log" },
 ];

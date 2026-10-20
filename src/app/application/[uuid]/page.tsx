@@ -3,6 +3,8 @@ import ApplicationClient from "./ApplicationClient";
 import FragenClient from "./FragenClient";
 import { CV_BASE, loadCv } from "@/lib/cv-source";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
+import { dauerText, ensureRef, trackingLink, type Besuch } from "@/lib/tracking";
+import TrackingLink from "./TrackingLink";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,17 @@ export default async function ApplicationPage({
       </main>
     );
   }
+
+  // Persönlicher Link — erst vergeben, wenn es einen Entwurf gibt. Sonst würde
+  // jede nur angesehene Stelle ein Kürzel wie "otto" belegen.
+  const ref = job.application_draft ? await ensureRef(db, job.uuid as string) : null;
+  const link = ref ? trackingLink(ref) : null;
+  const { data: besucheRoh } = ref
+    ? await db.from("besuche").select("*").eq("job_uuid", job.uuid).order("created_at", { ascending: false }).limit(50)
+    : { data: [] };
+  const besuche = ((besucheRoh ?? []) as Besuch[]).filter((b) => !b.bot);
+  const zeit = (d: string) =>
+    new Date(d).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" });
 
   const frueher = findeFruehere(
     { uuid: job.uuid as string, employer: (job.employer_name as string) ?? null, title: (job.title as string) ?? null },
@@ -97,6 +110,38 @@ export default async function ApplicationPage({
           </p>
         )}
       </header>
+
+      <section className="mt-6 rounded border border-rule px-4 py-3 text-sm">
+        <p className="text-xs text-muted">Persönlicher Link — steht automatisch in Lebenslauf und Anschreiben</p>
+        {link ? (
+          <div className="mt-1">
+            <TrackingLink href={link.href} text={link.text} />
+          </div>
+        ) : job.application_draft ? (
+          <p className="mt-1 text-drop">
+            Kein Link — in Supabase einmal supabase/besuche.sql ausführen.
+          </p>
+        ) : (
+          <p className="mt-1 text-muted">Entsteht mit dem ersten Entwurf.</p>
+        )}
+        {link && (
+          <p className="mt-2 text-muted">
+            {besuche.length === 0
+              ? "Noch nicht geöffnet."
+              : `👀 ${besuche.length}× geöffnet · zuletzt ${zeit(besuche[0].created_at)}`}
+          </p>
+        )}
+        {besuche.length > 0 && (
+          <ul className="mt-1 space-y-0.5 text-xs text-muted">
+            {besuche.slice(0, 5).map((b) => (
+              <li key={b.sitzung}>
+                {zeit(b.created_at)} · {b.geraet ?? "?"} · {b.seiten.join(", ")}
+                {dauerText(b.sekunden) ? ` · ${dauerText(b.sekunden)}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <ApplicationClient
         uuid={job.uuid as string}

@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Link, StyleSheet } from "@react-pdf/renderer";
 import type { Cv } from "../cv-source";
 import { COLORS, registerFonts } from "./fonts";
 
@@ -129,6 +129,10 @@ export default function LetterDocument({ data, cv }: { data: LetterData; cv: Cv 
     timeZone: "Europe/Berlin",
   });
 
+  // Bei Bewerbungen steht hier der persönliche Link (iverbohnes.de/firma).
+  const webText = cv.contact.web.replace(/^https?:\/\//, "");
+  const webHref = cv.contact.web.startsWith("http") ? cv.contact.web : `https://${cv.contact.web}`;
+
   const salary = data.facts?.salary?.trim();
   const notice = data.facts?.notice?.trim();
   const [lead, ...body] = data.headline ? [data.headline, ...data.paragraphs] : [null, ...data.paragraphs];
@@ -150,7 +154,9 @@ export default function LetterDocument({ data, cv }: { data: LetterData; cv: Cv 
             <Text style={s.contact}>
               {cv.contact.email} · {cv.contact.phone}
             </Text>
-            <Text style={s.contact}>{cv.contact.web}</Text>
+            <Link src={webHref} style={{ ...s.contact, textDecoration: "none" }}>
+              {webText}
+            </Link>
           </View>
         </View>
 
@@ -202,7 +208,7 @@ export default function LetterDocument({ data, cv }: { data: LetterData; cv: Cv 
         </View>
 
         <Text style={s.footer} fixed>
-          {de ? "Anlage: Lebenslauf" : "Enclosure: CV"} · {cv.contact.web}
+          {de ? "Anlage: Lebenslauf" : "Enclosure: CV"} · {webText}
         </Text>
       </Page>
     </Document>

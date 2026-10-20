@@ -6,6 +6,7 @@ import { applyOverrides, type ApplicationDraft } from "@/lib/application";
 import { loadCv } from "@/lib/cv-source";
 import CvDocument from "@/lib/pdf/CvDocument";
 import LetterDocument from "@/lib/pdf/LetterDocument";
+import { ensureRef, trackingLink } from "@/lib/tracking";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -25,6 +26,8 @@ function slug(value: string): string {
 /**
  * ?uuid=…&doc=letter|cv
  * Lebenslauf, Schriften und Foto kommen live von ivergentz.de.
+ * Statt der allgemeinen Web-Adresse steht der persönliche Bewerbungs-Link
+ * im Dokument (iverbohnes.de/firma), damit Aufrufe zugeordnet werden können.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -48,7 +51,9 @@ export async function GET(request: Request) {
 
     const draft = job.application_draft as ApplicationDraft;
     const lang = draft.lang === "en" ? "en" : "de";
-    const { cv, quelle } = await loadCv(lang);
+    const { cv: cvRoh, quelle } = await loadCv(lang);
+    const ref = await ensureRef(db, uuid);
+    const cv = ref ? { ...cvRoh, contact: { ...cvRoh.contact, web: trackingLink(ref).text } } : cvRoh;
 
     const element =
       doc === "cv"

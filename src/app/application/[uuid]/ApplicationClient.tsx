@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Draft = {
   lang: "de" | "en";
@@ -28,6 +29,7 @@ export default function ApplicationClient({
   defaultLang: "de" | "en";
   cvQuelle: string;
 }) {
+  const router = useRouter();
   const [draft, setDraft] = useState<Draft | null>(initial);
   const [lang, setLang] = useState<"de" | "en">(initial?.lang ?? defaultLang);
   const [busy, setBusy] = useState(false);
@@ -50,6 +52,8 @@ export default function ApplicationClient({
       }
       setDraft(body as Draft);
       setDirty(false);
+      // Seite neu laden lassen, damit der persönliche Link erscheint.
+      router.refresh();
     } catch (error) {
       setFailed(error instanceof Error ? error.message : String(error));
     } finally {

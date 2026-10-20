@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import InboxClient, { type InboxJob } from "./InboxClient";
 import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
 import { findeFruehere } from "@/lib/firma";
+import { besucheJeStelle, type Besuch } from "@/lib/tracking";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,14 @@ export default async function InboxPage() {
       .is("evaluated_at", null),
   ]);
 
+  // Aufrufe der persönlichen Links. Eigene Abfrage: Fehlt die Tabelle noch
+  // (SQL nicht ausgeführt), bleibt die Inbox trotzdem heil.
+  const verfolgteIds = (verfolgtQuery.data ?? []).map((row) => row.uuid as string);
+  const { data: besucheRoh } = verfolgteIds.length
+    ? await db.from("besuche").select("*").in("job_uuid", verfolgteIds).limit(2000)
+    : { data: [] };
+  const besuche = besucheJeStelle((besucheRoh ?? []) as Besuch[]);
+
   const inbox = {
     data: [...(neuQuery.data ?? []), ...(verfolgtQuery.data ?? [])],
     error: neuQuery.error ?? verfolgtQuery.error,
@@ -87,6 +96,7 @@ export default async function InboxPage() {
       row.source === "google" && row.occupation_level1
         ? `Google Jobs, ${String(row.occupation_level1)}`
         : QUELLEN_NAME[row.source as string] ?? String(row.source),
+    besuche: besuche.get(row.uuid as string) ?? null,
     frueher: findeFruehere(
       { uuid: row.uuid as string, employer: (row.employer_name as string) ?? null, title: (row.title as string) ?? null },
       bewerbungen
