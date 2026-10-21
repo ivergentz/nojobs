@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FruehereBewerbung } from "@/lib/firma";
 import type { BesuchsSumme } from "@/lib/tracking";
 
@@ -106,6 +106,21 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
   const [failed, setFailed] = useState<string | null>(null);
   const [reiter, setReiter] = useState("neu");
   const [spurFilter, setSpurFilter] = useState<"alle" | "ki" | "upgrade">("alle");
+  const [suche, setSuche] = useState("");
+  const sucheRef = useRef<HTMLInputElement>(null);
+
+  // "/" springt ins Suchfeld (wie bei GitHub), Esc leert es.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement | null)?.tagName;
+      if (event.key === "/" && tag !== "INPUT" && tag !== "TEXTAREA") {
+        event.preventDefault();
+        sucheRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Gewählten Reiter in der Adresse merken (#beworben), damit Neuladen ihn behält.
   useEffect(() => {
@@ -146,24 +161,61 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
 
   const statusVon = (job: InboxJob) => state[job.uuid] ?? job.status;
   const anzahl = (key: string) => jobs.filter((job) => statusVon(job) === key).length;
-  const imReiter = jobs.filter((job) => statusVon(job) === reiter);
+  // Suche: über ALLE Reiter, nach Firma, Titel und Ort. Umlaute und Groß-/Kleinschreibung egal.
+  const norm = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ß/g, "ss");
+  const begriffe = norm(suche).split(/\s+/).filter(Boolean);
+  const sucht = begriffe.length > 0;
+  const trifft = (job: InboxJob) => {
+    const text = norm(`${job.employer} ${job.title} ${job.place}`);
+    return begriffe.every((wort) => text.includes(wort));
+  };
+
+  const imReiter = sucht ? jobs.filter(trifft) : jobs.filter((job) => statusVon(job) === reiter);
   const visible = imReiter.filter((job) => spurFilter === "alle" || (job.spur ?? "ki") === spurFilter);
   const hatUpgrade = imReiter.some((job) => job.spur === "upgrade");
 
   return (
     <div className="mt-6">
+      <div className="mb-4 flex items-center gap-3">
+        <input
+          ref={sucheRef}
+          type="search"
+          value={suche}
+          onChange={(event) => setSuche(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setSuche("");
+          }}
+          placeholder="Firma oder Stelle suchen … (Taste /)"
+          aria-label="Bewerbungen durchsuchen"
+          className="w-full rounded border border-rule bg-paper px-3 py-2 text-sm outline-none focus:border-ink"
+        />
+        {sucht && (
+          <span className="tnum shrink-0 text-xs text-muted">
+            {imReiter.length} Treffer in allen Reitern
+          </span>
+        )}
+      </div>
+
       <nav
         aria-label="Status"
         className="-mx-6 flex gap-1 overflow-x-auto border-b border-rule px-6 text-sm"
       >
         {REITER.map((r) => {
-          const aktiv = r.key === reiter;
+          const aktiv = !sucht && r.key === reiter;
           const n = anzahl(r.key);
           return (
             <button
               key={r.key}
               type="button"
-              onClick={() => waehlen(r.key)}
+              onClick={() => {
+                setSuche("");
+                waehlen(r.key);
+              }}
               aria-current={aktiv ? "page" : undefined}
               className={`-mb-px shrink-0 border-b-2 px-3 py-2 ${
                 aktiv ? "border-ink font-semibold" : "border-transparent text-muted hover:text-ink"
@@ -203,7 +255,11 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
 
       {failed && <p className="mt-4 text-sm text-drop">Nicht gespeichert: {failed}</p>}
 
-      {visible.length === 0 && <p className="mt-10 text-sm leading-relaxed">{LEER[reiter]}</p>}
+      {visible.length === 0 && (
+        <p className="mt-10 text-sm leading-relaxed">
+          {sucht ? `Nichts gefunden für „${suche.trim()}“.` : LEER[reiter]}
+        </p>
+      )}
 
       <ul>
         {visible.map((job) => {
@@ -225,6 +281,11 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
                   )}
                 </span>
                 <span className="text-right text-xs text-muted">
+                  {sucht && (
+                    <span className="mr-2 rounded border border-ink px-1.5 py-0.5 text-ink">
+                      {REITER.find((r) => r.key === status)?.label ?? status}
+                    </span>
+                  )}
                   {job.quelle}
                   {seit ? <span className="tnum"> · seit {seit}</span> : null}
                 </span>
