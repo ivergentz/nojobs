@@ -4,7 +4,7 @@ import { DEFAULT_MODEL } from "@/lib/evaluate";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
 
 /** Cursor-IDs der Importer: Arbeitsagentur = "de", die anderen heißen wie ihre Quelle. */
-const AKTIVE_QUELLEN_CURSOR = ["de", "ats", "google", "arbeitnow"];
+const AKTIVE_QUELLEN_CURSOR = ["de", "ats", "google", "arbeitnow", "nachtlauf", "morgenlauf"];
 
 export const dynamic = "force-dynamic";
 

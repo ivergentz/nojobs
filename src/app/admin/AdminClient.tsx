@@ -277,6 +277,26 @@ export default function AdminClient() {
             ))}
           </div>
 
+          <ul className="mt-6 space-y-1 text-sm">
+            {[
+              ["nachtlauf", "🌙 Nachtlauf (Import)"],
+              ["morgenlauf", "☀️ Morgenlauf (Bewertung + Telegram)"],
+            ].map(([id, label]) => {
+              const lauf = state.cursors.find((entry) => entry.id === id);
+              const haengt = lauf && !lauf.at_end;
+              return (
+                <li key={id}>
+                  <span className="text-ink">{label}</span>{" "}
+                  <span className={haengt ? "text-drop" : "text-muted"}>
+                    · {lauf ? wann(lauf.last_run_at ?? null) : "noch nicht protokolliert"}
+                    {lauf?.last_note ? ` — ${lauf.last_note}` : ""}
+                    {haengt ? " (nicht fertig geworden)" : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
           <p className="mt-6 text-xs text-muted">Bewertungsmodell: {state.modell}</p>
           <ul className="mt-2 space-y-1 text-xs text-muted">
             {["ats", "google", "arbeitnow", "de"].map((id) => {

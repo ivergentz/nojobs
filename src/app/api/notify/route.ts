@@ -6,6 +6,7 @@ import { buildMessage, findChatId, sendTelegram, type NotifyJob } from "@/lib/no
 import { runEvaluation } from "@/lib/run-evaluate";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
+import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -91,7 +92,13 @@ export async function GET(request: Request) {
 
     // Kein must_apply, keine Nachricht. Ein täglicher Leerlauf-Ping wäre der
     // schnellste Weg, die Benachrichtigung wegzuignorieren.
+    const bewertet =
+      bewertung && "evaluated" in bewertung ? `${bewertung.evaluated} bewertet` : bewertung ? "Bewertung fehlgeschlagen" : "ohne Bewertung";
+
     if (hot.length === 0) {
+      if (!url.searchParams.get("dry")) {
+        await protokolliere(db, "morgenlauf", `fertig (${ausloeser(request)}) · ${bewertet} · keine neue Bewerben-Stelle, nichts gesendet`, true);
+      }
       return NextResponse.json({
         ok: true,
         gesendet: false,
@@ -153,6 +160,13 @@ export async function GET(request: Request) {
       .from("jobs")
       .update({ notified_at: new Date().toISOString() })
       .in("uuid", rows.map((row) => row.uuid as string));
+
+    await protokolliere(
+      db,
+      "morgenlauf",
+      `fertig (${ausloeser(request)}) · ${bewertet} · Telegram gesendet: ${hot.length} Bewerben, ${rows.length - hot.length} Anschauen`,
+      true
+    );
 
     return NextResponse.json({
       ok: true,

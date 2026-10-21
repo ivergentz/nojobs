@@ -30,9 +30,10 @@ export default async function LogPage() {
   const db = supabaseAdmin();
   const seit = new Date(Date.now() - 7 * 864e5).toISOString();
 
-  const [{ data, error }, { data: woche }] = await Promise.all([
+  const [{ data, error }, { data: woche }, { data: laeufe }] = await Promise.all([
     db.from("quellen_log").select("*").order("created_at", { ascending: false }).limit(200),
     db.from("quellen_log").select("quelle,detail").gte("created_at", seit).limit(2000),
+    db.from("import_cursor").select("id,at_end,last_run_at,last_note").in("id", ["nachtlauf", "morgenlauf"]),
   ]);
 
   const eintraege = (data ?? []) as Eintrag[];
@@ -55,6 +56,32 @@ export default async function LogPage() {
           dieselbe Quelle an mehreren Tagen hintereinander auf, ist sie vermutlich dauerhaft kaputt.
         </p>
       </header>
+
+      <section className="mt-8 text-sm">
+        <h2 className="font-semibold">Letzte Läufe</h2>
+        <ul className="mt-3 space-y-1">
+          {[
+            ["nachtlauf", "🌙 Nachtlauf (Import)"],
+            ["morgenlauf", "☀️ Morgenlauf (Bewertung + Telegram)"],
+          ].map(([id, label]) => {
+            const lauf = (laeufe ?? []).find((entry) => entry.id === id) as
+              | { at_end: boolean | null; last_run_at: string | null; last_note: string | null }
+              | undefined;
+            return (
+              <li key={id} className="flex flex-wrap justify-between gap-x-6 border-t border-rule/60 py-1.5">
+                <span>{label}</span>
+                <span className={`text-right ${lauf && !lauf.at_end ? "text-drop" : "text-muted"}`}>
+                  {lauf?.last_run_at ? wann(lauf.last_run_at) : "noch nicht protokolliert"}
+                  {lauf?.last_note ? ` — ${lauf.last_note}` : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-xs text-muted">
+          Erfolgreiche Läufe stehen nur hier. Fehlt beim Nachtlauf das heutige Datum, wurde er nicht gestartet.
+        </p>
+      </section>
 
       {error && (
         <p className="mt-8 text-sm text-drop">

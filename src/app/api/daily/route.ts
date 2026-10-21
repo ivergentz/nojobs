@@ -3,6 +3,7 @@ import { authorized } from "@/lib/auth";
 import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendTelegram } from "@/lib/notify";
+import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -48,6 +49,9 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ ok: false, error: `Datenbank nicht erreichbar: ${meldung}` }, { status: 503 });
   }
+
+  const wer = ausloeser(request);
+  await protokolliere(supabaseAdmin(), "nachtlauf", `gestartet (${wer}) …`, false);
 
   const secret = process.env.IMPORT_SECRET;
   const basis = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;
@@ -112,6 +116,20 @@ export async function GET(request: Request) {
       /* Protokoll darf den Lauf nicht abbrechen */
     }
   }
+
+  const sekunden = Math.round((Date.now() - startedAt) / 1000);
+  const neu = ergebnisse.reduce((summe, e) => {
+    const k = e.kennzahlen as Record<string, unknown> | undefined;
+    return summe + (typeof k?.gespeichert === "number" ? (k.gespeichert as number) : 0);
+  }, 0);
+  await protokolliere(
+    supabaseAdmin(),
+    "nachtlauf",
+    gescheitert.length
+      ? `fertig (${wer}) nach ${sekunden}s · ${neu} gespeichert · Probleme: ${gescheitert.map((e) => e.schritt).join(", ")}`
+      : `fertig (${wer}) nach ${sekunden}s · ${neu} gespeichert · alle Schritte ok`,
+    true
+  );
 
   return NextResponse.json({ ok: true, durationMs: Date.now() - startedAt, ergebnisse });
 }
