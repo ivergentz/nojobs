@@ -1,0 +1,182 @@
+import { NextResponse } from "next/server";
+import { authorized } from "@/lib/auth";
+import { logFehler } from "@/lib/fehlerlog";
+import { supabaseAdmin } from "@/lib/supabase";
+import { buildMessage, findChatId, sendTelegram, type NotifyJob } from "@/lib/notify";
+import { runEvaluation } from "@/lib/run-evaluate";
+import { AKTIVE_QUELLEN } from "@/lib/quellen";
+import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
+import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+/**
+ * Morgen-Cron: erst bewerten, was der nächtliche Import geholt hat, dann
+ * benachrichtigen. Die Bewertung lief vorher als letzter Schritt im
+ * Tageslauf und bekam dort regelmäßig keine Zeit mehr — die Inbox blieb leer.
+ *
+ * ?skipEval=1  — nur benachrichtigen
+ * ?dry=1       — Nachricht nur anzeigen, nicht senden
+ * ?chatid=1    — Einrichtungshilfe: Chat-ID des Bots
+ * ?test=1      — Testnachricht senden (prüft Token und Chat-ID)
+ *
+ * Geschickt wird nur, wenn mindestens eine Stelle auf "Bewerben" steht —
+ * ein täglicher Leerlauf-Ping wäre der schnellste Weg, die Nachrichten
+ * wegzuignorieren. Die Antwort sagt immer, warum nichts kam.
+ */
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  if (!authorized(request)) {
+    return NextResponse.json({ error: "nicht autorisiert" }, { status: 401 });
+  }
+
+  try {
+    if (url.searchParams.get("chatid")) {
+      return NextResponse.json({ ok: true, chats: await findChatId() });
+    }
+
+    if (url.searchParams.get("test")) {
+      await sendTelegram("✅ Career Inbox: Testnachricht. Token und Chat-ID funktionieren.");
+      return NextResponse.json({ ok: true, gesendet: true, test: true });
+    }
+
+    const db = supabaseAdmin();
+
+    let bewertung: Awaited<ReturnType<typeof runEvaluation>> | { fehler: string } | null = null;
+    if (!url.searchParams.get("skipEval")) {
+      try {
+        bewertung = await runEvaluation(db, { budgetMs: 18_000 });
+        if (bewertung.failed > 0) {
+          await logFehler(db, [
+            {
+              quelle: "Bewertung (Claude)",
+              detail: `${bewertung.failed} fehlgeschlagen, ${bewertung.evaluated} ok`,
+              meldung: bewertung.fehlerbeispiele[0] ?? "unbekannt",
+            },
+          ]);
+        }
+      } catch (error) {
+        bewertung = { fehler: error instanceof Error ? error.message : String(error) };
+        await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: "Morgenlauf", meldung: bewertung.fehler }]);
+      }
+    }
+
+    const offene = (spalten: string) =>
+      db
+        .from("jobs")
+        .select(spalten)
+        .eq("status", "ACTIVE")
+        .in("source", AKTIVE_QUELLEN)
+        .in("eval_fit", ["must_apply", "worth_reading"])
+        .eq("app_status", "neu")
+        .is("notified_at", null)
+        .limit(30);
+    const SPALTEN = "uuid,title,employer_name,municipal,county,country,eval_fit,eval_summary,application_url,application_due";
+    // Mit Suchspur lesen; fehlt die Spalte noch (suchspur.sql), ohne.
+    let { data, error } = await offene(`${SPALTEN},eval_spur`);
+    if (error && /eval_spur/.test(error.message)) ({ data, error } = await offene(SPALTEN));
+
+    if (error) {
+      // Datenbank weg (z. B. pausiert): wenigstens Bescheid geben.
+      try {
+        await sendTelegram(`⚠️ Career Inbox: Datenbank nicht erreichbar — keine Stellen gelesen.\n${error.message}`);
+      } catch {
+        /* nichts zu machen */
+      }
+      return NextResponse.json({ ok: false, error: error.message, bewertung }, { status: 500 });
+    }
+
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+    const hot = rows.filter((row) => row.eval_fit === "must_apply");
+
+    // Kein must_apply, keine Nachricht. Ein täglicher Leerlauf-Ping wäre der
+    // schnellste Weg, die Benachrichtigung wegzuignorieren.
+    const bewertet =
+      bewertung && "evaluated" in bewertung ? `${bewertung.evaluated} bewertet` : bewertung ? "Bewertung fehlgeschlagen" : "ohne Bewertung";
+
+    if (hot.length === 0) {
+      if (!url.searchParams.get("dry")) {
+        await protokolliere(db, "morgenlauf", `fertig (${ausloeser(request)}) · ${bewertet} · keine neue Bewerben-Stelle, nichts gesendet`, true);
+      }
+      return NextResponse.json({
+        ok: true,
+        gesendet: false,
+        grund: "kein must_apply offen",
+        offen: rows.length,
+        bewertung,
+      });
+    }
+
+    const { data: bewerbungen } = await db
+      .from("jobs")
+      .select("uuid,employer_name,title,app_status,app_status_at")
+      .in("app_status", BEWORBEN_STATUS)
+      .gte("app_status_at", new Date(Date.now() - WARN_TAGE * 864e5).toISOString())
+      .limit(300);
+
+    const warnungFuer = (row: Record<string, unknown>): string | null => {
+      const frueher = findeFruehere(
+        { uuid: row.uuid as string, employer: (row.employer_name as string) ?? null, title: (row.title as string) ?? null },
+        (bewerbungen ?? []) as any
+      );
+      if (!frueher.length) return null;
+      return frueher.some((f) => f.gleicheStelle)
+        ? "Auf diese Stelle schon beworben"
+        : `Schon beworben bei ${row.employer_name}: ${frueher[0].title}`;
+    };
+
+    const jobs: NotifyJob[] = rows.map((row) => ({
+      title: (row.title as string) ?? "Ohne Titel",
+      employer: (row.employer_name as string) ?? "—",
+      place: [row.municipal, row.county].filter(Boolean).join(", ") || ((row.country as string) ?? "—"),
+      fit: (row.eval_fit as string) ?? "worth_reading",
+      summary: (row.eval_summary as string) ?? "",
+      url: (row.application_url as string) ?? null,
+      due: (row.application_due as string) ?? null,
+      warnung: warnungFuer(row),
+      spur: (row.eval_spur as string) ?? null,
+    }));
+
+    const base = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;
+    if (url.searchParams.get("dry")) {
+      return NextResponse.json({
+        ok: true,
+        gesendet: false,
+        vorschau: buildMessage(jobs, `${base}/inbox`),
+        bewertung,
+      });
+    }
+
+    try {
+      await sendTelegram(buildMessage(jobs, `${base}/inbox`));
+    } catch (error) {
+      const meldung = error instanceof Error ? error.message : String(error);
+      await logFehler(db, [{ quelle: "Telegram", detail: "Morgenlauf", meldung }]);
+      return NextResponse.json({ ok: false, error: meldung, bewertung }, { status: 502 });
+    }
+
+    await db
+      .from("jobs")
+      .update({ notified_at: new Date().toISOString() })
+      .in("uuid", rows.map((row) => row.uuid as string));
+
+    await protokolliere(
+      db,
+      "morgenlauf",
+      `fertig (${ausloeser(request)}) · ${bewertet} · Telegram gesendet: ${hot.length} Bewerben, ${rows.length - hot.length} Anschauen`,
+      true
+    );
+
+    return NextResponse.json({
+      ok: true,
+      gesendet: true,
+      stellen: rows.length,
+      davonBewerben: hot.length,
+      bewertung,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}

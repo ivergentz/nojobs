@@ -1,0 +1,22 @@
+{
+  "_hinweis": "Firmen, deren Karriereseiten täglich gelesen werden. ats: personio | greenhouse | lever | smartrecruiters | recruitee | ashby. slug = Kennung im Bewerbersystem (z. B. 'boardwise' aus boardwise.jobs.personio.com). region: 'eu' für Greenhouse/Lever-EU (Links auf job-boards.eu.greenhouse.io bzw. jobs.eu.lever.co). aktiv: false schaltet eine Firma ab, ohne sie zu löschen. Neue Firma = neue Zeile im selben Format.",
+  "firmen": [
+    { "name": "Appinio", "ats": "greenhouse", "slug": "appinio" },
+    { "name": "plancraft", "ats": "ashby", "slug": "plancraft" },
+    { "name": "Boardwise", "ats": "personio", "slug": "boardwise" },
+    { "name": "MAI Group", "ats": "personio", "slug": "mai-group" },
+    { "name": "1KOMMA5°", "ats": "personio", "slug": "1komma5grad" },
+    { "name": "Statista", "ats": "ashby", "slug": "statista" },
+    { "name": "FREENOW", "ats": "greenhouse", "slug": "freenow" },
+    { "name": "InnoGames", "ats": "lever", "slug": "innogames", "region": "eu" },
+    { "name": "MOIA", "ats": "greenhouse", "slug": "moia" },
+    { "name": "Haiilo", "ats": "personio", "slug": "haiilo", "aktiv": false },
+    { "name": "New Work SE (XING)", "ats": "smartrecruiters", "slug": "NewWorkSE" },
+    { "name": "Enpal", "ats": "ashby", "slug": "enpal" },
+    { "name": "Langdock", "ats": "ashby", "slug": "langdock" },
+    { "name": "n8n", "ats": "ashby", "slug": "n8n" },
+    { "name": "DeepL", "ats": "ashby", "slug": "DeepL" },
+    { "name": "Parloa", "ats": "greenhouse", "slug": "parloa" },
+    { "name": "Kertos", "ats": "ashby", "slug": "kertos", "aktiv": false }
+  ]
+}
