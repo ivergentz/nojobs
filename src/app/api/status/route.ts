@@ -5,15 +5,47 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED = ["neu", "interessant", "beworben", "interview", "absage", "abgelegt"];
 
+/**
+ * Status einer Stelle setzen.
+ *
+ *   { uuid, status }                → nur Status
+ *   { uuid, absageNotiz }           → nur den Absagegrund speichern (leer = löschen)
+ *
+ * Der Absagegrund fließt als Lernpunkt in die Bewertung neuer Stellen ein
+ * (run-evaluate.ts). Fehlt die Spalte noch (absage-notiz.sql), gibt es eine
+ * Warnung statt eines Fehlers.
+ */
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { uuid?: string; status?: string; note?: string };
+    const body = (await request.json()) as {
+      uuid?: string;
+      status?: string;
+      note?: string;
+      absageNotiz?: string;
+    };
 
-    if (!body.uuid || !ALLOWED.includes(body.status ?? "")) {
-      return NextResponse.json({ error: "uuid oder status fehlt" }, { status: 400 });
+    if (!body.uuid) {
+      return NextResponse.json({ error: "uuid fehlt" }, { status: 400 });
     }
 
     const db = supabaseAdmin();
+
+    if (body.absageNotiz !== undefined) {
+      const notiz = body.absageNotiz.trim().slice(0, 500) || null;
+      const { error } = await db.from("jobs").update({ absage_notiz: notiz }).eq("uuid", body.uuid);
+      if (error) {
+        return NextResponse.json(
+          { error: `Grund nicht gespeichert — wurde supabase/absage-notiz.sql ausgeführt? (${error.message})` },
+          { status: 500 }
+        );
+      }
+      if (!body.status) return NextResponse.json({ ok: true });
+    }
+
+    if (!ALLOWED.includes(body.status ?? "")) {
+      return NextResponse.json({ error: "uuid oder status fehlt" }, { status: 400 });
+    }
+
     const { error } = await db
       .from("jobs")
       .update({

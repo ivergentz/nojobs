@@ -27,7 +27,81 @@ export type InboxJob = {
   besuche: BesuchsSumme | null;
   /** Suchspur: "ki" (KI & Automation) oder "upgrade" (Career Upgrade). */
   spur: string | null;
+  /** Grund, den die Firma bei der Absage genannt hat (fließt in die Bewertung ein). */
+  absageNotiz: string | null;
 };
+
+/**
+ * Feld für den Absagegrund. Nur wer etwas einträgt, speichert etwas — ein
+ * leeres Feld bleibt folgenlos. Der Text fließt als Lernpunkt in die
+ * Bewertung neuer Stellen ein.
+ */
+function AbsageGrund({ uuid, initial }: { uuid: string; initial: string | null }) {
+  const [text, setText] = useState(initial ?? "");
+  const [gespeichert, setGespeichert] = useState(initial ?? "");
+  const [stand, setStand] = useState<"" | "speichert" | "ok" | string>("");
+  const laeuft = useRef(false);
+
+  const speichern = async () => {
+    // Blur und Klick feuern beide — nur einmal speichern.
+    if (laeuft.current || text.trim() === gespeichert.trim()) return;
+    laeuft.current = true;
+    setStand("speichert");
+    try {
+      const res = await fetch("/api/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uuid, absageNotiz: text }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStand(body.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      setGespeichert(text);
+      setStand("ok");
+    } catch (error) {
+      setStand(error instanceof Error ? error.message : String(error));
+    } finally {
+      laeuft.current = false;
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded border border-rule px-3 py-2.5 text-sm">
+      <label htmlFor={`absage-${uuid}`} className="text-xs text-muted">
+        Hat die Firma einen Grund genannt? Optional — wird bei der Bewertung neuer Stellen beachtet.
+      </label>
+      <div className="mt-1.5 flex gap-2">
+        <input
+          id={`absage-${uuid}`}
+          value={text}
+          onChange={(event) => {
+            setText(event.target.value);
+            setStand("");
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void speichern();
+          }}
+          onBlur={() => void speichern()}
+          maxLength={500}
+          placeholder="z. B. „andere hatten Produktverantwortung für KI-Bots im Livebetrieb“"
+          className="w-full rounded border border-rule bg-paper px-2.5 py-1.5 outline-none focus:border-ink"
+        />
+        <button
+          type="button"
+          onClick={() => void speichern()}
+          disabled={text.trim() === gespeichert.trim()}
+          className="shrink-0 rounded border border-ink px-3 py-1.5 disabled:border-rule disabled:text-muted"
+        >
+          Speichern
+        </button>
+      </div>
+      {stand === "ok" && <p className="mt-1 text-xs text-keep">Gespeichert — fließt ab dem nächsten Bewertungslauf ein.</p>}
+      {stand && stand !== "ok" && stand !== "speichert" && <p className="mt-1 text-xs text-drop">{stand}</p>}
+    </div>
+  );
+}
 
 const SPUR_TEXT: Record<string, string> = { ki: "🤖 KI", upgrade: "⬆️ Career Upgrade" };
 
@@ -300,6 +374,8 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
               {salary && <p className="mt-1 text-sm text-keep">{salary}</p>}
 
               {(status === "neu" || status === "interessant") && <Warnung frueher={job.frueher} />}
+
+              {status === "absage" && <AbsageGrund uuid={job.uuid} initial={job.absageNotiz} />}
 
               {["beworben", "interview", "absage"].includes(status) && (
                 <p className={`mt-3 text-sm ${job.besuche ? "font-semibold text-keep" : "text-muted"}`}>

@@ -251,6 +251,18 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
   const beworbenZeilen = inbox.filter((row) => row.app_status !== "abgelegt").slice(0, 25).map(inboxZeile);
   const abgelegtZeilen = inbox.filter((row) => row.app_status === "abgelegt").slice(0, 20).map(inboxZeile);
 
+  // Absagegründe, die Firmen genannt haben — nur wenn du welche eingetragen hast.
+  const { data: absagen } = await db
+    .from("jobs")
+    .select("title,employer_name,absage_notiz")
+    .eq("app_status", "absage")
+    .not("absage_notiz", "is", null)
+    .order("app_status_at", { ascending: false, nullsFirst: false })
+    .limit(20);
+  const absageZeilen = ((absagen ?? []) as Array<Record<string, unknown>>)
+    .filter((row) => typeof row.absage_notiz === "string" && (row.absage_notiz as string).trim())
+    .map((row) => `- ${row.employer_name ?? "?"} (${row.title ?? "?"}): „${String(row.absage_notiz).trim()}“`);
+
   const beispiele = [
     ...beworbenZeilen,
     ...bewerben.map(zeile),
@@ -258,7 +270,15 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
     ...abgelegtZeilen,
     ...[...ignoriertAberHoch, ...ignoriertRest].map(zeile),
   ].join("\n");
-  return muster.length
-    ? `HÄUFIGSTE GRÜNDE FÜR SEINE ABLEHNUNGEN (gewichte diese Punkte entsprechend):\n${muster.join("\n")}\n\nEINZELNE URTEILE:\n${beispiele}`
-    : beispiele;
+  const teile: string[] = [];
+  if (absageZeilen.length) {
+    teile.push(
+      `LERNPUNKTE AUS ABSAGEN — Gründe, die Firmen Iver genannt haben. Hat eine neue Stelle dieselbe Hürde (etwa eine geforderte Erfahrung, die ihm fehlt), nenne sie als cons und stufe must_apply im Zweifel auf worth_reading herab. Stellen nicht allein deshalb ignorieren.\n${absageZeilen.join("\n")}`
+    );
+  }
+  if (muster.length) {
+    teile.push(`HÄUFIGSTE GRÜNDE FÜR SEINE ABLEHNUNGEN (gewichte diese Punkte entsprechend):\n${muster.join("\n")}`);
+  }
+  teile.push(teile.length ? `EINZELNE URTEILE:\n${beispiele}` : beispiele);
+  return teile.join("\n\n");
 }

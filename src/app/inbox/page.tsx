@@ -51,7 +51,9 @@ export default async function InboxPage() {
   ]);
 
   // Mit Suchspur laden; fehlt die Spalte noch (suchspur.sql), ohne.
-  let [neuQuery, verfolgtQuery, unbewertet] = await laden(`${SPALTEN},eval_spur`);
+  // Neuere Spalten (Suchspur, Absagegrund) nur, wenn ihre SQL-Skripte gelaufen sind.
+  let [neuQuery, verfolgtQuery, unbewertet] = await laden(`${SPALTEN},eval_spur,absage_notiz`);
+  if (neuQuery.error || verfolgtQuery.error) [neuQuery, verfolgtQuery, unbewertet] = await laden(`${SPALTEN},eval_spur`);
   if (neuQuery.error || verfolgtQuery.error) [neuQuery, verfolgtQuery, unbewertet] = await laden(SPALTEN);
 
   // Aufrufe der persönlichen Links. Eigene Abfrage: Fehlt die Tabelle noch
@@ -102,6 +104,7 @@ export default async function InboxPage() {
         : QUELLEN_NAME[row.source as string] ?? String(row.source),
     besuche: besuche.get(row.uuid as string) ?? null,
     spur: (row.eval_spur as string) ?? null,
+    absageNotiz: (row.absage_notiz as string) ?? null,
     frueher: findeFruehere(
       { uuid: row.uuid as string, employer: (row.employer_name as string) ?? null, title: (row.title as string) ?? null },
       bewerbungen
