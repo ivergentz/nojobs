@@ -427,6 +427,14 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
                 >
                   Unterlagen
                 </a>
+                {["beworben", "interview"].includes(status) && (
+                  <a
+                    href={`/application/${encodeURIComponent(job.uuid)}#vorbereitung`}
+                    className="rounded border border-rule px-4 py-2 text-sm"
+                  >
+                    Vorbereitung
+                  </a>
+                )}
                 {STATUS.map((entry) => (
                   <button
                     key={entry.key}

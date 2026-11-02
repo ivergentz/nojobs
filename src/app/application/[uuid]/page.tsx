@@ -5,6 +5,8 @@ import { CV_BASE, loadCv } from "@/lib/cv-source";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { dauerText, ensureRef, trackingLink, type Besuch } from "@/lib/tracking";
 import TrackingLink from "./TrackingLink";
+import VorbereitungClient from "./VorbereitungClient";
+import type { Vorbereitung } from "@/lib/vorbereitung";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,12 @@ export default async function ApplicationPage({
     .in("app_status", BEWORBEN_STATUS)
     .gte("app_status_at", new Date(Date.now() - WARN_TAGE * 864e5).toISOString())
     .limit(300);
+
+  // Gesprächsvorbereitung separat lesen — fehlt die Spalte noch (vorbereitung.sql), bleibt die Seite heil.
+  const { data: vorb } = job
+    ? await db.from("jobs").select("vorbereitung").eq("uuid", job.uuid).maybeSingle()
+    : { data: null };
+  const vorbereitung = ((vorb as { vorbereitung?: Vorbereitung | null } | null)?.vorbereitung ?? null) as Vorbereitung | null;
 
   if (error || !job) {
     return (
@@ -156,6 +164,8 @@ export default async function ApplicationPage({
           Array.isArray((job.application_draft as any)?.fragen) ? (job.application_draft as any).fragen : []
         }
       />
+
+      <VorbereitungClient uuid={job.uuid as string} initial={vorbereitung} />
     </main>
   );
 }

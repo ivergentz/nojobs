@@ -30,6 +30,15 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
+/**
+ * Telegram nimmt höchstens 4.096 Zeichen pro Nachricht. Gemessen wird hier der
+ * Rohtext inklusive HTML-Tags — das ist strenger als Telegram selbst zählt.
+ * Passt nicht alles, werden spätere Stellen zur Kurzzeile, danach nur noch
+ * gezählt („… und N weitere in der Inbox“). Normale Tage bleiben unverändert.
+ */
+export const TELEGRAM_LIMIT = 4096;
+const BUDGET = 3800;
+
 export function buildMessage(jobs: NotifyJob[], inboxUrl: string): string {
   // Zwei Suchspuren: KI & Automation (Hauptspur) und Career Upgrade.
   const upgrade = jobs.filter((job) => job.spur === "upgrade");
@@ -39,44 +48,65 @@ export function buildMessage(jobs: NotifyJob[], inboxUrl: string): string {
   const upgradeHot = upgrade.filter((job) => job.fit === "must_apply");
   const upgradeRest = upgrade.filter((job) => job.fit !== "must_apply");
 
-  const block = (job: NotifyJob, icon: string, lines: string[]) => {
-    lines.push("");
-    lines.push(`${icon} <b>${escapeHtml(job.title)}</b>`);
-    if (job.warnung) lines.push(`⚠️ ${escapeHtml(job.warnung)}`);
-    lines.push(`${escapeHtml(job.employer)} · ${escapeHtml(job.place)}`);
-    if (job.due) lines.push(`Frist: ${escapeHtml(job.due)}`);
-    if (job.summary) lines.push(escapeHtml(job.summary));
-    if (job.url) lines.push(job.url);
+  const blockZeilen = (job: NotifyJob, icon: string): string[] => {
+    const z: string[] = [""];
+    z.push(`${icon} <b>${escapeHtml(job.title)}</b>`);
+    if (job.warnung) z.push(`⚠️ ${escapeHtml(job.warnung)}`);
+    z.push(`${escapeHtml(job.employer)} · ${escapeHtml(job.place)}`);
+    if (job.due) z.push(`Frist: ${escapeHtml(job.due)}`);
+    if (job.summary) z.push(escapeHtml(job.summary));
+    if (job.url) z.push(job.url);
+    return z;
   };
   const kurz = (job: NotifyJob, icon: string) =>
     `${icon} ${escapeHtml(job.title)} — ${escapeHtml(job.employer)}${job.warnung ? " ⚠️ schon beworben" : ""}`;
 
   const lines: string[] = [];
+  let laenge = 0;
+  let weggelassen = 0;
+  // Platz für den Schluss („… und N weitere“ + Inbox-Link) immer freihalten.
+  const reserve = inboxUrl.length + 60;
+  const dazu = (neu: string[]): boolean => {
+    const zusatz = neu.reduce((n, z) => n + z.length + 1, 0);
+    if (laenge + zusatz + reserve > BUDGET) return false;
+    lines.push(...neu);
+    laenge += zusatz;
+    return true;
+  };
+  const stelle = (job: NotifyJob, icon: string) => {
+    if (!dazu(blockZeilen(job, icon)) && !dazu(["", kurz(job, icon)]) && !dazu([kurz(job, icon)])) weggelassen += 1;
+  };
+  const zeile = (job: NotifyJob, icon: string) => {
+    if (!dazu([kurz(job, icon)])) weggelassen += 1;
+  };
+
   const anzahlBewerben = hot.length + upgradeHot.length;
-  lines.push(
+  dazu([
     anzahlBewerben === 1
       ? "<b>Eine neue Stelle zum Bewerben</b>"
-      : `<b>${anzahlBewerben} neue Stellen zum Bewerben</b>`
-  );
+      : `<b>${anzahlBewerben} neue Stellen zum Bewerben</b>`,
+  ]);
 
-  for (const job of hot) block(job, "🔥", lines);
+  for (const job of hot) stelle(job, "🔥");
 
   if (rest.length > 0) {
-    lines.push("");
-    lines.push(`Dazu ${rest.length} zum Anschauen:`);
-    for (const job of rest.slice(0, 8)) lines.push(kurz(job, "👍"));
+    dazu(["", `Dazu ${rest.length} zum Anschauen:`]);
+    for (const job of rest.slice(0, 8)) zeile(job, "👍");
   }
 
   if (upgrade.length > 0) {
-    lines.push("");
-    lines.push("<b>⬆️ Career Upgrade</b>");
-    for (const job of upgradeHot) block(job, "🔥", lines);
+    dazu(["", "<b>⬆️ Career Upgrade</b>"]);
+    for (const job of upgradeHot) stelle(job, "🔥");
     if (upgradeRest.length > 0) {
-      if (upgradeHot.length > 0) lines.push("");
-      for (const job of upgradeRest.slice(0, 5)) lines.push(kurz(job, "👍"));
+      if (upgradeHot.length > 0) dazu([""]);
+      for (const job of upgradeRest.slice(0, 5)) zeile(job, "👍");
     }
   }
 
+  if (weggelassen > 0) {
+    lines.push("");
+    lines.push(`… und ${weggelassen} weitere in der Inbox`);
+  }
   lines.push("");
   lines.push(inboxUrl);
 

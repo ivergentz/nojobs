@@ -156,6 +156,8 @@ export async function GET(request: Request) {
     } catch (error) {
       const meldung = error instanceof Error ? error.message : String(error);
       await logFehler(db, [{ quelle: "Telegram", detail: "Morgenlauf", meldung }]);
+      // Auch der Abbruch gehört ins Laufprotokoll — sonst steht dort noch der Lauf von gestern.
+      await protokolliere(db, "morgenlauf", `abgebrochen (${ausloeser(request)}) · ${bewertet} · Telegram fehlgeschlagen: ${meldung.slice(0, 160)}`, false);
       return NextResponse.json({ ok: false, error: meldung, bewertung }, { status: 502 });
     }
 
