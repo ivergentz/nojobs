@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GRUENDE_ANSCHAUEN, GRUENDE_IGNORE } from "@/lib/gruende";
+import { GRUENDE_ANSCHAUEN, GRUENDE_IGNORE, type Grund } from "@/lib/gruende";
 
 export type LabelJob = {
   uuid: string;
@@ -42,9 +42,14 @@ function formatSalary(job: LabelJob): string | null {
 export default function LabelClient({
   jobs,
   alreadyDone,
+  gruendeIgnore = GRUENDE_IGNORE,
+  gruendeAnschauen = GRUENDE_ANSCHAUEN,
 }: {
   jobs: LabelJob[];
   alreadyDone: number;
+  /** Schritt 2.6: weitere Profile bekommen allgemeine Begründungen. Ohne Angabe: deine. */
+  gruendeIgnore?: Grund[];
+  gruendeAnschauen?: Grund[];
 }) {
   const [index, setIndex] = useState(0);
   const [history, setHistory] = useState<string[]>([]);
@@ -57,7 +62,7 @@ export default function LabelClient({
   const notizRef = useRef<HTMLInputElement>(null);
 
   const job = jobs[index];
-  const auswahl = pending === "ignore" ? GRUENDE_IGNORE : pending === "worth_reading" ? GRUENDE_ANSCHAUEN : [];
+  const auswahl = pending === "ignore" ? gruendeIgnore : pending === "worth_reading" ? gruendeAnschauen : [];
 
   const save = useCallback(async (uuid: string, verdict: Verdict | null, extra?: { gruende: string[]; notiz: string }) => {
     try {

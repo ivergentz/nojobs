@@ -29,7 +29,43 @@ export const GRUENDE_ANSCHAUEN: Grund[] = [
   { key: "firma-unbekannt", label: "Firma unbekannt" },
 ];
 
-const ALLE = new Map([...GRUENDE_IGNORE, ...GRUENDE_ANSCHAUEN].map((g) => [g.key, g.label]));
+/**
+ * Schritt 2.6 · Begründungen für weitere Profile — allgemein, für jeden Beruf.
+ * Kürzel, die es bei dir schon gibt, behalten ihre Bezeichnung; neue Kürzel
+ * sind eindeutig. Deine Listen oben bleiben unverändert.
+ */
+export const GRUENDE_IGNORE_ALLGEMEIN: Grund[] = [
+  { key: "fahrtweg", label: "Ort / Fahrtweg zu weit" },
+  { key: "arbeitszeit", label: "Arbeitszeit passt nicht (Voll-/Teilzeit, Schichten)" },
+  { key: "gehalt", label: "Gehalt zu niedrig" },
+  { key: "falsche-richtung", label: "Falsche Richtung / anderer Beruf" },
+  { key: "zu-junior", label: "Zu junior" },
+  { key: "zu-senior", label: "Zu senior / zu viel Verantwortung" },
+  { key: "traeger", label: "Träger / Arbeitgeber passt nicht" },
+  { key: "zeitarbeit", label: "Zeitarbeit / Personaldienstleister" },
+  { key: "befristet", label: "Befristet" },
+];
+
+export const GRUENDE_ANSCHAUEN_ALLGEMEIN: Grund[] = [
+  { key: "rolle-daneben", label: "Rolle nur teilweise passend" },
+  { key: "arbeitszeit-unklar", label: "Arbeitszeit unklar" },
+  { key: "gehalt-unklar", label: "Gehalt unklar" },
+  { key: "fahrtweg-grenzwertig", label: "Ort / Fahrtweg grenzwertig" },
+  { key: "level", label: "Level unklar (zu senior / zu junior?)" },
+  { key: "arbeitgeber-unbekannt", label: "Arbeitgeber unbekannt" },
+];
+
+/** Welche Begründungen das Profil beim Labeln sieht. Dein Profil: deine Listen wie bisher. */
+export function gruendeFuer(profil: string): { ignore: Grund[]; anschauen: Grund[] } {
+  return profil === "iver"
+    ? { ignore: GRUENDE_IGNORE, anschauen: GRUENDE_ANSCHAUEN }
+    : { ignore: GRUENDE_IGNORE_ALLGEMEIN, anschauen: GRUENDE_ANSCHAUEN_ALLGEMEIN };
+}
+
+// Deine Bezeichnungen haben Vorrang — gemeinsame Kürzel heißen in deinen Beispielen exakt wie bisher.
+const ALLE = new Map(
+  [...GRUENDE_IGNORE_ALLGEMEIN, ...GRUENDE_ANSCHAUEN_ALLGEMEIN, ...GRUENDE_IGNORE, ...GRUENDE_ANSCHAUEN].map((g) => [g.key, g.label])
+);
 
 export function grundText(key: string): string {
   return ALLE.get(key) ?? key;

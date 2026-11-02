@@ -3,6 +3,9 @@ import LabelClient, { type LabelJob } from "./LabelClient";
 import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
 import { lesen } from "@/lib/lesen";
 import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
+import { kandidatenFilter, ladeProfilVoll } from "@/lib/profil";
+import { gruendeFuer } from "@/lib/gruende";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -35,16 +38,22 @@ export default async function LabelPage() {
 
   // Vorher auf die norwegischen Berufskategorien "IT" und "Kontor og økonomi"
   // gefiltert — deutsche Stellen tauchten hier deshalb nie auf.
-  const { data, error } = await lesen(db, leseProfil)
+  // Schritt 2.6: Weitere Profile sehen nur Stellen zu ihrem Suchprofil — dieselbe Auswahl wie bei der Bewertung.
+  const fremd = leseProfil ? await ladeProfilVoll(db, leseProfil) : null;
+  const ohneSuchprofil = Boolean(leseProfil) && (!fremd || fremd.suchbegriffe.length === 0);
+
+  let abfrage = lesen(db, leseProfil)
     .select(
       "uuid,source,title,employer_name,municipal,county,occupation_level1,sector,extent,application_due,application_url,description,published,salary_min_nok,salary_max_nok,salary_note"
     )
     .eq("status", "ACTIVE")
     .in("source", AKTIVE_QUELLEN)
     .is("label", null)
-    .not("description", "is", null)
-    .order("published", { ascending: false, nullsFirst: false })
-    .limit(120);
+    .not("description", "is", null);
+  if (fremd && fremd.suchbegriffe.length > 0) abfrage = abfrage.or(kandidatenFilter(fremd.suchbegriffe, fremd.slug));
+  const { data, error } = ohneSuchprofil
+    ? { data: [] as Record<string, unknown>[], error: null }
+    : await abfrage.order("published", { ascending: false, nullsFirst: false }).limit(120);
 
   const { count: doneCount } = await lesen(db, leseProfil)
     .select("uuid", { count: "exact", head: true })
@@ -88,7 +97,24 @@ export default async function LabelPage() {
         </p>
       )}
 
-      <LabelClient jobs={jobs} alreadyDone={doneCount ?? 0} />
+      {ohneSuchprofil ? (
+        <p className="mt-8 text-sm leading-relaxed">
+          Für dieses Profil gibt es noch kein Suchprofil — darum auch keine Stellen zum Beurteilen.{" "}
+          <Link href="/profil" className="underline underline-offset-4">
+            Unter „Mein Profil“ den Fragebogen ausfüllen
+          </Link>
+          .
+        </p>
+      ) : leseProfil ? (
+        <LabelClient
+          jobs={jobs}
+          alreadyDone={doneCount ?? 0}
+          gruendeIgnore={gruendeFuer(leseProfil).ignore}
+          gruendeAnschauen={gruendeFuer(leseProfil).anschauen}
+        />
+      ) : (
+        <LabelClient jobs={jobs} alreadyDone={doneCount ?? 0} />
+      )}
     </main>
   );
 }

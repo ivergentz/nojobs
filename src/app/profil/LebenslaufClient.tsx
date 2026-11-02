@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Fortschritt from "@/components/Fortschritt";
+import SuchprofilClient, { type SuchprofilStand } from "./SuchprofilClient";
 
 /** Stand des Lebenslaufs, wie er in profile_cv steht. */
 export type CvStand = {
@@ -27,7 +28,7 @@ const STUFE: Record<string, { text: string; farbe: string }> = {
   hinweis: { text: "Hinweis", farbe: "text-muted" },
 };
 
-export default function LebenslaufClient({ initial }: { initial: CvStand | null }) {
+export default function LebenslaufClient({ initial, suchprofil }: { initial: CvStand | null; suchprofil: SuchprofilStand }) {
   const [stand, setStand] = useState<CvStand | null>(initial);
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export default function LebenslaufClient({ initial }: { initial: CvStand | null 
   return (
     <div className="mt-8 space-y-10 text-sm">
       <section>
-        <h2 className="font-semibold">1. Lebenslauf</h2>
+        <h2 className="font-semibold">Lebenslauf</h2>
         <p className="mt-1 text-muted">
           {stand?.datei_name
             ? `Hochgeladen: ${stand.datei_name}${stand.status === "fehler" ? " — konnte nicht ausgelesen werden" : ""}`
@@ -96,8 +97,8 @@ export default function LebenslaufClient({ initial }: { initial: CvStand | null 
 
       {stand?.richtungen && stand.richtungen.length > 0 && (
         <section>
-          <h2 className="font-semibold">2. Wohin könnte es gehen?</h2>
-          <p className="mt-1 text-muted">Vorschläge aus deinem Lebenslauf. Im nächsten Schritt entscheidest du selbst — auch für eine ganz andere Richtung.</p>
+          <h2 className="font-semibold">Wohin könnte es gehen?</h2>
+          <p className="mt-1 text-muted">Vorschläge aus deinem Lebenslauf. Darunter entscheidest du selbst — auch für eine ganz andere Richtung.</p>
           <ul className="mt-4 grid gap-3 sm:grid-cols-3">
             {stand.richtungen.map((r) => (
               <li key={r.titel} className="rounded border border-rule p-4">
@@ -110,9 +111,15 @@ export default function LebenslaufClient({ initial }: { initial: CvStand | null 
         </section>
       )}
 
+      <SuchprofilClient
+        richtungen={(stand?.richtungen ?? []).map((r) => r.titel)}
+        ortAusLebenslauf={stand?.lebenslauf?.person?.ort ?? ""}
+        initial={suchprofil}
+      />
+
       {stand?.pruefung && stand.pruefung.length > 0 && (
         <section>
-          <h2 className="font-semibold">3. Was sich am Lebenslauf verbessern lässt</h2>
+          <h2 className="font-semibold">Was sich am Lebenslauf verbessern lässt</h2>
           <ul className="mt-3 space-y-2">
             {stand.pruefung.map((p, i) => (
               <li key={i} className="border-t border-rule/60 pt-2">
@@ -122,13 +129,13 @@ export default function LebenslaufClient({ initial }: { initial: CvStand | null 
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-muted">Übernehmen und Bearbeiten kommt im nächsten Schritt.</p>
+          <p className="mt-2 text-xs text-muted">Den Lebenslauf selbst bearbeiten kommt in einem späteren Schritt.</p>
         </section>
       )}
 
       {cv && (
         <section>
-          <h2 className="font-semibold">4. So haben wir deinen Lebenslauf gelesen</h2>
+          <h2 className="font-semibold">So haben wir deinen Lebenslauf gelesen</h2>
           {cv.kurzprofil && <p className="mt-2 max-w-xl leading-relaxed">{cv.kurzprofil}</p>}
           {cv.stationen && cv.stationen.length > 0 && (
             <ul className="mt-4 space-y-3">
@@ -152,10 +159,18 @@ export default function LebenslaufClient({ initial }: { initial: CvStand | null 
             </ul>
           )}
           {cv.ausbildung && cv.ausbildung.length > 0 && (
-            <p className="mt-4 text-muted">
-              <span className="font-semibold text-ink">Ausbildung: </span>
-              {cv.ausbildung.map((a) => [a.abschluss, a.einrichtung, a.zeitraum].filter(Boolean).join(", ")).join(" · ")}
-            </p>
+            <div className="mt-4">
+              <p className="font-semibold">Ausbildung</p>
+              <ul className="mt-1 space-y-1.5">
+                {cv.ausbildung.map((a, i) => (
+                  <li key={i}>
+                    {a.abschluss}
+                    {a.einrichtung ? <span className="text-muted"> · {a.einrichtung}</span> : null}
+                    {a.zeitraum && <span className="block text-xs text-muted">{a.zeitraum}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           {cv.kenntnisse && cv.kenntnisse.length > 0 && (
             <p className="mt-2 text-muted">

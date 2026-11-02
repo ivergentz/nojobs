@@ -3,7 +3,7 @@ import { evaluateAd } from "./evaluate";
 import { AKTIVE_QUELLEN } from "./quellen";
 import { grundText } from "./gruende";
 import type { Sammler } from "./kosten";
-import { ladeProfil, ladeProfilVoll } from "./profil";
+import { kandidatenFilter, ladeProfil, ladeProfilVoll } from "./profil";
 import { REGELN_ALLGEMEIN } from "./evaluate";
 import { schreibeFelder } from "./schreiben";
 import { lesen } from "./lesen";
@@ -326,10 +326,7 @@ async function runProfilEvaluation(
   }
 
   // Kandidaten: Titel enthält einen Suchbegriff — oder die Stelle wurde für dieses Profil importiert (Schritt 2.7).
-  const titelFilter = [
-    ...profil.suchbegriffe.map((b) => `title.ilike."*${b.replace(/"/g, "")}*"`),
-    `import_profil.eq.${slug}`,
-  ].join(",");
+  const titelFilter = kandidatenFilter(profil.suchbegriffe, slug);
   const tage = options.days ?? 14;
   const kandidaten = (spalten: string, zaehlen = false) => {
     let q = lesen(db, slug)

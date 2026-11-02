@@ -100,12 +100,12 @@ person: Name und Wohnort, wie im Dokument.
 kurzprofil: 2–3 Sätze, was die Person beruflich ausmacht — nüchtern, aus dem Dokument abgeleitet.
 stationen: Berufsstationen, neueste zuerst. zeitraum im Format "MM/JJJJ – MM/JJJJ" bzw. "– heute", soweit erkennbar. stichpunkte: die Aufgaben und Erfolge aus dem Dokument, je höchstens 20 Wörter.
 ausbildung: Schule, Ausbildung, Studium, Weiterbildungen mit Abschluss.
-kenntnisse: höchstens 15 Stichworte (Fachkenntnisse, Werkzeuge, Zusatzqualifikationen).
+kenntnisse: höchstens 15 Stichworte — NUR was im Dokument ausdrücklich als Kenntnis, Fähigkeit, Werkzeug oder Zusatzqualifikation aufgeführt ist (meist in einem Abschnitt „Kenntnisse“, „Fähigkeiten“, „Skills“). Keine Tätigkeiten aus den Stationen und keine Schwerpunkte aus dem Profiltext übernehmen. Sprachen gehören nicht hierher, sondern zu sprachen.
 sprachen: mit Niveau, wie angegeben.
 
 richtungen: 2–3 realistische nächste Schritte für die Jobsuche, abgeleitet aus Erfahrung und Verlauf — z. B. gleiche Rolle mit mehr Verantwortung, naheliegender Wechsel, Spezialisierung. Je Richtung:
 - titel: kurz, wie eine Stellenbezeichnung oder ein Berufsfeld (z. B. "Stellvertretende Kitaleitung")
-- begruendung: ein Satz, warum diese Richtung zum Lebenslauf passt
+- begruendung: ein Satz, warum diese Richtung zum Lebenslauf passt. Ist die Richtung ein Schritt nach oben (Leitung, Führung, mehr Verantwortung) oder ein Wechsel, für den im Lebenslauf eine typische Voraussetzung fehlt (z. B. Leitungserfahrung, Weiterbildung, Abschluss), nenne die Lücke ehrlich und den Weg dorthin — z. B. „Leitungserfahrung fehlt bisher; eine Weiterbildung zur Kitaleitung wäre der Weg.“
 - suchbegriffe: 3–6 Begriffe, wie sie in Stellenanzeigen der Arbeitsagentur stehen (deutsch, ohne Gender-Zusätze wie m/w/d)
 
 pruefung: Prüfbericht mit konkreten Verbesserungen. Je Punkt eine stufe:
@@ -113,7 +113,10 @@ pruefung: Prüfbericht mit konkreten Verbesserungen. Je Punkt eine stufe:
 - "gelb": uneinheitliche Datumsformate/Schreibweisen, Stichpunkte ohne Ergebnis oder Zahl, zu lange Absätze, Tippfehler
 - "hinweis": heute unübliche Angaben (Geburtsort, Familienstand, Religion, Eltern) mit Empfehlung zum Entfernen
 punkt: was auffällt (konkret, mit Station oder Zeitraum). vorschlag: die konkrete Verbesserung — bei Dingen, die nur die Person wissen kann (eine Zahl, ein Zeitraum), als Frage formulieren statt raten.
-Höchstens 10 Punkte, die wichtigsten zuerst.`;
+Layout-Punkte nur, wenn sie eindeutig erkennbar sind (bei Word-Dateien siehst du nur den Text — dann keine Layout-Punkte).
+Höchstens 10 Punkte, die wichtigsten zuerst.
+
+ANREDE: In begruendung, punkt und vorschlag die Person immer mit „du“ ansprechen (du, dein, dir) — nie „Sie“. kurzprofil in der dritten Person.`;
 
 const text = (v: unknown, max = 400) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const liste = <T>(v: unknown, max: number): T[] => (Array.isArray(v) ? (v as T[]).slice(0, max) : []);

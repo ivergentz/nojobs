@@ -223,3 +223,41 @@ export async function aktualisiereSuchprofil(
   if (error) return { ok: false, fehler: error.message };
   return { ok: true };
 }
+
+/**
+ * Welche Stellen gehören zu einem weiteren Profil? Titel enthält einen Suchbegriff —
+ * oder die Stelle wurde für dieses Profil importiert (Schritt 2.7).
+ * Als PostgREST-„or“-Filter; genutzt von Bewertung (2.2) und Kalibrierung (2.6).
+ */
+export function kandidatenFilter(suchbegriffe: string[], slug: string): string {
+  return [...suchbegriffe.map((b) => `title.ilike."*${b.replace(/"/g, "")}*"`), `import_profil.eq.${slug}`].join(",");
+}
+
+/* ---------- Schritt 2.6: Fragebogen-Stand in profiles.einstellungen ---------- */
+
+export async function ladeEinstellungen(db: Db, slug: string): Promise<Record<string, unknown>> {
+  const { data, error } = await db.from("profiles").select("einstellungen").eq("slug", slug).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.einstellungen && typeof data.einstellungen === "object" ? data.einstellungen : {}) as Record<string, unknown>;
+}
+
+/** Teile von einstellungen setzen, ohne den Rest (Ort, Umkreis …) zu verlieren. Nie für dein Profil. */
+export async function speichereEinstellungen(
+  db: Db,
+  slug: string,
+  teil: Record<string, unknown>
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (slug === STANDARD_SLUG) return { ok: false, fehler: "Dein eigenes Profil wird hier nicht bearbeitet." };
+  try {
+    const alt = await ladeEinstellungen(db, slug);
+    const { error } = await db
+      .from("profiles")
+      .update({ einstellungen: { ...alt, ...teil }, updated_at: new Date().toISOString() })
+      .eq("slug", slug)
+      .neq("rolle", "admin");
+    if (error) return { ok: false, fehler: error.message };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
+  }
+}
