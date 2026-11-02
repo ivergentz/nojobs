@@ -88,6 +88,7 @@ export async function GET(request: Request) {
           offen: body.offen ?? null,
           abgelaufen: body.fristAbgelaufen ?? null,
           liegengeblieben: body.liegengeblieben ?? null,
+          aufbewahrung: body.aufbewahrung ?? null,
         },
         fehler: body.error ?? null,
       });

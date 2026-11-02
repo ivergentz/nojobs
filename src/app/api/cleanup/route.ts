@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { aufraeumen, loeschenAn } from "@/lib/aufbewahrung";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  *
  *  1. Bewerbungsfrist abgelaufen — dann ist die Stelle objektiv erledigt.
  *  2. Seit 14 Tagen unangetastet auf "neu".
+ *  3. Aufbewahrungsregel (Schritt 1.5): unangetastete Stellen nach 60 Tagen,
+ *     aussortierte Anzeigen nach 90 Tagen löschen — nur mit AUFRAEUMEN_LOESCHEN=an.
  *
  * Beide setzen den Status auf "abgelaufen" statt zu löschen. Die Stellen
  * verschwinden aus der Inbox, bleiben aber auffindbar.
@@ -51,11 +54,16 @@ export async function GET(request: Request) {
 
     if (altError) return NextResponse.json({ ok: false, error: altError.message }, { status: 500 });
 
+    // 3. Aufbewahrungsregel (Schritt 1.5): ohne Schalter nur Vorschau, mit AUFRAEUMEN_LOESCHEN=an löschen.
+    //    Scheitert sie, ist das Aufräumen trotzdem erfolgreich — die Inbox hängt nicht davon ab.
+    const aufbewahrung = await aufraeumen(db, loeschenAn());
+
     return NextResponse.json({
       ok: true,
       fristAbgelaufen: abgelaufen?.length ?? 0,
       liegengeblieben: liegengeblieben?.length ?? 0,
       tage: days,
+      aufbewahrung,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
