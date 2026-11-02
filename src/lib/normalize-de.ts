@@ -90,6 +90,12 @@ export function istRemote(hit: BaHit): boolean {
 
 export type DeVerdict = { keep: true; matched: string } | { keep: false; reason: string };
 
+/** Schritt 2.7: Praktikum, Ausbildung, Werkstudent … — gilt für alle Profile. */
+export function titelAusgeschlossen(hit: BaHit): string | null {
+  const titel = (hit.stellenangebotsTitel ?? "").toLowerCase();
+  return TITEL_AUSSCHLUSS.find((needle) => titel.includes(needle)) ?? null;
+}
+
 export function filterDe(hit: BaHit, suchbegriff: string): DeVerdict {
   const titel = (hit.stellenangebotsTitel ?? "").toLowerCase();
 

@@ -325,7 +325,11 @@ async function runProfilEvaluation(
     return leer(`Für „${profil.name}“ fehlen noch Profiltext oder Suchbegriffe — in der Steuerung unter Profile eintragen.`);
   }
 
-  const titelFilter = profil.suchbegriffe.map((b) => `title.ilike."*${b.replace(/"/g, "")}*"`).join(",");
+  // Kandidaten: Titel enthält einen Suchbegriff — oder die Stelle wurde für dieses Profil importiert (Schritt 2.7).
+  const titelFilter = [
+    ...profil.suchbegriffe.map((b) => `title.ilike."*${b.replace(/"/g, "")}*"`),
+    `import_profil.eq.${slug}`,
+  ].join(",");
   const tage = options.days ?? 14;
   const kandidaten = (spalten: string, zaehlen = false) => {
     let q = lesen(db, slug)

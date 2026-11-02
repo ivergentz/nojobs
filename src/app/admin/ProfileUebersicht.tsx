@@ -47,6 +47,8 @@ export default async function ProfileUebersicht() {
                       profiltext={p.profiltext}
                       regeln={p.regeln}
                       suchbegriffe={p.suchbegriffe ?? []}
+                      ort={p.suchort?.ort ?? null}
+                      umkreis={p.suchort?.umkreis ?? 25}
                     />
                   </div>
                 )}
@@ -55,7 +57,7 @@ export default async function ProfileUebersicht() {
           </ul>
           <NeuesProfilFormular />
           <p className="mt-2 text-xs text-muted">
-            Für ein neues Profil: unter „Suchprofil“ Suchbegriffe und Profiltext eintragen, „Jetzt bewerten“ — danach oben
+            Für ein neues Profil: unter „Suchprofil“ Suchbegriffe, Ort und Profiltext eintragen, „Stellen suchen und bewerten“ — danach oben
             in der Navigation das Profil wählen. Ab dann bewertet auch der Morgenlauf für dieses Profil. Login folgt in 2.3.
           </p>
         </>

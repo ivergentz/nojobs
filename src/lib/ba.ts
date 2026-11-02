@@ -73,6 +73,9 @@ export async function searchBa(options: {
   tage: number;
   size?: number;
   page?: number;
+  /** Schritt 2.7: Ort oder PLZ und Umkreis in km — nur für weitere Profile, deine Suche bleibt bundesweit. */
+  wo?: string;
+  umkreis?: number;
 }): Promise<{ hits: BaHit[]; gesamt: number }> {
   const params = new URLSearchParams({
     was: options.was,
@@ -82,6 +85,10 @@ export async function searchBa(options: {
     size: String(options.size ?? BA_PAGE_SIZE),
     page: String(options.page ?? 1),
   });
+  if (options.wo) {
+    params.set("wo", options.wo);
+    params.set("umkreis", String(options.umkreis ?? 25));
+  }
 
   const res = await call(`/pc/v6/jobs?${params.toString()}`);
   if (!res.ok) {
@@ -101,16 +108,19 @@ export async function searchBaAll(options: {
   was: string;
   tage: number;
   maxSeiten?: number;
+  wo?: string;
+  umkreis?: number;
 }): Promise<{ hits: BaHit[]; gesamt: number; abgeschnitten: boolean }> {
   const maxSeiten = options.maxSeiten ?? 5;
-  const first = await searchBa({ was: options.was, tage: options.tage, page: 1 });
+  const ort = options.wo ? { wo: options.wo, umkreis: options.umkreis } : {};
+  const first = await searchBa({ was: options.was, tage: options.tage, page: 1, ...ort });
   const hits = [...first.hits];
   const seiten = Math.min(maxSeiten, Math.ceil(first.gesamt / BA_PAGE_SIZE));
 
   // Restliche Seiten parallel — sequenziell kostet das bei 27 Begriffen zu viel Zeit.
   const rest = await Promise.all(
     Array.from({ length: Math.max(0, seiten - 1) }, (_, index) =>
-      searchBa({ was: options.was, tage: options.tage, page: index + 2 })
+      searchBa({ was: options.was, tage: options.tage, page: index + 2, ...ort })
         .then((result) => result.hits)
         .catch(() => [] as BaHit[])
     )

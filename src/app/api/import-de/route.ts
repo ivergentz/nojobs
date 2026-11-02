@@ -139,6 +139,20 @@ export async function GET(request: Request) {
     }
     stats.bekannt = bekannt.size;
 
+    // Schritt 2.7: Wurde eine deiner Stellen zuerst für ein anderes Profil importiert,
+    // gehört sie ab jetzt auch dir (sonst bliebe sie in deiner Inbox unsichtbar).
+    // Fehlt die Spalte noch, passiert nichts.
+    const auchMeine = Array.from(kandidaten.values())
+      .map(({ hit }) => `de-${hit.referenznummer}`)
+      .filter((uuid) => bekannt.has(uuid));
+    for (let i = 0; i < auchMeine.length; i += 200) {
+      try {
+        await db.from("jobs").update({ import_profil: null }).in("uuid", auchMeine.slice(i, i + 200)).not("import_profil", "is", null);
+      } catch {
+        /* nie den Import stören */
+      }
+    }
+
     // Neueste zuerst — wenn die Zeit knapp wird, sollen die frischen Anzeigen drin sein.
     const neu = Array.from(kandidaten.values())
       .filter(({ hit }) => !bekannt.has(`de-${hit.referenznummer}`))

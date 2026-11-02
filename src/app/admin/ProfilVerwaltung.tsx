@@ -110,18 +110,24 @@ export function SuchprofilBearbeiten({
   profiltext,
   regeln,
   suchbegriffe,
+  ort,
+  umkreis,
 }: {
   slug: string;
   name: string;
   profiltext: string | null;
   regeln: string | null;
   suchbegriffe: string[];
+  ort: string | null;
+  umkreis: number;
 }) {
   const router = useRouter();
   const [offen, setOffen] = useState(false);
   const [text, setText] = useState(profiltext ?? "");
   const [eigeneRegeln, setEigeneRegeln] = useState(regeln ?? "");
   const [begriffe, setBegriffe] = useState(suchbegriffe.join(", "));
+  const [suchOrt, setSuchOrt] = useState(ort ?? "");
+  const [km, setKm] = useState(umkreis);
   const [busy, setBusy] = useState<"" | "speichern" | "bewerten">("");
   const [meldung, setMeldung] = useState<{ text: string; fehler?: boolean } | null>(null);
 
@@ -129,7 +135,7 @@ export function SuchprofilBearbeiten({
     setBusy("speichern");
     setMeldung(null);
     try {
-      await senden("PATCH", { slug, profiltext: text, regeln: eigeneRegeln, suchbegriffe: begriffe });
+      await senden("PATCH", { slug, profiltext: text, regeln: eigeneRegeln, suchbegriffe: begriffe, ort: suchOrt, umkreis: km });
       setMeldung({ text: "Gespeichert." });
       router.refresh();
     } catch (err) {
@@ -144,6 +150,24 @@ export function SuchprofilBearbeiten({
     setMeldung(null);
     let gesamt = 0;
     try {
+      // 1. Stellen für dieses Profil bei der Arbeitsagentur suchen (Schritt 2.7)
+      let geholt = 0;
+      for (let lauf = 0; lauf < 4; lauf++) {
+        const res = await fetch(`/api/import-profile?profil=${encodeURIComponent(slug)}&tage=14`, {
+          headers: { Authorization: `Bearer ${secret()}` },
+          cache: "no-store",
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        if (body.hinweis) {
+          setMeldung({ text: body.hinweis, fehler: true });
+          return;
+        }
+        geholt += body.gespeichert ?? 0;
+        setMeldung({ text: `${geholt} neue Stellen für ${name} gefunden …` });
+        if (body.done) break;
+      }
+      // 2. Bewerten
       for (let lauf = 0; lauf < 6; lauf++) {
         const res = await fetch(`/api/evaluate?profil=${encodeURIComponent(slug)}&days=14`, {
           headers: { Authorization: `Bearer ${secret()}` },
@@ -159,7 +183,7 @@ export function SuchprofilBearbeiten({
         setMeldung({ text: `${gesamt} Stellen bewertet, ${body.nochOffen ?? 0} offen …` });
         if (!body.nochOffen || !body.evaluated) break;
       }
-      setMeldung({ text: `Fertig: ${gesamt} Stellen für ${name} bewertet. Profil oben wählen, um die Inbox zu sehen.` });
+      setMeldung({ text: `Fertig: ${geholt} neue Stellen gefunden, ${gesamt} bewertet. Profil oben wählen, um die Inbox zu sehen.` });
     } catch (err) {
       setMeldung({ text: err instanceof Error ? err.message : String(err), fehler: true });
     } finally {
@@ -178,7 +202,7 @@ export function SuchprofilBearbeiten({
   return (
     <div className="mt-3 w-full space-y-3 rounded border border-rule p-4">
       <label className="block">
-        <span className="text-xs text-muted">Suchbegriffe (durch Komma getrennt) — nur Stellen mit einem dieser Wörter im Titel werden bewertet</span>
+        <span className="text-xs text-muted">Suchbegriffe (durch Komma getrennt) — damit sucht der Nachtlauf bei der Arbeitsagentur; bewertet werden nur passende Stellen</span>
         <input
           value={begriffe}
           onChange={(e) => setBegriffe(e.target.value)}
@@ -186,6 +210,22 @@ export function SuchprofilBearbeiten({
           className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2"
         />
       </label>
+      <div className="flex flex-wrap gap-3">
+        <label className="block">
+          <span className="text-xs text-muted">Ort oder PLZ</span>
+          <input value={suchOrt} onChange={(e) => setSuchOrt(e.target.value)} placeholder="z. B. Hamburg oder 20357" className="mt-1 block w-56 rounded border border-rule bg-transparent px-3 py-2" />
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted">Umkreis</span>
+          <select value={km} onChange={(e) => setKm(Number(e.target.value))} className="mt-1 block rounded border border-rule bg-transparent px-3 py-2">
+            {[10, 25, 50, 100, 200].map((k) => (
+              <option key={k} value={k}>
+                {k} km
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <label className="block">
         <span className="text-xs text-muted">Profiltext — wer sucht was, wo, ab welchem Gehalt, No-Gos</span>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2" />
@@ -199,7 +239,7 @@ export function SuchprofilBearbeiten({
           {busy === "speichern" ? "Speichert …" : "Speichern"}
         </button>
         <button type="button" onClick={() => void bewerten()} disabled={busy !== ""} className="rounded border border-keep px-4 py-2 text-keep disabled:opacity-40">
-          {busy === "bewerten" ? "Bewertet …" : "Jetzt bewerten (letzte 14 Tage)"}
+          {busy === "bewerten" ? "Sucht und bewertet …" : "Stellen suchen und bewerten (14 Tage)"}
         </button>
         <button type="button" onClick={() => setOffen(false)} className="text-xs text-muted underline underline-offset-4">
           schließen

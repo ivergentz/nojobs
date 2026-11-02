@@ -15,6 +15,7 @@ export type Profil = {
   email?: string | null;
   aktiv?: boolean;
   suchbegriffe?: string[];
+  suchort?: Suchort;
   /** null = Standard aus dem Code */
   profiltext: string | null;
   /** null = Standard aus dem Code */
@@ -64,7 +65,7 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
   try {
     const { data, error } = await db
       .from("profiles")
-      .select("slug,name,rolle,profiltext,regeln,email,aktiv,suchbegriffe")
+      .select("slug,name,rolle,profiltext,regeln,email,aktiv,suchbegriffe,einstellungen")
       .order("created_at", { ascending: true });
     if (error) return { profile: [], fehler: error.message };
     return {
@@ -75,6 +76,7 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
         email: typeof row.email === "string" ? row.email : null,
         aktiv: row.aktiv !== false,
         suchbegriffe: Array.isArray(row.suchbegriffe) ? (row.suchbegriffe as unknown[]).filter((x): x is string => typeof x === "string") : [],
+        suchort: suchortAus(row.einstellungen),
         profiltext: leer(row.profiltext),
         regeln: leer(row.regeln),
         ausDatenbank: true,
@@ -147,13 +149,23 @@ export async function setzeAktiv(
 
 /* ---------- Schritt 2.2: Suchprofil weiterer Personen ---------- */
 
-export type ProfilVoll = Profil & { id: string | null; suchbegriffe: string[] };
+/** Schritt 2.7: Wo sucht die Person? Ort oder PLZ und Umkreis in km. */
+export type Suchort = { ort: string | null; umkreis: number };
+
+export function suchortAus(einstellungen: unknown): Suchort {
+  const e = (einstellungen && typeof einstellungen === "object" ? einstellungen : {}) as Record<string, unknown>;
+  const ort = typeof e.ort === "string" && e.ort.trim() ? e.ort.trim().slice(0, 60) : null;
+  const km = Number(e.umkreis);
+  return { ort, umkreis: [10, 25, 50, 100, 200].includes(km) ? km : 25 };
+}
+
+export type ProfilVoll = Profil & { id: string | null; suchbegriffe: string[]; suchort: Suchort };
 
 export async function ladeProfilVoll(db: Db, slug: string): Promise<ProfilVoll | null> {
   try {
     const { data, error } = await db
       .from("profiles")
-      .select("id,slug,name,rolle,profiltext,regeln,email,aktiv,suchbegriffe")
+      .select("id,slug,name,rolle,profiltext,regeln,email,aktiv,suchbegriffe,einstellungen")
       .eq("slug", slug)
       .maybeSingle();
     if (error || !data) return null;
@@ -169,6 +181,7 @@ export async function ladeProfilVoll(db: Db, slug: string): Promise<ProfilVoll |
       suchbegriffe: Array.isArray(data.suchbegriffe)
         ? (data.suchbegriffe as unknown[]).filter((s): s is string => typeof s === "string" && s.trim() !== "")
         : [],
+      suchort: suchortAus(data.einstellungen),
       ausDatenbank: true,
     };
   } catch {
@@ -190,7 +203,7 @@ export function suchbegriffeAus(text: string): string[] {
 export async function aktualisiereSuchprofil(
   db: Db,
   slug: string,
-  eingabe: { profiltext?: string | null; regeln?: string | null; suchbegriffe?: string | null }
+  eingabe: { profiltext?: string | null; regeln?: string | null; suchbegriffe?: string | null; ort?: string | null; umkreis?: number | null }
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   if (slug === STANDARD_SLUG) return { ok: false, fehler: "Dein eigenes Profil wird hier nicht bearbeitet — es nutzt die Texte aus dem Code." };
   const felder: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -199,6 +212,12 @@ export async function aktualisiereSuchprofil(
   if (eingabe.suchbegriffe !== undefined) {
     const liste = suchbegriffeAus(eingabe.suchbegriffe ?? "");
     felder.suchbegriffe = liste.length ? liste : null;
+  }
+  if (eingabe.ort !== undefined || eingabe.umkreis !== undefined) {
+    const { data } = await db.from("profiles").select("einstellungen").eq("slug", slug).maybeSingle();
+    const alt = (data?.einstellungen && typeof data.einstellungen === "object" ? data.einstellungen : {}) as Record<string, unknown>;
+    const ort = suchortAus({ ort: eingabe.ort ?? alt.ort, umkreis: eingabe.umkreis ?? alt.umkreis });
+    felder.einstellungen = { ...alt, ort: ort.ort, umkreis: ort.umkreis };
   }
   const { error } = await db.from("profiles").update(felder).eq("slug", slug).neq("rolle", "admin");
   if (error) return { ok: false, fehler: error.message };

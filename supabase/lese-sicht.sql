@@ -42,11 +42,16 @@ begin
          from jobs j
          left join matches m
            on m.job_uuid = j.uuid
-          and m.profile_id = (select id from profiles where slug = %L)',
-    spalten, 'iver');
+          and m.profile_id = (select id from profiles where slug = %L)%s',
+    spalten, 'iver',
+    -- Schritt 2.7: Stellen, die nur für ein anderes Profil importiert wurden, gehören nicht in deine Inbox.
+    case when exists (select 1 from information_schema.columns
+                      where table_schema = 'public' and table_name = 'jobs' and column_name = 'import_profil')
+         then ' where j.import_profil is null' else '' end);
 end $$;
 
--- Kontrolle: jobs_sicht muss Zeile für Zeile exakt jobs entsprechen (unterschiede = 0)
+-- Kontrolle: jobs_sicht muss Zeile für Zeile exakt jobs entsprechen (unterschiede = 0).
+-- Ab Schritt 2.7 fehlen in der Sicht nur die Stellen, die für andere Profile importiert wurden.
 select
   (select count(*) from jobs) as stellen,
   (select count(*) from jobs_sicht) as stellen_in_sicht,

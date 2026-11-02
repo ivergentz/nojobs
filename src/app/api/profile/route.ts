@@ -31,15 +31,20 @@ export async function PATCH(request: Request) {
       profiltext?: string | null;
       regeln?: string | null;
       suchbegriffe?: string | null;
+      ort?: string | null;
+      umkreis?: number | null;
     };
     if (!body.slug) return NextResponse.json({ error: "slug fehlt" }, { status: 400 });
-    const suchprofil = body.profiltext !== undefined || body.regeln !== undefined || body.suchbegriffe !== undefined;
+    const suchprofil =
+      body.profiltext !== undefined || body.regeln !== undefined || body.suchbegriffe !== undefined || body.ort !== undefined || body.umkreis !== undefined;
     if (!suchprofil && typeof body.aktiv !== "boolean") return NextResponse.json({ error: "nichts zu ändern" }, { status: 400 });
     const ergebnis = suchprofil
       ? await aktualisiereSuchprofil(supabaseAdmin(), body.slug, {
           profiltext: body.profiltext,
           regeln: body.regeln,
           suchbegriffe: body.suchbegriffe,
+          ort: body.ort,
+          umkreis: body.umkreis,
         })
       : await setzeAktiv(supabaseAdmin(), body.slug, body.aktiv as boolean);
     return ergebnis.ok ? NextResponse.json(ergebnis) : NextResponse.json({ error: ergebnis.fehler }, { status: 400 });

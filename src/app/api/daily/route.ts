@@ -6,7 +6,8 @@ import { sendTelegram } from "@/lib/notify";
 import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// 120 s: Puffer für den optionalen Schritt „Weitere Profile“ (Schritt 2.7). Vercel Hobby mit Fluid Compute erlaubt bis 300 s.
+export const maxDuration = 120;
 
 /**
  * Nacht-Cron (04:00 UTC): Import aus allen Quellen, danach Aufräumen.
@@ -20,11 +21,14 @@ export const maxDuration = 60;
  * und holt beim nächsten Lauf nach, was fehlt.
  */
 
-const SCHRITTE: Array<{ name: string; pfad: string; budget: number }> = [
+// optional: reicht die Zeit nicht, wird der Schritt still übersprungen und zählt nicht als Problem.
+const SCHRITTE: Array<{ name: string; pfad: string; budget: number; optional?: boolean }> = [
   { name: "Karriereseiten", pfad: "/api/import-ats", budget: 10_000 },
   { name: "Google Jobs & Arbeitnow", pfad: "/api/import-sammel", budget: 10_000 },
   { name: "Arbeitsagentur", pfad: "/api/import-de", budget: 14_000 },
   { name: "Aufräumen", pfad: "/api/cleanup", budget: 3_000 },
+  // Schritt 2.7: Stellen für weitere Profile — nach allem, was du brauchst.
+  { name: "Weitere Profile", pfad: "/api/import-profile", budget: 12_000, optional: true },
 ];
 
 export async function GET(request: Request) {
@@ -59,8 +63,8 @@ export async function GET(request: Request) {
   const ergebnisse: Array<Record<string, unknown>> = [];
 
   for (const schritt of SCHRITTE) {
-    if (Date.now() - startedAt > 52_000) {
-      ergebnisse.push({ schritt: schritt.name, uebersprungen: "Zeit aufgebraucht" });
+    if (Date.now() - startedAt > (schritt.optional ? 44_000 : 52_000)) {
+      if (!schritt.optional) ergebnisse.push({ schritt: schritt.name, uebersprungen: "Zeit aufgebraucht" });
       continue;
     }
 
@@ -81,6 +85,7 @@ export async function GET(request: Request) {
       }
       ergebnisse.push({
         schritt: schritt.name,
+        optional: schritt.optional ?? false,
         status: res.status,
         done: body.done ?? null,
         kennzahlen: {
@@ -95,6 +100,7 @@ export async function GET(request: Request) {
     } catch (error) {
       ergebnisse.push({
         schritt: schritt.name,
+        optional: schritt.optional ?? false,
         fehler: error instanceof Error ? error.message : String(error),
       });
     }
@@ -102,7 +108,8 @@ export async function GET(request: Request) {
 
   // Schritte, die komplett gescheitert sind (Timeout, 500, keine Antwort),
   // landen im Protokoll. Einzelne Quellenfehler protokolliert der Schritt selbst.
-  const gescheitert = ergebnisse.filter((e) => e.fehler || e.uebersprungen);
+  // Optionale Schritte (weitere Profile) protokollieren ihre Fehler selbst und machen deinen Nachtlauf nicht „rot“.
+  const gescheitert = ergebnisse.filter((e) => (e.fehler || e.uebersprungen) && !e.optional);
   if (gescheitert.length) {
     try {
       await logFehler(
