@@ -7,6 +7,7 @@ import { runEvaluation } from "@/lib/run-evaluate";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
+import { usd } from "@/lib/kosten";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
     let bewertung: Awaited<ReturnType<typeof runEvaluation>> | { fehler: string } | null = null;
     if (!url.searchParams.get("skipEval")) {
       try {
-        bewertung = await runEvaluation(db, { budgetMs: 18_000 });
+        bewertung = await runEvaluation(db, { budgetMs: 18_000, anlass: "morgenlauf" });
         if (bewertung.failed > 0) {
           await logFehler(db, [
             {
@@ -93,7 +94,9 @@ export async function GET(request: Request) {
     // Kein must_apply, keine Nachricht. Ein täglicher Leerlauf-Ping wäre der
     // schnellste Weg, die Benachrichtigung wegzuignorieren.
     const bewertet =
-      bewertung && "evaluated" in bewertung ? `${bewertung.evaluated} bewertet` : bewertung ? "Bewertung fehlgeschlagen" : "ohne Bewertung";
+      bewertung && "evaluated" in bewertung
+        ? `${bewertung.evaluated} bewertet${bewertung.kostenUsd > 0 ? ` (${usd(bewertung.kostenUsd)})` : ""}`
+        : bewertung ? "Bewertung fehlgeschlagen" : "ohne Bewertung";
 
     if (hot.length === 0) {
       if (!url.searchParams.get("dry")) {

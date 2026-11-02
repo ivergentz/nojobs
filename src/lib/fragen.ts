@@ -1,4 +1,5 @@
 import { callClaudeJson, DEFAULT_MODEL } from "./claude";
+import type { KostenKontext } from "./kosten";
 import { loadCv, type Lang } from "./cv-source";
 
 /**
@@ -44,6 +45,7 @@ export async function beantworteFrage(input: {
   description: string;
   anschreiben?: string;
   gehalt?: string;
+  kosten?: KostenKontext;
 }): Promise<{ antwort: string; hinweis: string }> {
   // Lebenslauf in der Sprache der Frage, damit Begriffe passen.
   const englisch = /\b(what|why|how|please|your|you)\b/i.test(input.frage);
@@ -78,6 +80,7 @@ export async function beantworteFrage(input: {
     schema: SCHEMA,
     maxTokens: 2000,
     timeoutMs: 60_000,
+    kosten: input.kosten ?? { zweck: "fragen" },
   });
 
   let antwort = (result.antwort ?? "").trim();

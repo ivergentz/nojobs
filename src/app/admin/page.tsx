@@ -1,4 +1,6 @@
 import AdminClient from "./AdminClient";
+import ProfileUebersicht from "./ProfileUebersicht";
+import AbgleichUebersicht from "./AbgleichUebersicht";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,8 @@ export default function AdminPage() {
       </header>
 
       <AdminClient />
+      <ProfileUebersicht />
+      <AbgleichUebersicht />
     </main>
   );
 }

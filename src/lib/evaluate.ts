@@ -7,6 +7,7 @@
  */
 
 import { callClaudeJson, DEFAULT_MODEL } from "./claude";
+import type { KostenKontext } from "./kosten";
 
 export { DEFAULT_MODEL };
 
@@ -24,7 +25,7 @@ export type Evaluation = {
   cons: string[];
 };
 
-const PROFILE = `KANDIDAT: Iver Bohnes (geb. Gentz), wohnt in Hamburg.
+const PROFILE_STANDARD = `KANDIDAT: Iver Bohnes (geb. Gentz), wohnt in Hamburg.
 
 Erfahrung:
 - Aktuell Produktverantwortung für interne Systeme und KI-Automatisierung im öffentlichen Sektor (VBG Hamburg, seit 2025): KI-gestützte Posteingangsverarbeitung (ca. 800 Eingänge pro Tag) — Use Cases mit Fachbereichen bewertet, On-Premise-Konzept erstellt und vor Entscheidern präsentiert, MVP selbst gebaut. Dazu Telefonieplattform und Teilprojektleitung SharePoint/Teams.
@@ -40,7 +41,7 @@ Sprachen: Deutsch Muttersprache, Englisch fließend. Englischsprachige Stellen s
 
 SUCHE in zwei Spuren. Spur A (Hauptspur): Rollen mit KI im Kern. Spur B (Career Upgrade): Senior-, Lead- und Head-of-Rollen in Produkt und Digital ohne KI-Kern, wenn sie einen klaren Karriere- oder Gehaltssprung bedeuten (ab 90.000 €). Bevorzugt Hamburg und Umgebung oder überwiegend remote; KI-Rollen anderswo in Deutschland mit Homeoffice-Anteil schaut er sich an. Ziel ist der Wechsel aus dem öffentlichen Dienst in die freie Wirtschaft; öffentliche Arbeitgeber nur ausnahmsweise bei starker KI-Rolle. Gehaltsziel: Spur A ab rund 85.000 €, Spur B ab 90.000 € brutto im Jahr.`;
 
-const RULES = `BEWERTUNG "fit". Iver liest jede Stelle, die nicht "ignore" ist. Die Inbox soll klein und treffsicher sein.
+const RULES_STANDARD = `BEWERTUNG "fit". Iver liest jede Stelle, die nicht "ignore" ist. Die Inbox soll klein und treffsicher sein.
 
 SCHRITT 1 — HAUPTKRITERIUM: STEHT KI IM KERN DER ROLLE?
 KI-Kern heißt: Die Aufgaben drehen sich überwiegend um KI, LLMs, GenAI, Agenten, KI-gestützte oder intelligente Automatisierung (auch No-Code/Low-Code-Automatisierung mit n8n, Make, Zapier) oder den Aufbau von KI-Produkten bzw. KI-Initiativen. Es reicht NICHT, dass KI im Firmenprofil, als "Plus" oder in einem Nebensatz vorkommt.
@@ -90,6 +91,9 @@ AUSGABE:
 
 Antworte im vorgegebenen JSON-Format.`;
 
+/** Ivers Standardtexte — gelten, solange das Profil in der Datenbank keine eigenen hat. */
+export { PROFILE_STANDARD, RULES_STANDARD };
+
 const SCHEMA = {
   type: "object",
   properties: {
@@ -118,7 +122,13 @@ export async function evaluateAd(input: {
   description: string;
   /** Ivers eigene Urteile als Beispiele (siehe run-evaluate.ts). */
   beispiele?: string;
+  kosten?: KostenKontext;
+  /** Profiltext und Regeln aus dem Profil; leer = Standard (PROFILE, RULES). */
+  profiltext?: string | null;
+  regeln?: string | null;
 }): Promise<Evaluation> {
+  const PROFILE = input.profiltext || PROFILE_STANDARD;
+  const RULES = input.regeln || RULES_STANDARD;
   const parsed = await callClaudeJson<Partial<Evaluation>>({
     model: process.env.EVAL_MODEL || DEFAULT_MODEL,
     system: input.beispiele
@@ -138,6 +148,7 @@ export async function evaluateAd(input: {
     schema: SCHEMA,
     maxTokens: 1500,
     timeoutMs: CALL_TIMEOUT_MS,
+    kosten: input.kosten ?? { zweck: "bewertung" },
   });
 
   const fits: Fit[] = ["must_apply", "worth_reading", "ignore"];

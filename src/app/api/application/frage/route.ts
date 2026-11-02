@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         description: (job.description as string) ?? "",
         anschreiben,
         gehalt: draft.facts?.salary,
+        kosten: { zweck: "fragen", anlass: "knopf", jobUuid: body.uuid },
       });
       hinweis = result.hinweis;
       fragen = [

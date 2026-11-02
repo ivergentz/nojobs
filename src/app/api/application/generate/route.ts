@@ -28,6 +28,7 @@ export async function POST(request: Request) {
         [job.municipal, job.county].filter(Boolean).join(", ") ||
         ((job.country as string) ?? ""),
       description: (job.description as string) ?? "",
+      kosten: { zweck: "unterlagen", anlass: "knopf", jobUuid: uuid },
     });
 
     // Beim Neuentwurf eingetragenes Gehalt behalten.

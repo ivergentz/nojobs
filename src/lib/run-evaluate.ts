@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { evaluateAd } from "./evaluate";
 import { AKTIVE_QUELLEN } from "./quellen";
 import { grundText } from "./gruende";
+import type { Sammler } from "./kosten";
+import { ladeProfil } from "./profil";
 
 /**
  * Bewertet offene Stellen in Blöcken, zeitbudgetiert.
@@ -22,6 +24,8 @@ export type EvaluationRun = {
   failed: number;
   nochOffen: number;
   fehlerbeispiele: string[];
+  /** Geschätzte API-Kosten dieses Laufs in US-Dollar. */
+  kostenUsd: number;
 };
 
 export async function runEvaluation(
@@ -34,9 +38,12 @@ export async function runEvaluation(
     neuVor?: string | null;
     days?: number | null;
     limit?: number;
+    /** Für die Kostentabelle: morgenlauf, steuerung … */
+    anlass?: string;
   }
 ): Promise<EvaluationRun> {
   const startedAt = Date.now();
+  const sammler: Sammler = { usd: 0, aufrufe: 0 };
   const stats = { evaluated: 0, failed: 0 };
   const errors: string[] = [];
 
@@ -80,6 +87,8 @@ export async function runEvaluation(
 
   const jobs = data ?? [];
   const beispiele = jobs.length ? await ladeBeispiele(db, new Set(jobs.map((job) => job.uuid as string))) : "";
+  // Ein Profil pro Lauf. Ohne eigene Texte (Standard) oder ohne Tabelle: Ivers Texte aus evaluate.ts.
+  const profil = jobs.length ? await ladeProfil(db) : null;
 
   for (let i = 0; i < jobs.length; i += CONCURRENCY) {
     if (Date.now() - startedAt > options.budgetMs) break;
@@ -102,6 +111,9 @@ export async function runEvaluation(
             salary,
             description: (job.description as string) ?? "",
             beispiele,
+            profiltext: profil?.profiltext,
+            regeln: profil?.regeln,
+            kosten: { zweck: "bewertung", anlass: options.anlass, jobUuid: job.uuid as string, profil: profil?.slug, sammler },
           });
 
           const felder = {
@@ -139,7 +151,7 @@ export async function runEvaluation(
     .in("source", AKTIVE_QUELLEN)
     .is("evaluated_at", null);
 
-  return { ...stats, nochOffen: remaining ?? 0, fehlerbeispiele: errors };
+  return { ...stats, nochOffen: remaining ?? 0, fehlerbeispiele: errors, kostenUsd: sammler.usd };
 }
 
 /** Ab hier gibt es Suchspur B (Career Upgrade). */

@@ -1,4 +1,5 @@
 import { callClaudeJson, DEFAULT_MODEL } from "./claude";
+import type { KostenKontext } from "./kosten";
 import { cloneCv, loadCv, type Cv, type Lang } from "./cv-source";
 
 /**
@@ -146,6 +147,7 @@ export async function draftApplication(input: {
   employer: string;
   place: string;
   description: string;
+  kosten?: KostenKontext;
 }): Promise<ApplicationDraft> {
 
   const { cv } = await loadCv(input.lang);
@@ -165,6 +167,7 @@ export async function draftApplication(input: {
     schema: SCHEMA,
     maxTokens: 8000,
     timeoutMs: CALL_TIMEOUT_MS,
+    kosten: input.kosten ?? { zweck: "unterlagen" },
   });
 
   const list = (value: unknown): string[] =>

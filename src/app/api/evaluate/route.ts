@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       neuVor: url.searchParams.get("neuVor"),
       days: url.searchParams.get("days") ? Number(url.searchParams.get("days")) : null,
       limit: Number(url.searchParams.get("limit") ?? "60"),
+      anlass: "steuerung",
     });
 
     if (result.failed > 0) {
