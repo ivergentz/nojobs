@@ -100,6 +100,46 @@ export default function SuchprofilClient({
   const [bestaetigt, setBestaetigt] = useState<string | null>(initial.bestaetigt_at);
   const [busy, setBusy] = useState<"vorschlag" | "bestaetigen" | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  // Schritt 2.8: Startlauf nach dem Übernehmen
+  const [lauf, setLauf] = useState<Startlauf | null>(null);
+
+  const startlauf = async () => {
+    const stand: Startlauf = { phase: "suchen", gefunden: 0, bewertet: 0, offen: 0, fehler: null };
+    const zeige = () => setLauf({ ...stand });
+    zeige();
+    const schritt = async (name: "suchen" | "bewerten") => {
+      const res = await fetch("/api/startlauf", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ schritt: name }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      return body as { done?: boolean; gespeichert?: number; evaluated?: number; nochOffen?: number };
+    };
+    try {
+      for (let runde = 0; runde < 4; runde++) {
+        const r = await schritt("suchen");
+        stand.gefunden += r.gespeichert ?? 0;
+        zeige();
+        if (r.done !== false) break;
+      }
+      stand.phase = "bewerten";
+      zeige();
+      for (let runde = 0; runde < 8; runde++) {
+        const r = await schritt("bewerten");
+        stand.bewertet += r.evaluated ?? 0;
+        stand.offen = r.nochOffen ?? 0;
+        zeige();
+        if (!stand.offen || !r.evaluated) break;
+      }
+      stand.phase = "fertig";
+    } catch (err) {
+      stand.fehler = err instanceof Error ? err.message : String(err);
+      stand.phase = "fertig";
+    }
+    zeige();
+  };
 
   const setze = <K extends keyof Antworten>(k: K, v: Antworten[K]) => setA((alt) => ({ ...alt, [k]: v }));
   const umschalten = <K extends "richtungen" | "arbeitsort" | "nogos">(k: K, w: string) =>
@@ -133,12 +173,17 @@ export default function SuchprofilClient({
       setVorschlag(body.vorschlag);
       setBegriffe((body.vorschlag?.suchbegriffe ?? []).join(", "));
       setBestaetigt(aktion === "bestaetigen" ? body.bestaetigt_at : null);
+      if (aktion === "bestaetigen") {
+        setBusy(null);
+        await startlauf();
+      }
     } catch (err) {
       setFehler(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(null);
     }
   };
+  const laeuft = lauf !== null && lauf.phase !== "fertig";
 
   return (
     <>
@@ -267,7 +312,7 @@ export default function SuchprofilClient({
         <button
           type="button"
           onClick={() => void senden("vorschlag")}
-          disabled={busy !== null}
+          disabled={busy !== null || laeuft}
           className="mt-6 rounded border border-ink px-4 py-2 disabled:opacity-40"
         >
           {vorschlag ? "Neuen Vorschlag erstellen" : "Suchprofil vorschlagen"}
@@ -325,7 +370,7 @@ export default function SuchprofilClient({
           <button
             type="button"
             onClick={() => void senden("bestaetigen")}
-            disabled={busy !== null}
+            disabled={busy !== null || laeuft}
             className="mt-4 rounded bg-ink px-4 py-2 text-paper disabled:opacity-40"
           >
             {bestaetigt ? "Änderungen übernehmen" : "Suchprofil übernehmen"}
@@ -334,17 +379,62 @@ export default function SuchprofilClient({
           {bestaetigt && (
             <div className="mt-4 rounded border border-rule p-4">
               <p className="font-semibold">✓ Übernommen am {datum(bestaetigt)}</p>
-              <p className="mt-1 text-muted">
-                Ab jetzt sucht der Nachtlauf mit diesen Begriffen und bewertet neue Stellen danach. Nächster Schritt: unter{" "}
-                <Link href="/label" className="underline underline-offset-4">
-                  Labeln
-                </Link>{" "}
-                20–30 Stellen beurteilen — daraus lernt die Bewertung, was dir wirklich wichtig ist.
-              </p>
+              {lauf && <StartlaufAnzeige lauf={lauf} />}
+              {!laeuft && (
+                <p className="mt-2 text-muted">
+                  Ab jetzt sucht der Nachtlauf jeden Morgen mit diesen Begriffen und bewertet neue Stellen danach. Unter{" "}
+                  <Link href="/label" className="underline underline-offset-4">
+                    Labeln
+                  </Link>{" "}
+                  20–30 Stellen beurteilen — daraus lernt die Bewertung, was dir wirklich wichtig ist.
+                </p>
+              )}
+              {!lauf && (
+                <button type="button" onClick={() => void startlauf()} className="mt-3 text-sm underline underline-offset-4">
+                  Jetzt nach neuen Stellen suchen
+                </button>
+              )}
             </div>
           )}
         </section>
       )}
     </>
+  );
+}
+
+type Startlauf = { phase: "suchen" | "bewerten" | "fertig"; gefunden: number; bewertet: number; offen: number; fehler: string | null };
+
+/** Fortschritt des Startlaufs: echte Zahlen statt geschätzter Zeit. */
+function StartlaufAnzeige({ lauf }: { lauf: Startlauf }) {
+  const anteil =
+    lauf.phase === "suchen" ? 0.15 : lauf.phase === "bewerten" ? 0.2 + 0.8 * (lauf.bewertet / Math.max(lauf.bewertet + lauf.offen, 1)) : 1;
+  const text =
+    lauf.phase === "suchen"
+      ? `Stellen der letzten 14 Tage werden gesucht …${lauf.gefunden ? ` ${lauf.gefunden} neue gefunden` : ""}`
+      : lauf.phase === "bewerten"
+        ? `${lauf.bewertet} Stellen bewertet${lauf.offen ? `, ${lauf.offen} offen` : ""} …`
+        : lauf.fehler
+          ? null
+          : `Fertig: ${lauf.gefunden} neue Stellen gefunden, ${lauf.bewertet} bewertet.`;
+  return (
+    <div className="mt-3" aria-live="polite">
+      {lauf.phase !== "fertig" && (
+        <div className="h-1.5 w-full overflow-hidden rounded bg-rule/60">
+          <div className="h-full bg-keep transition-all duration-700" style={{ width: `${Math.round(anteil * 100)}%` }} />
+        </div>
+      )}
+      {text && <p className="mt-2">{text}</p>}
+      {lauf.phase !== "fertig" && <p className="text-xs text-muted">Seite bitte offen lassen — das dauert ein bis drei Minuten.</p>}
+      {lauf.fehler && (
+        <p className="mt-2 text-drop">
+          Abgebrochen: {lauf.fehler}. Kein Problem — der Nachtlauf holt das nach.
+        </p>
+      )}
+      {lauf.phase === "fertig" && !lauf.fehler && (
+        <Link href="/inbox" className="mt-2 inline-block rounded border border-keep px-4 py-2 text-keep">
+          Zur Inbox
+        </Link>
+      )}
+    </div>
   );
 }
