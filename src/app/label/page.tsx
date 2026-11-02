@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import LabelClient, { type LabelJob } from "./LabelClient";
 import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
 import { lesen } from "@/lib/lesen";
+import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,13 @@ function toPlainText(html: string | null): string {
 
 export default async function LabelPage() {
   const db = supabaseAdmin();
+  // Schritt 2.2: gewähltes Profil. Ohne Auswahl dein Profil — alles wie bisher.
+  const profil = await profilAusCookies();
+  const leseProfil = istStandard(profil) ? undefined : profil;
 
   // Vorher auf die norwegischen Berufskategorien "IT" und "Kontor og økonomi"
   // gefiltert — deutsche Stellen tauchten hier deshalb nie auf.
-  const { data, error } = await lesen(db)
+  const { data, error } = await lesen(db, leseProfil)
     .select(
       "uuid,source,title,employer_name,municipal,county,occupation_level1,sector,extent,application_due,application_url,description,published,salary_min_nok,salary_max_nok,salary_note"
     )
@@ -42,7 +46,7 @@ export default async function LabelPage() {
     .order("published", { ascending: false, nullsFirst: false })
     .limit(120);
 
-  const { count: doneCount } = await lesen(db)
+  const { count: doneCount } = await lesen(db, leseProfil)
     .select("uuid", { count: "exact", head: true })
     .in("source", AKTIVE_QUELLEN)
     .not("label", "is", null);

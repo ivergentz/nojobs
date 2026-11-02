@@ -175,7 +175,7 @@ function datum(value: string | null): string | null {
     : parsed.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 }
 
-export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
+export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: InboxJob[]; mitUnterlagen?: boolean }) {
   const [state, setState] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState<string | null>(null);
   const [reiter, setReiter] = useState("neu");
@@ -421,6 +421,8 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
                     Anzeige öffnen
                   </a>
                 )}
+                {mitUnterlagen && (
+                <>
                 <a
                   href={`/application/${encodeURIComponent(job.uuid)}`}
                   className="rounded border border-ink px-4 py-2 text-sm"
@@ -434,6 +436,8 @@ export default function InboxClient({ jobs }: { jobs: InboxJob[] }) {
                   >
                     Vorbereitung
                   </a>
+                )}
+                </>
                 )}
                 {STATUS.map((entry) => (
                   <button

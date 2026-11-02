@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
 import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -8,10 +8,12 @@ import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
 import { usd } from "@/lib/kosten";
+import { ladeProfile } from "@/lib/profil";
 import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// 300 s: nach deiner Nachricht bewertet der Morgenlauf im Hintergrund weitere Profile (Schritt 2.2).
+export const maxDuration = 300;
 
 /**
  * Morgen-Cron: erst bewerten, was der nächtliche Import geholt hat, dann
@@ -61,6 +63,31 @@ export async function GET(request: Request) {
       } catch (error) {
         bewertung = { fehler: error instanceof Error ? error.message : String(error) };
         await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: "Morgenlauf", meldung: bewertung.fehler }]);
+      }
+
+      // Schritt 2.2: weitere Profile bewerten — erst NACH der Antwort, damit deine
+      // Nachricht und dein Lauf davon nie aufgehalten werden. Telegram für sie folgt in Phase 3.
+      if (!url.searchParams.get("dry")) {
+        after(async () => {
+          const start = Date.now();
+          try {
+            const { profile } = await ladeProfile(db);
+            for (const p of profile) {
+              if (p.rolle === "admin" || p.aktiv === false || !p.profiltext) continue;
+              if (Date.now() - start > 200_000) break;
+              try {
+                const r = await runEvaluation(db, { budgetMs: 45_000, anlass: "morgenlauf", profil: p.slug });
+                if (r.failed > 0) {
+                  await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: `Morgenlauf · ${p.name}`, meldung: r.fehlerbeispiele[0] ?? "unbekannt" }]);
+                }
+              } catch (err) {
+                await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: `Morgenlauf · ${p.name}`, meldung: err instanceof Error ? err.message : String(err) }]);
+              }
+            }
+          } catch {
+            /* Weitere Profile dürfen den Morgenlauf nie stören */
+          }
+        });
       }
     }
 

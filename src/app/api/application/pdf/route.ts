@@ -8,6 +8,7 @@ import CvDocument from "@/lib/pdf/CvDocument";
 import LetterDocument from "@/lib/pdf/LetterDocument";
 import { ensureRef, TRACKING_DOMAIN, trackingLink } from "@/lib/tracking";
 import { lesen } from "@/lib/lesen";
+import { istStandard, NUR_EIGENES_PROFIL, profilAusRequest } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -31,6 +32,8 @@ function slug(value: string): string {
  * im Dokument (iverbohnes.de/firma), damit Aufrufe zugeordnet werden können.
  */
 export async function GET(request: Request) {
+  // Schritt 2.2: nur für dein Profil.
+  if (!istStandard(profilAusRequest(request))) return NextResponse.json({ error: NUR_EIGENES_PROFIL }, { status: 400 });
   const url = new URL(request.url);
   const uuid = url.searchParams.get("uuid");
   const doc = url.searchParams.get("doc") ?? "letter";

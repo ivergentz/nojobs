@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { lesen } from "@/lib/lesen";
+import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,11 @@ const ORDER = ["must_apply", "worth_reading", "ignore"];
 
 export default async function EvalPage() {
   const db = supabaseAdmin();
+  const profil = await profilAusCookies();
+  const leseProfil = istStandard(profil) ? undefined : profil;
 
   const abfrage = (spalten: string) =>
-    lesen(db)
+    lesen(db, leseProfil)
       .select(spalten)
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)

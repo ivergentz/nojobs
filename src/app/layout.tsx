@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import ProfilWahl from "./ProfilWahl";
+import { supabaseAdmin } from "@/lib/supabase";
+import { ladeProfile, STANDARD_SLUG } from "@/lib/profil";
+import { profilAusCookies } from "@/lib/aktuelles-profil";
 
 export const metadata: Metadata = {
   title: "Career Inbox",
@@ -20,7 +24,23 @@ const NAV = [
   { href: "/so-funktionierts", label: "So funktioniert's" },
 ];
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/** Schritt 2.2: aktive Profile für die Auswahl oben. Fehler → keine Auswahl, Seite bleibt heil. */
+async function profilAuswahl(): Promise<{ profile: Array<{ slug: string; name: string }>; aktuell: string }> {
+  try {
+    const [{ profile }, aktuell] = await Promise.all([ladeProfile(supabaseAdmin()), profilAusCookies()]);
+    const aktive = profile.filter((p) => p.aktiv !== false).map((p) => ({ slug: p.slug, name: p.name }));
+    // Ist das gewählte Profil inzwischen deaktiviert, trotzdem anzeigen — die Seiten zeigen ja seine Daten.
+    const gewaehlt = profile.find((p) => p.slug === aktuell);
+    if (gewaehlt && gewaehlt.aktiv === false) aktive.push({ slug: gewaehlt.slug, name: `${gewaehlt.name} (deaktiviert)` });
+    return { profile: aktive, aktuell: gewaehlt ? aktuell : STANDARD_SLUG };
+  } catch {
+    return { profile: [], aktuell: STANDARD_SLUG };
+  }
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const auswahl = await profilAuswahl();
+  const fremd = auswahl.aktuell !== STANDARD_SLUG ? auswahl.profile.find((p) => p.slug === auswahl.aktuell) : null;
   return (
     <html lang="de">
       <body className="min-h-screen antialiased">
@@ -33,8 +53,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Link>
               </li>
             ))}
+            {auswahl.profile.length > 1 && (
+              <li className="ml-auto shrink-0">
+                <ProfilWahl profile={auswahl.profile} aktuell={auswahl.aktuell} />
+              </li>
+            )}
           </ul>
         </nav>
+        {fremd && (
+          <div className="border-b border-rule bg-keep/10">
+            <p className="mx-auto max-w-3xl px-6 py-2 text-xs">
+              Ansicht für <span className="font-semibold">{fremd.name}</span> — Inbox, Labeln und Kalibrierung zeigen
+              die Daten dieses Profils. Steuerung, Statistik, Analytics und Kosten gelten für alle.
+            </p>
+          </div>
+        )}
         {children}
       </body>
     </html>

@@ -39,6 +39,8 @@ export async function GET(request: Request) {
       days: url.searchParams.get("days") ? Number(url.searchParams.get("days")) : null,
       limit: Number(url.searchParams.get("limit") ?? "60"),
       anlass: "steuerung",
+      // Schritt 2.2: ?profil=<schlüssel> bewertet für ein weiteres Profil; ohne = dein Profil wie bisher.
+      profil: url.searchParams.get("profil") ?? undefined,
     });
 
     if (result.failed > 0) {

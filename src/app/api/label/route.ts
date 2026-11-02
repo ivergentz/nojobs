@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { istGrund } from "@/lib/gruende";
+import { schreibeFelder } from "@/lib/schreiben";
+import { profilAusRequest } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 
@@ -34,13 +36,12 @@ export async function POST(request: Request) {
     }
 
     const db = supabaseAdmin();
-    const { error } = await db
-      .from("jobs")
-      .update({
-        label: body.label,
-        labeled_at: body.label ? new Date().toISOString() : null,
-      })
-      .eq("uuid", body.uuid);
+    // Schritt 2.2: gewähltes Profil (Cookie). Dein Profil schreibt wie bisher in jobs.
+    const profil = profilAusRequest(request);
+    const { error } = await schreibeFelder(db, profil, body.uuid, {
+      label: body.label,
+      labeled_at: body.label ? new Date().toISOString() : null,
+    });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -51,10 +52,10 @@ export async function POST(request: Request) {
     if (mitGrund) {
       const gruende = body.label ? (body.gruende ?? []).filter(istGrund).slice(0, 6) : null;
       const notiz = body.label ? (body.notiz ?? "").trim().slice(0, 300) || null : null;
-      const { error: grundError } = await db
-        .from("jobs")
-        .update({ label_gruende: gruende?.length ? gruende : null, label_notiz: notiz })
-        .eq("uuid", body.uuid);
+      const { error: grundError } = await schreibeFelder(db, profil, body.uuid, {
+        label_gruende: gruende?.length ? gruende : null,
+        label_notiz: notiz,
+      });
       if (grundError && body.label) {
         return NextResponse.json({ ok: true, warnung: `Begründung nicht gespeichert: ${grundError.message}` });
       }

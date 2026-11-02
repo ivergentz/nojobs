@@ -4,6 +4,7 @@ import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
 import { findeFruehere } from "@/lib/firma";
 import { besucheJeStelle, type Besuch } from "@/lib/tracking";
 import { lesen } from "@/lib/lesen";
+import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +18,16 @@ const asList = (value: unknown): string[] =>
  */
 export default async function InboxPage() {
   const db = supabaseAdmin();
+  // Schritt 2.2: gewähltes Profil. Ohne Auswahl dein Profil — alles wie bisher.
+  const profil = await profilAusCookies();
+  const eigenes = istStandard(profil);
 
   const SPALTEN =
     "uuid,source,occupation_level1,title,employer_name,municipal,county,country,sector,eval_fit,eval_confidence,eval_summary,eval_pros,eval_cons,application_due,application_url,salary_min_nok,salary_max_nok,salary_note,app_status,app_status_at,published";
 
   const laden = (spalten: string) => Promise.all([
     // Reiter "Neu": aktive, positiv bewertete Stellen ohne Bearbeitung
-    lesen(db)
+    lesen(db, eigenes ? undefined : profil)
       .select(spalten)
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)
@@ -36,12 +40,12 @@ export default async function InboxPage() {
     // Alle anderen Reiter: alles, was du angefasst hast — auch wenn die
     // Anzeige inzwischen offline ist. Eine laufende Bewerbung darf nicht
     // verschwinden, nur weil die Firma die Stelle vom Netz nimmt.
-    lesen(db)
+    lesen(db, eigenes ? undefined : profil)
       .select(spalten)
       .in("app_status", ["interessant", "beworben", "interview", "absage", "abgelegt"])
       .order("app_status_at", { ascending: false, nullsFirst: false })
       .limit(400),
-    lesen(db)
+    lesen(db, eigenes ? undefined : profil)
       .select("uuid", { count: "exact", head: true })
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)
@@ -121,7 +125,7 @@ export default async function InboxPage() {
         {inbox.error && (
           <p className="mt-4 text-sm text-drop">Fehler: {inbox.error.message}</p>
         )}
-        {(unbewertet.count ?? 0) > 0 && (
+        {eigenes && (unbewertet.count ?? 0) > 0 && (
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
             {unbewertet.count} Stellen sind noch nicht bewertet und fehlen hier. Bewertet wird
             jeden Morgen automatisch — oder sofort über die Steuerung.
@@ -129,7 +133,7 @@ export default async function InboxPage() {
         )}
       </header>
 
-      <InboxClient jobs={jobs} />
+      <InboxClient jobs={jobs} mitUnterlagen={eigenes} />
     </main>
   );
 }

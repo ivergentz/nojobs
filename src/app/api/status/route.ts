@@ -2,6 +2,8 @@ import { after, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { vorbereitungFuerStelle } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
+import { schreibeFelder } from "@/lib/schreiben";
+import { istStandard, profilAusRequest } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 // Platz für die Gesprächsvorbereitung (Websuche + Briefing), die nach der Antwort im Hintergrund entsteht.
@@ -37,10 +39,12 @@ export async function POST(request: Request) {
     }
 
     const db = supabaseAdmin();
+    // Schritt 2.2: gewähltes Profil (Cookie). Dein Profil schreibt wie bisher in jobs.
+    const profil = profilAusRequest(request);
 
     if (body.absageNotiz !== undefined) {
       const notiz = body.absageNotiz.trim().slice(0, 500) || null;
-      const { error } = await db.from("jobs").update({ absage_notiz: notiz }).eq("uuid", body.uuid);
+      const { error } = await schreibeFelder(db, profil, body.uuid, { absage_notiz: notiz });
       if (error) {
         return NextResponse.json(
           { error: `Grund nicht gespeichert — wurde supabase/absage-notiz.sql ausgeführt? (${error.message})` },
@@ -54,20 +58,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "uuid oder status fehlt" }, { status: 400 });
     }
 
-    const { error } = await db
-      .from("jobs")
-      .update({
-        app_status: body.status,
-        app_status_at: new Date().toISOString(),
-        ...(body.note !== undefined ? { app_note: body.note } : {}),
-      })
-      .eq("uuid", body.uuid);
+    const { error } = await schreibeFelder(db, profil, body.uuid, {
+      app_status: body.status,
+      app_status_at: new Date().toISOString(),
+      ...(body.note !== undefined ? { app_note: body.note } : {}),
+    });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // "Beworben": Gesprächsvorbereitung im Hintergrund erzeugen, falls es noch keine gibt.
     // Die Antwort an die Inbox wartet darauf nicht.
-    if (body.status === "beworben") {
+    // Nur für dein Profil: Unterlagen und Vorbereitung für weitere Profile kommen in Phase 4.
+    if (body.status === "beworben" && istStandard(profil)) {
       const uuid = body.uuid;
       after(async () => {
         try {

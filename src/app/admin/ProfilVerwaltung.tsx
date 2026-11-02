@@ -102,3 +102,110 @@ export function AktivSchalter({ slug, aktiv }: { slug: string; aktiv: boolean })
     </span>
   );
 }
+
+/** Schritt 2.2: Suchprofil eines weiteren Profils bearbeiten und Bewertung anstoßen. */
+export function SuchprofilBearbeiten({
+  slug,
+  name,
+  profiltext,
+  regeln,
+  suchbegriffe,
+}: {
+  slug: string;
+  name: string;
+  profiltext: string | null;
+  regeln: string | null;
+  suchbegriffe: string[];
+}) {
+  const router = useRouter();
+  const [offen, setOffen] = useState(false);
+  const [text, setText] = useState(profiltext ?? "");
+  const [eigeneRegeln, setEigeneRegeln] = useState(regeln ?? "");
+  const [begriffe, setBegriffe] = useState(suchbegriffe.join(", "));
+  const [busy, setBusy] = useState<"" | "speichern" | "bewerten">("");
+  const [meldung, setMeldung] = useState<{ text: string; fehler?: boolean } | null>(null);
+
+  const speichern = async () => {
+    setBusy("speichern");
+    setMeldung(null);
+    try {
+      await senden("PATCH", { slug, profiltext: text, regeln: eigeneRegeln, suchbegriffe: begriffe });
+      setMeldung({ text: "Gespeichert." });
+      router.refresh();
+    } catch (err) {
+      setMeldung({ text: err instanceof Error ? err.message : String(err), fehler: true });
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const bewerten = async () => {
+    setBusy("bewerten");
+    setMeldung(null);
+    let gesamt = 0;
+    try {
+      for (let lauf = 0; lauf < 6; lauf++) {
+        const res = await fetch(`/api/evaluate?profil=${encodeURIComponent(slug)}&days=14`, {
+          headers: { Authorization: `Bearer ${secret()}` },
+          cache: "no-store",
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        if (body.hinweis) {
+          setMeldung({ text: body.hinweis, fehler: true });
+          return;
+        }
+        gesamt += body.evaluated ?? 0;
+        setMeldung({ text: `${gesamt} Stellen bewertet, ${body.nochOffen ?? 0} offen …` });
+        if (!body.nochOffen || !body.evaluated) break;
+      }
+      setMeldung({ text: `Fertig: ${gesamt} Stellen für ${name} bewertet. Profil oben wählen, um die Inbox zu sehen.` });
+    } catch (err) {
+      setMeldung({ text: err instanceof Error ? err.message : String(err), fehler: true });
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (!offen) {
+    return (
+      <button type="button" onClick={() => setOffen(true)} className="text-xs text-muted underline underline-offset-4">
+        Suchprofil
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 w-full space-y-3 rounded border border-rule p-4">
+      <label className="block">
+        <span className="text-xs text-muted">Suchbegriffe (durch Komma getrennt) — nur Stellen mit einem dieser Wörter im Titel werden bewertet</span>
+        <input
+          value={begriffe}
+          onChange={(e) => setBegriffe(e.target.value)}
+          placeholder="z. B. Erzieherin, Kita, Pädagogische Fachkraft"
+          className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs text-muted">Profiltext — wer sucht was, wo, ab welchem Gehalt, No-Gos</span>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2" />
+      </label>
+      <label className="block">
+        <span className="text-xs text-muted">Eigene Bewertungsregeln (optional — leer = allgemeine Regeln)</span>
+        <textarea value={eigeneRegeln} onChange={(e) => setEigeneRegeln(e.target.value)} rows={4} className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2" />
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => void speichern()} disabled={busy !== ""} className="rounded border border-ink px-4 py-2 disabled:opacity-40">
+          {busy === "speichern" ? "Speichert …" : "Speichern"}
+        </button>
+        <button type="button" onClick={() => void bewerten()} disabled={busy !== ""} className="rounded border border-keep px-4 py-2 text-keep disabled:opacity-40">
+          {busy === "bewerten" ? "Bewertet …" : "Jetzt bewerten (letzte 14 Tage)"}
+        </button>
+        <button type="button" onClick={() => setOffen(false)} className="text-xs text-muted underline underline-offset-4">
+          schließen
+        </button>
+      </div>
+      {meldung && <p className={`text-xs ${meldung.fehler ? "text-drop" : "text-keep"}`}>{meldung.text}</p>}
+    </div>
+  );
+}

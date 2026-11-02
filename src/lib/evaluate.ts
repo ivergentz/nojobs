@@ -91,6 +91,28 @@ AUSGABE:
 
 Antworte im vorgegebenen JSON-Format.`;
 
+/**
+ * Schritt 2.2 · Bewertungsregeln für weitere Profile, solange sie keine eigenen haben.
+ * Bewusst allgemein: Was passt, steht im Profiltext der Person. Ivers Regeln (KI-Kern,
+ * Suchspuren) gelten nur für ihn.
+ */
+export const REGELN_ALLGEMEIN = `BEWERTUNG "fit". Die Person liest jede Stelle, die nicht "ignore" ist. Die Inbox soll klein und treffsicher sein.
+
+Grundlage ist allein der Profiltext oben: gewünschte Richtung, Ebene, Ort und Umkreis, Arbeitszeit, Gehalt, No-Gos.
+
+must_apply — die Stelle passt klar zur gewünschten Richtung UND Ort/Remote passen UND kein No-Go ist verletzt.
+worth_reading — passt grundsätzlich, aber mit einer Einschränkung (z. B. etwas weiter weg, Ebene nicht ganz passend, Gehalt unklar, Teilzeit/Vollzeit unklar).
+ignore — andere Richtung, Ort passt nicht, No-Go verletzt, Ausbildung/Praktikum/Werkstudent (sofern nicht gesucht), oder die Anzeige ist zu vage.
+
+spur: immer "keine".
+
+AUSGABE:
+- summary: HÖCHSTENS 40 Wörter. Zwei Sätze auf Deutsch: was die Rolle ist, warum sie passt oder nicht.
+- pros und cons: je HÖCHSTENS vier Stichpunkte à HÖCHSTENS 10 Wörter, auf Deutsch, konkret auf die Person bezogen.
+- confidence: low, wenn die Anzeige zu vage ist, um die Rolle einzuordnen.
+
+Antworte im vorgegebenen JSON-Format.`;
+
 /** Ivers Standardtexte — gelten, solange das Profil in der Datenbank keine eigenen hat. */
 export { PROFILE_STANDARD, RULES_STANDARD };
 
@@ -126,13 +148,18 @@ export async function evaluateAd(input: {
   /** Profiltext und Regeln aus dem Profil; leer = Standard (PROFILE, RULES). */
   profiltext?: string | null;
   regeln?: string | null;
+  /** Schritt 2.2: Name der Person für weitere Profile — leer = Iver (Text unverändert). */
+  person?: string | null;
 }): Promise<Evaluation> {
   const PROFILE = input.profiltext || PROFILE_STANDARD;
   const RULES = input.regeln || RULES_STANDARD;
+  const kopf = input.person
+    ? `EIGENE URTEILE VON ${input.person.toUpperCase()} ÜBER FRÜHERE STELLEN — so entscheidet diese Person. Orientiere dich daran. Widerspricht ein Beispiel einer Regel oben, gilt die Regel.`
+    : `IVERS EIGENE URTEILE ÜBER FRÜHERE STELLEN — so entscheidet er. Orientiere dich daran. Widerspricht ein Beispiel einer Regel oben (etwa öffentlicher Dienst oder Spur "upgrade", die es bei älteren Urteilen noch nicht gab), gilt die Regel.`;
   const parsed = await callClaudeJson<Partial<Evaluation>>({
     model: process.env.EVAL_MODEL || DEFAULT_MODEL,
     system: input.beispiele
-      ? `${PROFILE}\n\n${RULES}\n\nIVERS EIGENE URTEILE ÜBER FRÜHERE STELLEN — so entscheidet er. Orientiere dich daran. Widerspricht ein Beispiel einer Regel oben (etwa öffentlicher Dienst oder Spur "upgrade", die es bei älteren Urteilen noch nicht gab), gilt die Regel.\n${input.beispiele}`
+      ? `${PROFILE}\n\n${RULES}\n\n${kopf}\n${input.beispiele}`
       : `${PROFILE}\n\n${RULES}`,
     user: [
       `Titel: ${input.title}`,

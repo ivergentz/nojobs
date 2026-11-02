@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { beantworteFrage, type Frage } from "@/lib/fragen";
 import { lesen } from "@/lib/lesen";
+import { istStandard, NUR_EIGENES_PROFIL, profilAusRequest } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,6 +18,8 @@ export const maxDuration = 60;
  * gar kein Anschreiben, nur die Fragen.
  */
 export async function POST(request: Request) {
+  // Schritt 2.2: nur für dein Profil.
+  if (!istStandard(profilAusRequest(request))) return NextResponse.json({ error: NUR_EIGENES_PROFIL }, { status: 400 });
   try {
     const body = (await request.json()) as {
       uuid?: string;

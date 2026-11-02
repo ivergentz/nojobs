@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { lesen } from "@/lib/lesen";
+import { istStandard, NUR_EIGENES_PROFIL, profilAusRequest } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 
 /** Sichert den bearbeiteten Entwurf. Das PDF wird immer aus dem gesicherten Stand erzeugt. */
 export async function POST(request: Request) {
+  // Schritt 2.2: nur für dein Profil.
+  if (!istStandard(profilAusRequest(request))) return NextResponse.json({ error: NUR_EIGENES_PROFIL }, { status: 400 });
   try {
     const { uuid, draft } = (await request.json()) as { uuid?: string; draft?: unknown };
     if (!uuid || !draft) return NextResponse.json({ error: "uuid oder draft fehlt" }, { status: 400 });

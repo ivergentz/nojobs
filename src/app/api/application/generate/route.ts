@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { draftApplication, type ApplicationDraft } from "@/lib/application";
 import { lesen } from "@/lib/lesen";
+import { istStandard, NUR_EIGENES_PROFIL, profilAusRequest } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export async function POST(request: Request) {
+  // Schritt 2.2: nur für dein Profil.
+  if (!istStandard(profilAusRequest(request))) return NextResponse.json({ error: NUR_EIGENES_PROFIL }, { status: 400 });
   try {
     const { uuid, lang } = (await request.json()) as { uuid?: string; lang?: "de" | "en" };
     if (!uuid) return NextResponse.json({ error: "uuid fehlt" }, { status: 400 });

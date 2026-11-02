@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile } from "@/lib/profil";
-import { AktivSchalter, NeuesProfilFormular } from "./ProfilVerwaltung";
+import { AktivSchalter, NeuesProfilFormular, SuchprofilBearbeiten } from "./ProfilVerwaltung";
 
 /**
  * Nur lesend: welche Profile gibt es, und woher kommen Profiltext und Regeln?
@@ -39,13 +39,24 @@ export default async function ProfileUebersicht() {
                   </span>
                   {p.rolle !== "admin" && <AktivSchalter slug={p.slug} aktiv={p.aktiv !== false} />}
                 </span>
+                {p.rolle !== "admin" && (
+                  <div className="w-full">
+                    <SuchprofilBearbeiten
+                      slug={p.slug}
+                      name={p.name}
+                      profiltext={p.profiltext}
+                      regeln={p.regeln}
+                      suchbegriffe={p.suchbegriffe ?? []}
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>
           <NeuesProfilFormular />
           <p className="mt-2 text-xs text-muted">
-            Neue Profile sind zunächst nur angelegt: Inbox, Bewertung und Login für sie folgen in den nächsten Schritten.
-            Deine Inbox ändert sich dadurch nicht.
+            Für ein neues Profil: unter „Suchprofil“ Suchbegriffe und Profiltext eintragen, „Jetzt bewerten“ — danach oben
+            in der Navigation das Profil wählen. Ab dann bewertet auch der Morgenlauf für dieses Profil. Login folgt in 2.3.
           </p>
         </>
       )}

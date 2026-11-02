@@ -42,7 +42,11 @@ function zaehlungFehlt(aufrufe: Array<[PropertyKey, unknown[]]>, ergebnis: any):
 }
 
 // Gibt denselben Abfrage-Typ zurück wie db.from("jobs") — die Aufrufer bleiben unverändert typisiert.
-export function lesen<D extends { from: (tabelle: string) => any }>(db: D): ReturnType<D["from"]> {
+//
+// profil: weggelassen oder "iver" → dein Profil, Verhalten wie bisher.
+//         anderes Profil (Schritt 2.2) → Sicht jobs_profil, gefiltert auf dieses Profil.
+export function lesen<D extends { from: (tabelle: string) => any }>(db: D, profil?: string): ReturnType<D["from"]> {
+  if (profil && profil !== "iver") return profilKette(db, profil);
   if (leseQuelle() === "jobs") return db.from("jobs");
 
   // Aufrufe merken (select, eq, order …), damit sie bei Bedarf auf jobs wiederholt werden können.
@@ -62,6 +66,33 @@ export function lesen<D extends { from: (tabelle: string) => any }>(db: D): Retu
                   sichtFehlt(ergebnis?.error, ergebnis?.status) || zaehlungFehlt(aufrufe, ergebnis) ? baue("jobs", aufrufe) : ergebnis
                 )
                 .then(erfuellt, abgelehnt);
+          }
+          return (...args: unknown[]) => kette([...aufrufe, [prop, args]]);
+        },
+      }
+    );
+  return kette([]);
+}
+
+/**
+ * Lesen für ein weiteres Profil: dieselbe Abfrage auf jobs_profil, nach select()
+ * automatisch auf das Profil eingeschränkt. Kein Rückfall auf jobs — dort stehen
+ * nur deine Daten, die darf ein anderes Profil nie zu sehen bekommen.
+ */
+function profilKette(db: { from: (tabelle: string) => any }, profil: string): any {
+  const baue = (aufrufe: Array<[PropertyKey, unknown[]]>) =>
+    aufrufe.reduce((abfrage: any, [methode, args]) => {
+      const weiter = abfrage[methode](...args);
+      return methode === "select" ? weiter.eq("profil", profil) : weiter;
+    }, db.from("jobs_profil"));
+  const kette = (aufrufe: Array<[PropertyKey, unknown[]]>): any =>
+    new Proxy(
+      {},
+      {
+        get(_ziel, prop) {
+          if (prop === "then") {
+            return (erfuellt: (wert: unknown) => unknown, abgelehnt: (grund: unknown) => unknown) =>
+              Promise.resolve(baue(aufrufe)).then(erfuellt, abgelehnt);
           }
           return (...args: unknown[]) => kette([...aufrufe, [prop, args]]);
         },

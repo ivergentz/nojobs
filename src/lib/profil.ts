@@ -14,6 +14,7 @@ export type Profil = {
   rolle: "admin" | "nutzer";
   email?: string | null;
   aktiv?: boolean;
+  suchbegriffe?: string[];
   /** null = Standard aus dem Code */
   profiltext: string | null;
   /** null = Standard aus dem Code */
@@ -63,7 +64,7 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
   try {
     const { data, error } = await db
       .from("profiles")
-      .select("slug,name,rolle,profiltext,regeln,email,aktiv")
+      .select("slug,name,rolle,profiltext,regeln,email,aktiv,suchbegriffe")
       .order("created_at", { ascending: true });
     if (error) return { profile: [], fehler: error.message };
     return {
@@ -73,6 +74,7 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
         rolle: row.rolle === "admin" ? "admin" : "nutzer",
         email: typeof row.email === "string" ? row.email : null,
         aktiv: row.aktiv !== false,
+        suchbegriffe: Array.isArray(row.suchbegriffe) ? (row.suchbegriffe as unknown[]).filter((x): x is string => typeof x === "string") : [],
         profiltext: leer(row.profiltext),
         regeln: leer(row.regeln),
         ausDatenbank: true,
@@ -139,6 +141,66 @@ export async function setzeAktiv(
     .update({ aktiv, updated_at: new Date().toISOString() })
     .eq("slug", slug)
     .neq("rolle", "admin");
+  if (error) return { ok: false, fehler: error.message };
+  return { ok: true };
+}
+
+/* ---------- Schritt 2.2: Suchprofil weiterer Personen ---------- */
+
+export type ProfilVoll = Profil & { id: string | null; suchbegriffe: string[] };
+
+export async function ladeProfilVoll(db: Db, slug: string): Promise<ProfilVoll | null> {
+  try {
+    const { data, error } = await db
+      .from("profiles")
+      .select("id,slug,name,rolle,profiltext,regeln,email,aktiv,suchbegriffe")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      id: (data.id as string) ?? null,
+      slug: String(data.slug),
+      name: String(data.name ?? slug),
+      rolle: data.rolle === "admin" ? "admin" : "nutzer",
+      email: (data.email as string) ?? null,
+      aktiv: data.aktiv !== false,
+      profiltext: leer(data.profiltext),
+      regeln: leer(data.regeln),
+      suchbegriffe: Array.isArray(data.suchbegriffe)
+        ? (data.suchbegriffe as unknown[]).filter((s): s is string => typeof s === "string" && s.trim() !== "")
+        : [],
+      ausDatenbank: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Suchbegriffe aus einer Eingabe „Erzieherin, Kita-Leitung; Pädagogin“ → bereinigte Liste. */
+export function suchbegriffeAus(text: string): string[] {
+  const gesehen = new Set<string>();
+  return text
+    .split(/[,;\n]+/)
+    .map((s) => s.trim().replace(/[%*(),."]/g, " ").replace(/\s+/g, " ").trim())
+    .filter((s) => s.length >= 2 && s.length <= 60)
+    .filter((s) => (gesehen.has(s.toLowerCase()) ? false : (gesehen.add(s.toLowerCase()), true)))
+    .slice(0, 25);
+}
+
+export async function aktualisiereSuchprofil(
+  db: Db,
+  slug: string,
+  eingabe: { profiltext?: string | null; regeln?: string | null; suchbegriffe?: string | null }
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (slug === STANDARD_SLUG) return { ok: false, fehler: "Dein eigenes Profil wird hier nicht bearbeitet — es nutzt die Texte aus dem Code." };
+  const felder: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (eingabe.profiltext !== undefined) felder.profiltext = (eingabe.profiltext ?? "").trim().slice(0, 6000) || null;
+  if (eingabe.regeln !== undefined) felder.regeln = (eingabe.regeln ?? "").trim().slice(0, 8000) || null;
+  if (eingabe.suchbegriffe !== undefined) {
+    const liste = suchbegriffeAus(eingabe.suchbegriffe ?? "");
+    felder.suchbegriffe = liste.length ? liste : null;
+  }
+  const { error } = await db.from("profiles").update(felder).eq("slug", slug).neq("rolle", "admin");
   if (error) return { ok: false, fehler: error.message };
   return { ok: true };
 }

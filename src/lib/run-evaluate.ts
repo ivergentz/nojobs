@@ -3,7 +3,9 @@ import { evaluateAd } from "./evaluate";
 import { AKTIVE_QUELLEN } from "./quellen";
 import { grundText } from "./gruende";
 import type { Sammler } from "./kosten";
-import { ladeProfil } from "./profil";
+import { ladeProfil, ladeProfilVoll } from "./profil";
+import { REGELN_ALLGEMEIN } from "./evaluate";
+import { schreibeFelder } from "./schreiben";
 import { lesen } from "./lesen";
 
 /**
@@ -41,10 +43,13 @@ export async function runEvaluation(
     limit?: number;
     /** Für die Kostentabelle: morgenlauf, steuerung … */
     anlass?: string;
+    /** Schritt 2.2: anderes Profil als deins. Weggelassen/"iver" = alles wie bisher. */
+    profil?: string;
   }
 ): Promise<EvaluationRun> {
   const startedAt = Date.now();
   const sammler: Sammler = { usd: 0, aufrufe: 0 };
+  if (options.profil && options.profil !== "iver") return runProfilEvaluation(db, options.profil, options, startedAt, sammler);
   const stats = { evaluated: 0, failed: 0 };
   const errors: string[] = [];
 
@@ -173,17 +178,23 @@ const LABEL_TEXT: Record<string, string> = {
  * Die Stellen, die gerade bewertet werden, sind ausgeschlossen. Sonst würde
  * die Kalibrierung sich selbst abschreiben.
  */
-async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Promise<string> {
+async function ladeBeispiele(
+  db: SupabaseClient,
+  ausschliessen: Set<string>,
+  /** Schritt 2.2: weiteres Profil und Name der Person — weggelassen = Iver, Texte unverändert. */
+  profil?: string,
+  person?: string
+): Promise<string> {
   // Mit Begründungen lesen; fehlen die Spalten noch (SQL nicht ausgeführt), ohne.
   const basis = "uuid,title,employer_name,municipal,sector,label,eval_fit,labeled_at";
-  const erster = await lesen(db)
+  const erster = await lesen(db, profil)
     .select(`${basis},label_gruende,label_notiz`)
     .not("label", "is", null)
     .order("labeled_at", { ascending: false, nullsFirst: false })
     .limit(600);
   let data: unknown[] | null = erster.data;
   if (erster.error) {
-    ({ data } = await lesen(db)
+    ({ data } = await lesen(db, profil)
       .select(basis)
       .not("label", "is", null)
       .order("labeled_at", { ascending: false, nullsFirst: false })
@@ -244,7 +255,7 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
   // Inbox-Entscheidungen als zusätzliche Signale: wo du dich beworben hast, ist
   // ein stärkeres "Ja" als jedes Label; "Ablegen" einer vorgeschlagenen Stelle
   // ist genau der Fehlalarm, den das Modell lernen soll zu vermeiden.
-  const { data: inboxData } = await lesen(db)
+  const { data: inboxData } = await lesen(db, profil)
     .select("uuid,title,employer_name,municipal,sector,app_status")
     .in("app_status", ["beworben", "interview", "absage", "abgelegt"])
     .is("label", null)
@@ -260,7 +271,7 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
   const abgelegtZeilen = inbox.filter((row) => row.app_status === "abgelegt").slice(0, 20).map(inboxZeile);
 
   // Absagegründe, die Firmen genannt haben — nur wenn du welche eingetragen hast.
-  const { data: absagen } = await lesen(db)
+  const { data: absagen } = await lesen(db, profil)
     .select("title,employer_name,absage_notiz")
     .eq("app_status", "absage")
     .not("absage_notiz", "is", null)
@@ -280,12 +291,108 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
   const teile: string[] = [];
   if (absageZeilen.length) {
     teile.push(
-      `LERNPUNKTE AUS ABSAGEN — Gründe, die Firmen Iver genannt haben. Hat eine neue Stelle dieselbe Hürde (etwa eine geforderte Erfahrung, die ihm fehlt), nenne sie als cons und stufe must_apply im Zweifel auf worth_reading herab. Stellen nicht allein deshalb ignorieren.\n${absageZeilen.join("\n")}`
+      person
+        ? `LERNPUNKTE AUS ABSAGEN — Gründe, die Firmen ${person} genannt haben. Hat eine neue Stelle dieselbe Hürde (etwa eine geforderte Erfahrung, die fehlt), nenne sie als cons und stufe must_apply im Zweifel auf worth_reading herab. Stellen nicht allein deshalb ignorieren.\n${absageZeilen.join("\n")}`
+        : `LERNPUNKTE AUS ABSAGEN — Gründe, die Firmen Iver genannt haben. Hat eine neue Stelle dieselbe Hürde (etwa eine geforderte Erfahrung, die ihm fehlt), nenne sie als cons und stufe must_apply im Zweifel auf worth_reading herab. Stellen nicht allein deshalb ignorieren.\n${absageZeilen.join("\n")}`
     );
   }
   if (muster.length) {
-    teile.push(`HÄUFIGSTE GRÜNDE FÜR SEINE ABLEHNUNGEN (gewichte diese Punkte entsprechend):\n${muster.join("\n")}`);
+    teile.push(`HÄUFIGSTE GRÜNDE FÜR ${person ? "DIE" : "SEINE"} ABLEHNUNGEN (gewichte diese Punkte entsprechend):\n${muster.join("\n")}`);
   }
   teile.push(teile.length ? `EINZELNE URTEILE:\n${beispiele}` : beispiele);
   return teile.join("\n\n");
+}
+
+/**
+ * Schritt 2.2 · Bewertung für ein weiteres Profil.
+ *
+ * Bewertet nur Stellen, deren Titel einen Suchbegriff des Profils enthält — sonst
+ * würde jede neue Stelle für jede Person einmal Geld kosten. Ohne Profiltext oder
+ * Suchbegriffe passiert nichts. Ergebnisse landen in matches, nie in jobs.
+ */
+async function runProfilEvaluation(
+  db: SupabaseClient,
+  slug: string,
+  options: { budgetMs: number; force?: boolean; days?: number | null; limit?: number; anlass?: string },
+  startedAt: number,
+  sammler: Sammler
+): Promise<EvaluationRun & { hinweis?: string }> {
+  const leer = (hinweis: string) => ({ evaluated: 0, failed: 0, nochOffen: 0, fehlerbeispiele: [], kostenUsd: 0, hinweis });
+  const profil = await ladeProfilVoll(db, slug);
+  if (!profil) return leer(`Profil „${slug}“ nicht gefunden.`);
+  if (profil.aktiv === false) return leer(`Profil „${profil.name}“ ist deaktiviert.`);
+  if (!profil.profiltext || profil.suchbegriffe.length === 0) {
+    return leer(`Für „${profil.name}“ fehlen noch Profiltext oder Suchbegriffe — in der Steuerung unter Profile eintragen.`);
+  }
+
+  const titelFilter = profil.suchbegriffe.map((b) => `title.ilike."*${b.replace(/"/g, "")}*"`).join(",");
+  const tage = options.days ?? 14;
+  const kandidaten = (spalten: string, zaehlen = false) => {
+    let q = lesen(db, slug)
+      .select(spalten, zaehlen ? { count: "exact", head: true } : undefined)
+      .eq("status", "ACTIVE")
+      .in("source", AKTIVE_QUELLEN)
+      .or(titelFilter)
+      .gte("published", new Date(Date.now() - tage * 864e5).toISOString());
+    if (!options.force) q = q.is("evaluated_at", null);
+    return q;
+  };
+
+  const { data, error } = await kandidaten(
+    "uuid,title,employer_name,municipal,county,sector,salary_min_nok,salary_max_nok,salary_note,description"
+  )
+    .order("published", { ascending: false, nullsFirst: false })
+    .limit(options.limit ?? 60);
+  if (error) throw new Error(`Stellen lesen (${profil.name}): ${error.message}`);
+
+  const jobs = (data ?? []) as unknown as Array<Record<string, unknown>>;
+  const beispiele = jobs.length ? await ladeBeispiele(db, new Set(jobs.map((j) => j.uuid as string)), slug, profil.name) : "";
+  const stats = { evaluated: 0, failed: 0 };
+  const errors: string[] = [];
+
+  for (let i = 0; i < jobs.length; i += CONCURRENCY) {
+    if (Date.now() - startedAt > options.budgetMs) break;
+    await Promise.all(
+      jobs.slice(i, i + CONCURRENCY).map(async (job) => {
+        try {
+          const min = job.salary_min_nok as number | null;
+          const max = job.salary_max_nok as number | null;
+          const salary =
+            min !== null || max !== null
+              ? `${num.format(min ?? (max as number))}–${num.format(max ?? (min as number))} €`
+              : ((job.salary_note as string) ?? "");
+          const result = await evaluateAd({
+            title: (job.title as string) ?? "",
+            employer: (job.employer_name as string) ?? "",
+            place: [job.municipal, job.county].filter(Boolean).join(", "),
+            homeoffice: (job.sector as string) ?? "",
+            salary,
+            description: (job.description as string) ?? "",
+            beispiele,
+            profiltext: profil.profiltext,
+            regeln: profil.regeln || REGELN_ALLGEMEIN,
+            person: profil.name,
+            kosten: { zweck: "bewertung", anlass: options.anlass, jobUuid: job.uuid as string, profil: slug, sammler },
+          });
+          const { error: schreibFehler } = await schreibeFelder(db, slug, job.uuid as string, {
+            eval_fit: result.fit,
+            eval_confidence: result.confidence,
+            eval_summary: result.summary,
+            eval_pros: result.pros,
+            eval_cons: result.cons,
+            eval_spur: result.spur,
+            evaluated_at: new Date().toISOString(),
+          });
+          if (schreibFehler) throw new Error(schreibFehler.message);
+          stats.evaluated += 1;
+        } catch (err) {
+          stats.failed += 1;
+          if (errors.length < 3) errors.push(err instanceof Error ? err.message : String(err));
+        }
+      })
+    );
+  }
+
+  const { count } = await kandidaten("uuid", true);
+  return { ...stats, nochOffen: count ?? 0, fehlerbeispiele: errors, kostenUsd: sammler.usd };
 }

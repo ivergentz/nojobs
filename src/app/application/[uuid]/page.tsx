@@ -8,6 +8,8 @@ import TrackingLink from "./TrackingLink";
 import VorbereitungClient from "./VorbereitungClient";
 import type { Vorbereitung } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
+import { istStandard, NUR_EIGENES_PROFIL, profilAusCookies } from "@/lib/aktuelles-profil";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,20 @@ export default async function ApplicationPage({
   params: Promise<{ uuid: string }>;
 }) {
   const { uuid } = await params;
+
+  // Schritt 2.2: Unterlagen gibt es vorerst nur für dein Profil.
+  if (!istStandard(await profilAusCookies())) {
+    return (
+      <main className="mx-auto max-w-3xl px-6 py-12">
+        <p className="text-sm text-muted">Career Inbox · Unterlagen</p>
+        <p className="mt-4 max-w-lg text-sm leading-relaxed">{NUR_EIGENES_PROFIL}</p>
+        <Link href="/inbox" className="mt-6 inline-block text-sm underline underline-offset-4">
+          Zur Inbox
+        </Link>
+      </main>
+    );
+  }
+
   const db = supabaseAdmin();
   const { quelle } = await loadCv("de");
   const cvQuelle =
