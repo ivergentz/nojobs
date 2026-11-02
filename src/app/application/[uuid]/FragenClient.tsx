@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Fortschritt from "@/components/Fortschritt";
 
 type Frage = { frage: string; antwort: string; limit?: number | null; erstellt?: string };
 
@@ -151,6 +152,7 @@ export default function FragenClient({ uuid, initial }: { uuid: string; initial:
             {busy ? "wird entworfen …" : "Antwort entwerfen"}
           </button>
         </div>
+        <Fortschritt aktiv={busy && neu.trim() !== ""} dauer={15} schritte={[{ ab: 0, text: "Antwort wird entworfen …" }]} />
       </div>
 
       {hinweis && <p className="mt-4 border-l-2 border-rule pl-3 text-sm text-muted">{hinweis}</p>}

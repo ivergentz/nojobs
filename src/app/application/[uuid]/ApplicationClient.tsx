@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Fortschritt from "@/components/Fortschritt";
+import PdfKnopf from "@/components/PdfKnopf";
 
 type Draft = {
   lang: "de" | "en";
@@ -17,6 +19,14 @@ type Draft = {
   cvOverrides: Record<string, unknown>;
   hinweise: string[];
 };
+
+/** Anschreiben + Lebenslauf: Claude liest Ausschreibung und Lebenslauf und schreibt beides. */
+const ENTWURF_SCHRITTE = [
+  { ab: 0, text: "Ausschreibung und Lebenslauf werden gelesen …" },
+  { ab: 8, text: "Anschreiben wird geschrieben …" },
+  { ab: 30, text: "Lebenslauf wird auf die Stelle zugeschnitten …" },
+  { ab: 55, text: "Fast fertig …" },
+];
 
 export default function ApplicationClient({
   uuid,
@@ -110,6 +120,7 @@ export default function ApplicationClient({
             {busy ? "wird erstellt …" : "Entwurf erstellen"}
           </button>
         </div>
+        <Fortschritt aktiv={busy} dauer={45} schritte={ENTWURF_SCHRITTE} />
         {failed && <p className="mt-4 text-sm text-drop">{failed}</p>}
         <p className="mt-6 max-w-lg text-sm leading-relaxed text-muted">
           Der Entwurf ist ein Entwurf. Lies ihn durch und ändere, was nicht nach dir klingt, bevor
@@ -241,22 +252,20 @@ export default function ApplicationClient({
           {dirty ? "Änderungen sichern" : "gesichert"}
         </button>
 
-        <a
+        <PdfKnopf
           href={`/api/application/pdf?uuid=${encodeURIComponent(uuid)}&doc=letter`}
-          className={`rounded border border-keep px-4 py-2 text-sm text-keep ${
-            dirty ? "pointer-events-none opacity-40" : ""
-          }`}
+          gesperrt={dirty}
+          className="rounded border border-keep px-4 py-2 text-sm text-keep"
         >
           Anschreiben als PDF
-        </a>
-        <a
+        </PdfKnopf>
+        <PdfKnopf
           href={`/api/application/pdf?uuid=${encodeURIComponent(uuid)}&doc=cv`}
-          className={`rounded border border-keep px-4 py-2 text-sm text-keep ${
-            dirty ? "pointer-events-none opacity-40" : ""
-          }`}
+          gesperrt={dirty}
+          className="rounded border border-keep px-4 py-2 text-sm text-keep"
         >
           Lebenslauf als PDF
-        </a>
+        </PdfKnopf>
 
         <button
           type="button"
@@ -267,6 +276,8 @@ export default function ApplicationClient({
           neu entwerfen
         </button>
       </div>
+
+      <Fortschritt aktiv={busy && !dirty} dauer={45} schritte={ENTWURF_SCHRITTE} />
 
       {dirty && (
         <p className="text-xs text-drop">
