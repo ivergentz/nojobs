@@ -12,6 +12,8 @@ export type Profil = {
   slug: string;
   name: string;
   rolle: "admin" | "nutzer";
+  email?: string | null;
+  aktiv?: boolean;
   /** null = Standard aus dem Code */
   profiltext: string | null;
   /** null = Standard aus dem Code */
@@ -61,7 +63,7 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
   try {
     const { data, error } = await db
       .from("profiles")
-      .select("slug,name,rolle,profiltext,regeln")
+      .select("slug,name,rolle,profiltext,regeln,email,aktiv")
       .order("created_at", { ascending: true });
     if (error) return { profile: [], fehler: error.message };
     return {
@@ -69,6 +71,8 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
         slug: String(row.slug),
         name: String(row.name ?? row.slug),
         rolle: row.rolle === "admin" ? "admin" : "nutzer",
+        email: typeof row.email === "string" ? row.email : null,
+        aktiv: row.aktiv !== false,
         profiltext: leer(row.profiltext),
         regeln: leer(row.regeln),
         ausDatenbank: true,
@@ -78,4 +82,63 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
   } catch (err) {
     return { profile: [], fehler: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/* ---------- Schritt 2.1: Profile anlegen und verwalten ---------- */
+
+/** Kurzer, eindeutiger Schlüssel aus dem Namen: „Anna Müller“ → „anna-mueller“. */
+export function slugAus(name: string): string {
+  const basis = name
+    .toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 30)
+    .replace(/-+$/g, "");
+  return basis || "profil";
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export type NeuesProfil = { name: string; email?: string | null };
+
+export async function erstelleProfil(
+  db: Db,
+  eingabe: NeuesProfil
+): Promise<{ ok: true; slug: string } | { ok: false; fehler: string }> {
+  const name = (eingabe.name ?? "").trim().slice(0, 80);
+  const email = (eingabe.email ?? "").trim().toLowerCase().slice(0, 160) || null;
+  if (name.length < 2) return { ok: false, fehler: "Bitte einen Namen angeben." };
+  if (email && !EMAIL.test(email)) return { ok: false, fehler: "Die E-Mail-Adresse sieht nicht gültig aus." };
+
+  const basis = slugAus(name);
+  const { data: vorhanden, error: leseFehler } = await db.from("profiles").select("slug,email").limit(1000);
+  if (leseFehler) return { ok: false, fehler: leseFehler.message };
+  const zeilen = (vorhanden ?? []) as Array<{ slug: string; email: string | null }>;
+  if (email && zeilen.some((z) => (z.email ?? "").toLowerCase() === email)) {
+    return { ok: false, fehler: "Für diese E-Mail-Adresse gibt es schon ein Profil." };
+  }
+  const belegt = new Set(zeilen.map((z) => z.slug));
+  let slug = basis;
+  for (let n = 2; belegt.has(slug); n++) slug = `${basis}-${n}`;
+
+  const { error } = await db.from("profiles").insert({ slug, name, email, rolle: "nutzer", aktiv: true });
+  if (error) return { ok: false, fehler: error.message };
+  return { ok: true, slug };
+}
+
+export async function setzeAktiv(
+  db: Db,
+  slug: string,
+  aktiv: boolean
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (slug === STANDARD_SLUG) return { ok: false, fehler: "Dein eigenes Profil lässt sich nicht deaktivieren." };
+  const { error } = await db
+    .from("profiles")
+    .update({ aktiv, updated_at: new Date().toISOString() })
+    .eq("slug", slug)
+    .neq("rolle", "admin");
+  if (error) return { ok: false, fehler: error.message };
+  return { ok: true };
 }

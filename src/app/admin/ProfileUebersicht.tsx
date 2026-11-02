@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile } from "@/lib/profil";
+import { AktivSchalter, NeuesProfilFormular } from "./ProfilVerwaltung";
 
 /**
  * Nur lesend: welche Profile gibt es, und woher kommen Profiltext und Regeln?
@@ -23,18 +24,30 @@ export default async function ProfileUebersicht() {
           bewertet alles wie gewohnt mit deinem Standardprofil.
         </p>
       ) : (
-        <ul className="mt-3 space-y-1">
-          {profile.map((p) => (
-            <li key={p.slug} className="flex flex-wrap justify-between gap-x-6 border-t border-rule/60 py-1.5">
-              <span>
-                {p.name} <span className="text-muted">· {p.rolle === "admin" ? "Admin" : "Nutzer"}</span>
-              </span>
-              <span className="text-muted">
-                Profiltext: {p.profiltext ? "eigener" : "Standard"} · Regeln: {p.regeln ? "eigene" : "Standard"}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-3 space-y-1">
+            {profile.map((p) => (
+              <li key={p.slug} className={`flex flex-wrap justify-between gap-x-6 border-t border-rule/60 py-1.5 ${p.aktiv === false ? "opacity-50" : ""}`}>
+                <span>
+                  {p.name} <span className="text-muted">· {p.rolle === "admin" ? "Admin" : "Nutzer"}</span>
+                  {p.email ? <span className="text-muted"> · {p.email}</span> : null}
+                  {p.aktiv === false ? <span className="text-muted"> · deaktiviert</span> : null}
+                </span>
+                <span className="flex flex-wrap items-center gap-x-4 text-muted">
+                  <span>
+                    Profiltext: {p.profiltext ? "eigener" : "Standard"} · Regeln: {p.regeln ? "eigene" : "Standard"}
+                  </span>
+                  {p.rolle !== "admin" && <AktivSchalter slug={p.slug} aktiv={p.aktiv !== false} />}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <NeuesProfilFormular />
+          <p className="mt-2 text-xs text-muted">
+            Neue Profile sind zunächst nur angelegt: Inbox, Bewertung und Login für sie folgen in den nächsten Schritten.
+            Deine Inbox ändert sich dadurch nicht.
+          </p>
+        </>
       )}
     </section>
   );
