@@ -42,6 +42,7 @@ const ZWECK: Record<string, string> = {
   fragen: "Formularfragen",
   vorbereitung: "Gesprächsvorbereitung",
   recherche: "Websuche zum Unternehmen",
+  lebenslauf: "Lebenslauf auslesen",
   sonstiges: "Sonstiges",
 };
 

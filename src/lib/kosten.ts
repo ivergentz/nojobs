@@ -12,7 +12,7 @@ import { supabaseAdmin } from "./supabase";
  * noch nicht ausgeführt) oder klemmt die Datenbank, wird still übersprungen.
  */
 
-export type Zweck = "bewertung" | "unterlagen" | "fragen" | "vorbereitung" | "recherche";
+export type Zweck = "bewertung" | "unterlagen" | "fragen" | "vorbereitung" | "recherche" | "lebenslauf";
 
 /** Sammelt die Kosten eines Laufs, z. B. für die Zeile im Laufprotokoll. */
 export type Sammler = { usd: number; aufrufe: number };

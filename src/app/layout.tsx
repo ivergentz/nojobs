@@ -53,6 +53,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </Link>
               </li>
             ))}
+            {/* Schritt 2.4: „Mein Profil“ nur für weitere Profile — deine Navigation bleibt unverändert. */}
+            {fremd && (
+              <li className="shrink-0">
+                <Link href="/profil" className="text-muted hover:text-ink">
+                  Mein Profil
+                </Link>
+              </li>
+            )}
             {auswahl.profile.length > 1 && (
               <li className="ml-auto shrink-0">
                 <ProfilWahl profile={auswahl.profile} aktuell={auswahl.aktuell} />

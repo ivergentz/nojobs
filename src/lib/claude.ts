@@ -58,6 +58,8 @@ export async function callClaudeJson<T>(options: {
   timeoutMs: number;
   /** Wofür der Aufruf ist — landet in der Kostentabelle (api_kosten). */
   kosten?: KostenKontext;
+  /** Schritt 2.4: ein PDF, das Claude direkt liest (Lebenslauf). Ohne = Anfrage unverändert. */
+  dokument?: { base64: string; mediaType: "application/pdf" };
 }): Promise<T> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY fehlt in den Umgebungsvariablen.");
@@ -82,7 +84,17 @@ export async function callClaudeJson<T>(options: {
         // Laufs gleich — Prompt-Caching spart dafür Kosten und Zeit.
         system: [{ type: "text", text: options.system, cache_control: { type: "ephemeral" } }],
         output_config: { format: { type: "json_schema", schema: strict(options.schema) } },
-        messages: [{ role: "user", content: options.user }],
+        messages: [
+          {
+            role: "user",
+            content: options.dokument
+              ? [
+                  { type: "document", source: { type: "base64", media_type: options.dokument.mediaType, data: options.dokument.base64 } },
+                  { type: "text", text: options.user },
+                ]
+              : options.user,
+          },
+        ],
       }),
       cache: "no-store",
     });
