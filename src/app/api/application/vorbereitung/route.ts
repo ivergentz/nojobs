@@ -6,7 +6,8 @@ import { vorbereitungFuerStelle, type Vorbereitung } from "@/lib/vorbereitung";
 import VorbereitungDocument from "@/lib/pdf/VorbereitungDocument";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 180;
+// Websuche (bis 75 s) + Briefing (bis 150 s). Vercel Hobby mit Fluid Compute erlaubt bis 300 s.
+export const maxDuration = 300;
 
 /**
  * Gesprächsvorbereitung.

@@ -5,7 +5,8 @@ import { vorbereitungFuerStelle } from "@/lib/vorbereitung";
 export const dynamic = "force-dynamic";
 // Platz für die Gesprächsvorbereitung (Websuche + Briefing), die nach der Antwort im Hintergrund entsteht.
 // Bis 300 s erlaubt Vercel Hobby mit Fluid Compute.
-export const maxDuration = 180;
+// Websuche (bis 75 s) + Briefing (bis 150 s). Vercel Hobby mit Fluid Compute erlaubt bis 300 s.
+export const maxDuration = 300;
 
 const ALLOWED = ["neu", "interessant", "beworben", "interview", "absage", "abgelegt"];
 

@@ -180,8 +180,9 @@ export async function erstelleVorbereitung(input: {
       .filter((zeile) => zeile !== "")
       .join("\n"),
     schema: SCHEMA,
-    maxTokens: 5000,
-    timeoutMs: 55_000,
+    // Deutsches Briefing mit Recherche braucht oft mehr als 5.000 Tokens — vorher brach es dann ab.
+    maxTokens: 12_000,
+    timeoutMs: 150_000,
     kosten: { ...input.kosten, zweck: "vorbereitung" },
   });
 
