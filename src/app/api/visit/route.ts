@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendTelegram } from "@/lib/notify";
 import { geraet, istBot, REF_MUSTER } from "@/lib/tracking";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -61,8 +62,7 @@ export async function POST(request: Request) {
 
   try {
     const db = supabaseAdmin();
-    const { data: job } = await db
-      .from("jobs")
+    const { data: job } = await lesen(db)
       .select("uuid,title,employer_name,app_status,app_status_at")
       .eq("ref", ref)
       .maybeSingle();

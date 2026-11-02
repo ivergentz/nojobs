@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { dauerText, TRACKING_DOMAIN, type Besuch } from "@/lib/tracking";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -54,8 +55,7 @@ export default async function AnalyticsPage() {
   const seit90 = new Date(Date.now() - 90 * 864e5).toISOString();
 
   const [jobsQuery, besucheQuery] = await Promise.all([
-    db
-      .from("jobs")
+    lesen(db)
       .select("uuid,ref,ref_at,title,employer_name,app_status,app_status_at")
       .not("ref", "is", null)
       .order("ref_at", { ascending: false, nullsFirst: false })

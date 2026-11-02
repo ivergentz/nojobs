@@ -8,6 +8,7 @@ import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
 import { usd } from "@/lib/kosten";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -64,8 +65,7 @@ export async function GET(request: Request) {
     }
 
     const offene = (spalten: string) =>
-      db
-        .from("jobs")
+      lesen(db)
         .select(spalten)
         .eq("status", "ACTIVE")
         .in("source", AKTIVE_QUELLEN)
@@ -111,8 +111,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const { data: bewerbungen } = await db
-      .from("jobs")
+    const { data: bewerbungen } = await lesen(db)
       .select("uuid,employer_name,title,app_status,app_status_at")
       .in("app_status", BEWORBEN_STATUS)
       .gte("app_status_at", new Date(Date.now() - WARN_TAGE * 864e5).toISOString())

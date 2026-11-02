@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { vorbereitungFuerStelle } from "@/lib/vorbereitung";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 // Platz für die Gesprächsvorbereitung (Websuche + Briefing), die nach der Antwort im Hintergrund entsteht.
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       const uuid = body.uuid;
       after(async () => {
         try {
-          const { data, error: leseFehler } = await db.from("jobs").select("vorbereitung").eq("uuid", uuid).maybeSingle();
+          const { data, error: leseFehler } = await lesen(db).select("vorbereitung").eq("uuid", uuid).maybeSingle();
           if (leseFehler || data?.vorbereitung) return; // Spalte fehlt oder schon vorhanden
           await vorbereitungFuerStelle(db, uuid, "status");
         } catch {

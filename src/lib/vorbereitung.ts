@@ -1,6 +1,7 @@
 import { callClaudeJson, callClaudeRecherche, DEFAULT_MODEL, type Quelle } from "./claude";
 import type { KostenKontext } from "./kosten";
 import { loadCv } from "./cv-source";
+import { lesen } from "./lesen";
 
 /**
  * Gesprächsvorbereitung für eine Bewerbung — höchstens zwei A4-Seiten.
@@ -213,8 +214,7 @@ export async function erstelleVorbereitung(input: {
 
 /** Lädt die Stelle, erzeugt die Vorbereitung und speichert sie. Für Route und Status-Hook. */
 export async function vorbereitungFuerStelle(db: any, uuid: string, anlass = "knopf"): Promise<Vorbereitung> {
-  const { data: job, error } = await db
-    .from("jobs")
+  const { data: job, error } = await lesen(db)
     .select("uuid,title,employer_name,municipal,county,country,description,application_draft")
     .eq("uuid", uuid)
     .maybeSingle();

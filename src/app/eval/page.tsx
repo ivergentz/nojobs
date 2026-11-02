@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,8 @@ const ORDER = ["must_apply", "worth_reading", "ignore"];
 export default async function EvalPage() {
   const db = supabaseAdmin();
 
-  const lesen = (spalten: string) =>
-    db
-      .from("jobs")
+  const abfrage = (spalten: string) =>
+    lesen(db)
       .select(spalten)
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)
@@ -36,8 +36,8 @@ export default async function EvalPage() {
       .not("evaluated_at", "is", null)
       .limit(500);
   // Mit Suchspur lesen; fehlt die Spalte noch (suchspur.sql), ohne.
-  let { data, error } = await lesen("uuid,title,employer_name,label,eval_fit,eval_summary,eval_spur,labeled_at");
-  if (error) ({ data, error } = await lesen("uuid,title,employer_name,label,eval_fit,eval_summary"));
+  let { data, error } = await abfrage("uuid,title,employer_name,label,eval_fit,eval_summary,eval_spur,labeled_at");
+  if (error) ({ data, error } = await abfrage("uuid,title,employer_name,label,eval_fit,eval_summary"));
 
   const rows = (data ?? []) as unknown as Row[];
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
 
     // Die Formular-Fragen werden separat gepflegt (/api/application/frage) —
     // beim Sichern des Anschreibens nicht überschreiben.
-    const { data: vorher } = await db.from("jobs").select("application_draft").eq("uuid", uuid).maybeSingle();
+    const { data: vorher } = await lesen(db).select("application_draft").eq("uuid", uuid).maybeSingle();
     const fragen = (vorher?.application_draft as any)?.fragen;
     const merged = fragen ? { ...(draft as Record<string, unknown>), fragen } : draft;
 

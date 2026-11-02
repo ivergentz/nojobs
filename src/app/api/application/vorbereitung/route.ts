@@ -4,6 +4,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { supabaseAdmin } from "@/lib/supabase";
 import { vorbereitungFuerStelle, type Vorbereitung } from "@/lib/vorbereitung";
 import VorbereitungDocument from "@/lib/pdf/VorbereitungDocument";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 // Websuche (bis 75 s) + Briefing (bis 150 s). Vercel Hobby mit Fluid Compute erlaubt bis 300 s.
@@ -44,8 +45,7 @@ export async function GET(request: Request) {
   if (!uuid) return NextResponse.json({ error: "uuid fehlt" }, { status: 400 });
 
   try {
-    const { data: job, error } = await supabaseAdmin()
-      .from("jobs")
+    const { data: job, error } = await lesen(supabaseAdmin())
       .select("uuid,title,employer_name,municipal,county,country,vorbereitung")
       .eq("uuid", uuid)
       .maybeSingle();

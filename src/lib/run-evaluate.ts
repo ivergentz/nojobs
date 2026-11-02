@@ -4,6 +4,7 @@ import { AKTIVE_QUELLEN } from "./quellen";
 import { grundText } from "./gruende";
 import type { Sammler } from "./kosten";
 import { ladeProfil } from "./profil";
+import { lesen } from "./lesen";
 
 /**
  * Bewertet offene Stellen in Blöcken, zeitbudgetiert.
@@ -47,8 +48,7 @@ export async function runEvaluation(
   const stats = { evaluated: 0, failed: 0 };
   const errors: string[] = [];
 
-  let query = db
-    .from("jobs")
+  let query = lesen(db)
     .select("uuid,title,employer_name,municipal,county,sector,salary_min_nok,salary_max_nok,salary_note,description")
     .eq("status", "ACTIVE")
     .in("source", AKTIVE_QUELLEN)
@@ -144,8 +144,7 @@ export async function runEvaluation(
     );
   }
 
-  const { count: remaining } = await db
-    .from("jobs")
+  const { count: remaining } = await lesen(db)
     .select("uuid", { count: "exact", head: true })
     .eq("status", "ACTIVE")
     .in("source", AKTIVE_QUELLEN)
@@ -177,16 +176,14 @@ const LABEL_TEXT: Record<string, string> = {
 async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Promise<string> {
   // Mit Begründungen lesen; fehlen die Spalten noch (SQL nicht ausgeführt), ohne.
   const basis = "uuid,title,employer_name,municipal,sector,label,eval_fit,labeled_at";
-  const erster = await db
-    .from("jobs")
+  const erster = await lesen(db)
     .select(`${basis},label_gruende,label_notiz`)
     .not("label", "is", null)
     .order("labeled_at", { ascending: false, nullsFirst: false })
     .limit(600);
   let data: unknown[] | null = erster.data;
   if (erster.error) {
-    ({ data } = await db
-      .from("jobs")
+    ({ data } = await lesen(db)
       .select(basis)
       .not("label", "is", null)
       .order("labeled_at", { ascending: false, nullsFirst: false })
@@ -247,8 +244,7 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
   // Inbox-Entscheidungen als zusätzliche Signale: wo du dich beworben hast, ist
   // ein stärkeres "Ja" als jedes Label; "Ablegen" einer vorgeschlagenen Stelle
   // ist genau der Fehlalarm, den das Modell lernen soll zu vermeiden.
-  const { data: inboxData } = await db
-    .from("jobs")
+  const { data: inboxData } = await lesen(db)
     .select("uuid,title,employer_name,municipal,sector,app_status")
     .in("app_status", ["beworben", "interview", "absage", "abgelegt"])
     .is("label", null)
@@ -264,8 +260,7 @@ async function ladeBeispiele(db: SupabaseClient, ausschliessen: Set<string>): Pr
   const abgelegtZeilen = inbox.filter((row) => row.app_status === "abgelegt").slice(0, 20).map(inboxZeile);
 
   // Absagegründe, die Firmen genannt haben — nur wenn du welche eingetragen hast.
-  const { data: absagen } = await db
-    .from("jobs")
+  const { data: absagen } = await lesen(db)
     .select("title,employer_name,absage_notiz")
     .eq("app_status", "absage")
     .not("absage_notiz", "is", null)

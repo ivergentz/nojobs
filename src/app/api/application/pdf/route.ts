@@ -7,6 +7,7 @@ import { loadCv } from "@/lib/cv-source";
 import CvDocument from "@/lib/pdf/CvDocument";
 import LetterDocument from "@/lib/pdf/LetterDocument";
 import { ensureRef, TRACKING_DOMAIN, trackingLink } from "@/lib/tracking";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -38,8 +39,7 @@ export async function GET(request: Request) {
 
   try {
     const db = supabaseAdmin();
-    const { data: job, error } = await db
-      .from("jobs")
+    const { data: job, error } = await lesen(db)
       .select("uuid,title,employer_name,application_draft")
       .eq("uuid", uuid)
       .maybeSingle();

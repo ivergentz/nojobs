@@ -32,7 +32,8 @@ export async function ladeAbgleich(db: Db, beispiele = 20): Promise<Abgleich> {
         .order("job_uuid", { ascending: true })
         .limit(beispiele),
     ]);
-    const fehler = gesp.error ?? abw.error;
+    const fehler =
+      gesp.error ?? abw.error ?? (gesp.status === 404 ? { message: 'relation "matches" does not exist', code: "42P01" } : null);
     if (fehler) {
       const fehlt = /matches|does not exist|schema cache|42P01|PGRST20/i.test(`${fehler.message} ${fehler.code ?? ""}`);
       return fehlt
@@ -48,5 +49,19 @@ export async function ladeAbgleich(db: Db, beispiele = 20): Promise<Abgleich> {
     };
   } catch (err) {
     return { stand: "fehler", hinweis: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Schritt 1.4: Aus welcher Quelle liest die App gerade, und ist die Lese-Sicht angelegt? */
+export async function pruefeLesequelle(db: Db): Promise<{ quelle: "jobs" | "jobs_sicht"; sichtDa: boolean; hinweis: string | null }> {
+  const { leseQuelle, sichtFehlt } = await import("./lesen");
+  const quelle = leseQuelle();
+  try {
+    // Bewusst keine reine Zählabfrage: die liefert bei fehlender Sicht keinen Fehlertext.
+    const { error, status } = await db.from("jobs_sicht").select("uuid").limit(1);
+    if (!error && status !== 404) return { quelle, sichtDa: true, hinweis: null };
+    return { quelle, sichtDa: false, hinweis: sichtFehlt(error, status) ? null : (error?.message ?? `HTTP ${status}`) };
+  } catch (err) {
+    return { quelle, sichtDa: false, hinweis: err instanceof Error ? err.message : String(err) };
   }
 }

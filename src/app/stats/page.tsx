@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function StatsPage() {
     db.from("v_drop_reasons").select("*").order("drops", { ascending: false }).limit(15),
     db.from("v_drop_samples").select("*").limit(40),
     db.from("v_match_terms").select("*").order("jobs", { ascending: false }).limit(20),
-    db.from("jobs").select("uuid", { count: "exact", head: true }).eq("status", "ACTIVE").in("source", AKTIVE_QUELLEN),
+    lesen(db).select("uuid", { count: "exact", head: true }).eq("status", "ACTIVE").in("source", AKTIVE_QUELLEN),
   ]);
 
   const cursorRow = (cursor.data ?? null) as CursorRow | null;

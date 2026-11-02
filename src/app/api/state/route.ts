@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_MODEL } from "@/lib/evaluate";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
+import { lesen } from "@/lib/lesen";
 
 /** Cursor-IDs der Importer: Arbeitsagentur = "de", die anderen heißen wie ihre Quelle. */
 const AKTIVE_QUELLEN_CURSOR = ["de", "ats", "google", "arbeitnow", "nachtlauf", "morgenlauf"];
@@ -15,7 +16,7 @@ export async function GET() {
 
     const count = async (build: (query: any) => any) => {
       const { count: result } = await build(
-        db.from("jobs").select("uuid", { count: "exact", head: true }).in("source", AKTIVE_QUELLEN)
+        lesen(db).select("uuid", { count: "exact", head: true }).in("source", AKTIVE_QUELLEN)
       );
       return result ?? 0;
     };

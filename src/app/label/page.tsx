@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import LabelClient, { type LabelJob } from "./LabelClient";
 import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +31,7 @@ export default async function LabelPage() {
 
   // Vorher auf die norwegischen Berufskategorien "IT" und "Kontor og økonomi"
   // gefiltert — deutsche Stellen tauchten hier deshalb nie auf.
-  const { data, error } = await db
-    .from("jobs")
+  const { data, error } = await lesen(db)
     .select(
       "uuid,source,title,employer_name,municipal,county,occupation_level1,sector,extent,application_due,application_url,description,published,salary_min_nok,salary_max_nok,salary_note"
     )
@@ -42,8 +42,7 @@ export default async function LabelPage() {
     .order("published", { ascending: false, nullsFirst: false })
     .limit(120);
 
-  const { count: doneCount } = await db
-    .from("jobs")
+  const { count: doneCount } = await lesen(db)
     .select("uuid", { count: "exact", head: true })
     .in("source", AKTIVE_QUELLEN)
     .not("label", "is", null);

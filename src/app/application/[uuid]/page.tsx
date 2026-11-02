@@ -7,6 +7,7 @@ import { dauerText, ensureRef, trackingLink, type Besuch } from "@/lib/tracking"
 import TrackingLink from "./TrackingLink";
 import VorbereitungClient from "./VorbereitungClient";
 import type { Vorbereitung } from "@/lib/vorbereitung";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -23,16 +24,14 @@ export default async function ApplicationPage({
       ? `live von ${CV_BASE.replace(/^https?:\/\//, "")}`
       : "Fallback-Kopie im Repo (ivergentz.de/cv.json nicht erreichbar)";
 
-  const { data: job, error } = await db
-    .from("jobs")
+  const { data: job, error } = await lesen(db)
     .select(
       "uuid,source,title,title_de,employer_name,municipal,county,country,application_url,application_due,application_draft,eval_summary"
     )
     .eq("uuid", uuid)
     .maybeSingle();
 
-  const { data: bewerbungen } = await db
-    .from("jobs")
+  const { data: bewerbungen } = await lesen(db)
     .select("uuid,employer_name,title,app_status,app_status_at")
     .in("app_status", BEWORBEN_STATUS)
     .gte("app_status_at", new Date(Date.now() - WARN_TAGE * 864e5).toISOString())
@@ -40,7 +39,7 @@ export default async function ApplicationPage({
 
   // Gesprächsvorbereitung separat lesen — fehlt die Spalte noch (vorbereitung.sql), bleibt die Seite heil.
   const { data: vorb } = job
-    ? await db.from("jobs").select("vorbereitung").eq("uuid", job.uuid).maybeSingle()
+    ? await lesen(db).select("vorbereitung").eq("uuid", job.uuid).maybeSingle()
     : { data: null };
   const vorbereitung = ((vorb as { vorbereitung?: Vorbereitung | null } | null)?.vorbereitung ?? null) as Vorbereitung | null;
 

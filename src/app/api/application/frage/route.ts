@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { beantworteFrage, type Frage } from "@/lib/fragen";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,8 +28,7 @@ export async function POST(request: Request) {
     if (!body.uuid) return NextResponse.json({ error: "uuid fehlt" }, { status: 400 });
 
     const db = supabaseAdmin();
-    const { data: job, error } = await db
-      .from("jobs")
+    const { data: job, error } = await lesen(db)
       .select("uuid,title,employer_name,description,application_draft")
       .eq("uuid", body.uuid)
       .maybeSingle();

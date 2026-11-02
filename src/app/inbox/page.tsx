@@ -3,6 +3,7 @@ import InboxClient, { type InboxJob } from "./InboxClient";
 import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
 import { findeFruehere } from "@/lib/firma";
 import { besucheJeStelle, type Besuch } from "@/lib/tracking";
+import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +23,7 @@ export default async function InboxPage() {
 
   const laden = (spalten: string) => Promise.all([
     // Reiter "Neu": aktive, positiv bewertete Stellen ohne Bearbeitung
-    db
-      .from("jobs")
+    lesen(db)
       .select(spalten)
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)
@@ -36,14 +36,12 @@ export default async function InboxPage() {
     // Alle anderen Reiter: alles, was du angefasst hast — auch wenn die
     // Anzeige inzwischen offline ist. Eine laufende Bewerbung darf nicht
     // verschwinden, nur weil die Firma die Stelle vom Netz nimmt.
-    db
-      .from("jobs")
+    lesen(db)
       .select(spalten)
       .in("app_status", ["interessant", "beworben", "interview", "absage", "abgelegt"])
       .order("app_status_at", { ascending: false, nullsFirst: false })
       .limit(400),
-    db
-      .from("jobs")
+    lesen(db)
       .select("uuid", { count: "exact", head: true })
       .eq("status", "ACTIVE")
       .in("source", AKTIVE_QUELLEN)

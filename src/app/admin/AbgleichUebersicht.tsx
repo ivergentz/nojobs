@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { ladeAbgleich, type Abgleich } from "@/lib/abgleich";
+import { ladeAbgleich, pruefeLesequelle, type Abgleich } from "@/lib/abgleich";
 import NachziehenKnopf from "./NachziehenKnopf";
 
 const zahl = new Intl.NumberFormat("de-DE");
@@ -10,8 +10,10 @@ const zahl = new Intl.NumberFormat("de-DE");
  */
 export default async function AbgleichUebersicht() {
   let abgleich: Abgleich;
+  let lesen: Awaited<ReturnType<typeof pruefeLesequelle>> = { quelle: "jobs", sichtDa: false, hinweis: null };
   try {
-    abgleich = await ladeAbgleich(supabaseAdmin());
+    const db = supabaseAdmin();
+    [abgleich, lesen] = await Promise.all([ladeAbgleich(db), pruefeLesequelle(db)]);
   } catch (err) {
     abgleich = { stand: "fehler", hinweis: err instanceof Error ? err.message : String(err) };
   }
@@ -64,6 +66,29 @@ export default async function AbgleichUebersicht() {
           <NachziehenKnopf />
         </>
       )}
+
+      <div className="mt-6 border-t border-rule/60 pt-3">
+        <p>
+          <span className="font-semibold">Lesen aus:</span>{" "}
+          {lesen.quelle === "jobs_sicht" ? (
+            lesen.sichtDa ? (
+              <span className="text-keep">matches (über jobs_sicht) ✓</span>
+            ) : (
+              <span className="text-drop">matches gewünscht, aber jobs_sicht fehlt — liest ersatzweise aus jobs</span>
+            )
+          ) : (
+            <span className="text-muted">jobs (Standard)</span>
+          )}
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          {lesen.quelle === "jobs_sicht"
+            ? "Zurück: Variable LESEN_AUS in Vercel löschen und neu deployen."
+            : lesen.sichtDa
+              ? "Bereit zum Umschalten: in Vercel LESEN_AUS=matches setzen und neu deployen. Zurück jederzeit durch Löschen der Variable."
+              : "Zum Umschalten zuerst supabase/lese-sicht.sql ausführen, dann in Vercel LESEN_AUS=matches setzen."}
+          {lesen.hinweis ? ` (${lesen.hinweis})` : ""}
+        </p>
+      </div>
     </section>
   );
 }
