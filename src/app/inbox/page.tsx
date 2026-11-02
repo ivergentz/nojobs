@@ -5,6 +5,7 @@ import { findeFruehere } from "@/lib/firma";
 import { besucheJeStelle, type Besuch } from "@/lib/tracking";
 import { lesen } from "@/lib/lesen";
 import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
+import { ladeProfilVoll } from "@/lib/profil";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +98,8 @@ export default async function InboxPage() {
     url: (row.application_url as string) ?? null,
     salaryMin: (row.salary_min_nok as number) ?? null,
     salaryMax: (row.salary_max_nok as number) ?? null,
-    salaryNote: (row.salary_note as string) ?? null,
+    // Weitere Profile: Platzhalter der Arbeitsagentur nicht als Gehalt zeigen. Deine Ansicht bleibt wie sie ist.
+    salaryNote: !eigenes && row.salary_note === "KEINE_ANGABEN" ? null : ((row.salary_note as string) ?? null),
     status: (row.app_status as string) ?? "neu",
     published: (row.published as string) ?? null,
     quelle:
@@ -114,11 +116,14 @@ export default async function InboxPage() {
   }));
 
   const neu = jobs.filter((job) => job.status === "neu").length;
+  // Kopfzeile: dein Text wie bisher; weitere Profile sehen ihren eigenen Suchort.
+  const fremdesProfil = eigenes ? null : await ladeProfilVoll(db, profil);
+  const kopf = fremdesProfil?.suchort.ort ? `${fremdesProfil.suchort.ort} · ${fremdesProfil.suchort.umkreis} km Umkreis` : eigenes ? "Hamburg & Remote" : "Inbox";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <header className="border-b border-rule pb-8">
-        <p className="text-sm text-muted">Career Inbox · Hamburg & Remote</p>
+        <p className="text-sm text-muted">Career Inbox · {kopf}</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
           {neu === 1 ? "1 neue Stelle" : `${neu} neue Stellen`}
         </h1>

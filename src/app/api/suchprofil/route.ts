@@ -86,6 +86,12 @@ export async function POST(request: Request) {
       if (!ergebnis.ok) return fehler(ergebnis.fehler, 500);
       const bestaetigt_at = new Date().toISOString();
       await speichereEinstellungen(db, profil, { vorschlag: v, bestaetigt_at });
+      // Neues Suchprofil → bisherige Bewertungen dieses Profils gelten als veraltet und werden beim
+      // nächsten Lauf neu bewertet. Labels, Status und Notizen bleiben unangetastet.
+      const id = await profilId(db, profil);
+      if (id) {
+        await db.from("matches").update({ evaluated_at: null }).eq("profile_id", id).not("evaluated_at", "is", null);
+      }
       return NextResponse.json({ ok: true, vorschlag: v, bestaetigt_at });
     }
 

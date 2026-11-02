@@ -118,6 +118,8 @@ export function regelnAus(kriterien: string): string {
 
 ${kriterien.trim()}
 
+GRUNDSATZ: Fehlt eine Angabe in der Anzeige (Träger, Tarif, Befristung, Gehalt, Stunden), ist das kein Grund für eine Abwertung — höchstens als cons nennen. Abwerten nur bei dem, was die Anzeige tatsächlich sagt. Den genauen Wohnort kennst du nicht: keine Annahmen über Stadtteil oder Anfahrt.
+
 spur: immer "keine".
 
 AUSGABE:
@@ -131,11 +133,12 @@ Antworte im vorgegebenen JSON-Format.`;
 /** Kriterien aus gespeicherten Regeln zurückholen (zum Bearbeiten). */
 export function kriterienAus(regeln: string | null): string {
   if (!regeln) return "";
-  const m = regeln.match(/klein und treffsicher sein\.\n\n([\s\S]*?)\n\nspur: immer "keine"\./);
+  const m = regeln.match(/klein und treffsicher sein\.\n\n([\s\S]*?)\n\n(?:GRUNDSATZ: [^\n]*\n\n)?spur: immer "keine"\./);
   if (m) return m[1];
   // Von Hand in der Steuerung eingetragen: festen Kopf und Ausgabe-Teil abschneiden, damit sie nicht doppelt stehen
   return regeln
     .replace(/^BEWERTUNG "fit"[^\n]*\n*/, "")
+    .replace(/\n*GRUNDSATZ: [^\n]*/, "")
     .replace(/\n*spur: immer "keine"\.[\s\S]*$/, "")
     .replace(/\n*AUSGABE:[\s\S]*$/, "")
     .trim();
@@ -161,17 +164,20 @@ Liefere drei Dinge:
 - keine zu allgemeinen Wörter, die tausende fremde Stellen treffen ("Mitarbeiter", "Manager", "Leitung" allein)
 - decke alle gewählten Richtungen ab, verwandte Berufsbezeichnungen und Synonyme eingeschlossen
 
-2. profiltext — so beginnt er: "KANDIDAT: <Name>, wohnt in <Ort>." Danach, kurz und sachlich in der dritten Person:
+2. profiltext — so beginnt er: "KANDIDAT: <Name>, sucht im Umkreis von <Umkreis> km um <Ort aus dem Fragebogen>." Den genauen Wohnort kennst du nicht: keinen Stadtteil und keinen Wohnort aus früheren Arbeitgebern ableiten, keine Annahmen über Anfahrtswege. Danach, kurz und sachlich in der dritten Person:
 - Erfahrung: die wichtigsten Stationen und Abschlüsse in 3–5 Stichpunkten
 - Stärken / Schwerpunkte (nur was belegt ist)
 - SUCHE: gewünschte Richtung(en), Ebene, Ort und Umkreis, vor Ort/hybrid/remote, Reisebereitschaft, Voll-/Teilzeit (mit Stunden, falls genannt), Gehaltsuntergrenze (falls genannt), No-Gos, Englisch, und was anders werden soll als im letzten Job
 Höchstens 250 Wörter.
 
+WIDERSPRÜCHE: Die Freitext-Antwort „Was soll anders werden“ hat Vorrang vor angehakten Richtungen und der gewählten Ebene. Widerspricht eine angehakte Richtung dem Freitext (z. B. Leitungsrichtung angehakt, aber „ohne Leitungsfunktion“ geschrieben), behandle sie als Nebenrichtung: solche Stellen höchstens worth_reading — und Stellen der Hauptrichtung werden NIE abgewertet, weil ihnen etwas aus der Nebenrichtung fehlt (z. B. keine „fehlende Leitungsperspektive“ als Einschränkung). Nenne in den Suchbegriffen keine Begriffe, die nur zur Nebenrichtung passen, wenn der Freitext sie ausschließt.
+
 3. kriterien — die persönlichen Bewertungsregeln. Sie werden zwischen einen festen Kopf und eine feste Ausgabe-Anweisung gesetzt; schreibe NUR diesen Mittelteil, in genau diesem Aufbau:
-must_apply — <wann eine Stelle klar passt: Richtung, Ort, Umfang, kein No-Go verletzt>
-worth_reading — <passt grundsätzlich, aber mit einer Einschränkung: Beispiele aus den Antworten>
+must_apply — <wann eine Stelle klar passt — NUR anhand der Kernkriterien: Hauptrichtung passt, Ort im Umkreis, Umfang passt (oder ist mit dem Wunsch vereinbar), kein No-Go ERKENNBAR verletzt>
+worth_reading — <passt grundsätzlich, aber die Anzeige NENNT eine echte Einschränkung: Beispiele aus den Antworten>
 ignore — <andere Richtung, Ort zu weit, No-Go verletzt, falscher Umfang, Ausbildung/Praktikum/FSJ (sofern nicht gesucht), zu vage>
 Danach optional 2–4 Zeilen "Hinweise:" mit Dingen, die die Bewertung beachten soll (z. B. "Teilzeit unter 30 Stunden ist Pflicht — Vollzeit ohne Teilzeitoption ist ignore", "Gehalt fehlt in der Anzeige: kein Ausschlussgrund, als cons nennen").
+WICHTIG: Was die Anzeige nicht sagt (Träger, Tarif, Befristung, Gehalt, genaue Stunden, Stadtteil), ist NIE eine Bedingung für must_apply und NIE ein Grund für worth_reading — das gehört höchstens als offener Punkt in die cons. Eine Stelle, die die Kernkriterien erfüllt und keine erkennbare Einschränkung hat, ist must_apply.
 Konkret für diese Person, kurz, in der dritten Person ("die Person"). Höchstens 250 Wörter. Kein Wort zu Ausgabeformat, summary, pros oder cons.`;
 
 export async function erstelleVorschlag(

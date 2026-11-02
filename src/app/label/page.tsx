@@ -75,7 +75,7 @@ export default async function LabelPage() {
     description: toPlainText(row.description as string | null),
     salaryMin: (row.salary_min_nok as number) ?? null,
     salaryMax: (row.salary_max_nok as number) ?? null,
-    salaryNote: (row.salary_note as string) ?? null,
+    salaryNote: leseProfil && row.salary_note === "KEINE_ANGABEN" ? null : ((row.salary_note as string) ?? null),
   }));
 
   return (
