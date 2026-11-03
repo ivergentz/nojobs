@@ -18,6 +18,8 @@ export type Profil = {
   suchort?: Suchort;
   /** Phase 3: Telegram verbunden (nur weitere Profile) */
   telegram?: boolean;
+  /** Schritt 2.5: Stand des Fotos (für die Avatar-Adresse), null = kein Foto */
+  fotoVersion?: string | null;
   /** null = Standard aus dem Code */
   profiltext: string | null;
   /** null = Standard aus dem Code */
@@ -80,6 +82,9 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
         suchbegriffe: Array.isArray(row.suchbegriffe) ? (row.suchbegriffe as unknown[]).filter((x): x is string => typeof x === "string") : [],
         suchort: suchortAus(row.einstellungen),
         telegram: Boolean((row.einstellungen as { telegram?: { chat_id?: unknown } } | null)?.telegram?.chat_id),
+        fotoVersion: ((row.einstellungen as { foto?: { pfad?: unknown; aktualisiert?: unknown } } | null)?.foto?.pfad
+          ? String((row.einstellungen as { foto: { aktualisiert?: unknown } }).foto.aktualisiert ?? "1")
+          : null),
         profiltext: leer(row.profiltext),
         regeln: leer(row.regeln),
         ausDatenbank: true,

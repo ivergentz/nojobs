@@ -3,6 +3,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import AppShell, { type NavGruppe, type NavPunkt } from "@/components/ui/AppShell";
 import Icon from "@/components/ui/Icon";
+import Avatar from "@/components/ui/Avatar";
+import { fotoAus, fotoUrl } from "@/lib/foto";
 import ProfilWahl from "./ProfilWahl";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile, STANDARD_SLUG } from "@/lib/profil";
@@ -55,6 +57,17 @@ const GRUPPEN_NUTZER: NavGruppe[] = [
   { punkte: [HILFE], nachrangig: true },
 ];
 
+/** Name und Foto der angemeldeten Person (nur weitere Profile). */
+async function meinProfilKurz(slug: string): Promise<{ name: string; foto: string | null }> {
+  try {
+    const { data } = await supabaseAdmin().from("profiles").select("name,einstellungen").eq("slug", slug).maybeSingle();
+    const foto = fotoAus((data?.einstellungen ?? null) as Record<string, unknown> | null);
+    return { name: String(data?.name ?? slug), foto: fotoUrl(slug, foto) };
+  } catch {
+    return { name: slug, foto: null };
+  }
+}
+
 function Abmelden() {
   return (
     <a href="/api/abmelden" className="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm text-muted transition hover:bg-subtle hover:text-ink">
@@ -65,13 +78,13 @@ function Abmelden() {
 }
 
 /** Schritt 2.2: aktive Profile für die Auswahl oben. Fehler → keine Auswahl, Seite bleibt heil. */
-async function profilAuswahl(): Promise<{ profile: Array<{ slug: string; name: string }>; aktuell: string }> {
+async function profilAuswahl(): Promise<{ profile: Array<{ slug: string; name: string; fotoVersion?: string | null }>; aktuell: string }> {
   try {
     const [{ profile }, aktuell] = await Promise.all([ladeProfile(supabaseAdmin()), profilAusCookies()]);
-    const aktive = profile.filter((p) => p.aktiv !== false).map((p) => ({ slug: p.slug, name: p.name }));
+    const aktive = profile.filter((p) => p.aktiv !== false).map((p) => ({ slug: p.slug, name: p.name, fotoVersion: p.fotoVersion ?? null }));
     // Ist das gewählte Profil inzwischen deaktiviert, trotzdem anzeigen — die Seiten zeigen ja seine Daten.
     const gewaehlt = profile.find((p) => p.slug === aktuell);
-    if (gewaehlt && gewaehlt.aktiv === false) aktive.push({ slug: gewaehlt.slug, name: `${gewaehlt.name} (deaktiviert)` });
+    if (gewaehlt && gewaehlt.aktiv === false) aktive.push({ slug: gewaehlt.slug, name: `${gewaehlt.name} (deaktiviert)`, fotoVersion: gewaehlt.fotoVersion ?? null });
     return { profile: aktive, aktuell: gewaehlt ? aktuell : STANDARD_SLUG };
   } catch {
     return { profile: [], aktuell: STANDARD_SLUG };
@@ -90,8 +103,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (loginAktiv() && !sitzung) return html(children);
 
   if (sitzung?.r === "nutzer") {
+    const ich = await meinProfilKurz(sitzung.s);
     return html(
-      <AppShell gruppen={GRUPPEN_NUTZER} unten={<Abmelden />}>
+      <AppShell
+        gruppen={GRUPPEN_NUTZER}
+        unten={
+          <div className="space-y-1">
+            <a href="/profil" className="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm transition hover:bg-subtle">
+              <Avatar name={ich.name} src={ich.foto} groesse={28} />
+              <span className="min-w-0 truncate font-medium">{ich.name}</span>
+            </a>
+            <Abmelden />
+          </div>
+        }
+      >
         {children}
       </AppShell>
     );

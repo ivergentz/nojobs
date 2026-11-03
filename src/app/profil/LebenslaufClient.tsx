@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import Fortschritt from "@/components/Fortschritt";
 import Icon from "@/components/ui/Icon";
 import SuchprofilClient, { type SuchprofilStand } from "./SuchprofilClient";
@@ -20,7 +21,7 @@ export type CvStand = {
     sprachen?: Array<{ sprache: string; niveau: string }>;
   } | null;
   richtungen: Array<{ titel: string; begruendung: string; suchbegriffe: string[] }> | null;
-  pruefung: Array<{ stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string }> | null;
+  pruefung: Array<{ stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string; erledigt?: boolean }> | null;
 };
 
 const STUFE: Record<string, { text: string; badge: string }> = {
@@ -97,6 +98,11 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
             }}
           />
         </label>
+        {stand?.status === "ausgelesen" && !busy && (
+          <Link href="/profil/lebenslauf" className="btn-ghost ml-2 mt-4">
+            <Icon name="file" size={15} /> Bearbeiten und Foto
+          </Link>
+        )}
         <Fortschritt
           aktiv={busy}
           dauer={40}
@@ -149,16 +155,23 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
           <h2 className="section-title">Was sich am Lebenslauf verbessern lässt</h2>
           <ul className="mt-4 divide-y divide-rule/70">
             {stand.pruefung.map((p, i) => (
-              <li key={i} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+              <li key={i} className={`flex gap-3 py-3 first:pt-0 last:pb-0 ${p.erledigt ? "opacity-55" : ""}`}>
                 <span className={`${STUFE[p.stufe]?.badge ?? "badge-neutral"} h-fit`}>{STUFE[p.stufe]?.text ?? p.stufe}</span>
                 <div className="min-w-0">
-                  <p>{p.punkt}</p>
+                  <p className={p.erledigt ? "line-through decoration-muted/50" : ""}>
+                    {p.punkt}
+                    {p.erledigt && <span className="ml-2 text-xs text-keep no-underline">erledigt</span>}
+                  </p>
                   {p.vorschlag && <p className="mt-0.5 text-muted">→ {p.vorschlag}</p>}
                 </div>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-muted">Den Lebenslauf selbst bearbeiten kommt in einem späteren Schritt.</p>
+          <p className="mt-3 text-sm">
+            <Link href="/profil/lebenslauf" className="link">
+              Punkte abhaken und Lebenslauf bearbeiten →
+            </Link>
+          </p>
         </section>
       )}
 

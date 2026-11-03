@@ -364,7 +364,7 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
           const bewerbung = ["beworben", "interview", "absage"].includes(status);
 
           return (
-            <li key={job.uuid} className={`card overflow-hidden ${hot && status === "neu" ? "border-keep/30" : ""}`}>
+            <li key={job.uuid} className={`card relative focus-within:z-10 has-[[aria-expanded=true]]:z-20 ${hot && status === "neu" ? "border-keep/30" : ""}`}>
               <article className="p-4 sm:p-5">
                 {/* Ebene 1: Empfehlung, Titel, Firma, Gehalt */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -462,7 +462,7 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
               </article>
 
               {/* Ebene 4: Aktionen */}
-              <div className="flex flex-wrap items-center gap-2 border-t border-rule bg-subtle/40 px-4 py-3 sm:px-5">
+              <div className="flex flex-wrap items-center gap-2 rounded-b-lg border-t border-rule bg-subtle/40 px-4 py-3 sm:px-5">
                 {job.url && (
                   // Öffnet nur die Anzeige. Vorher setzte der Klick automatisch
                   // "beworben" — auch wenn man sich die Stelle nur ansehen wollte.
@@ -473,12 +473,12 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
                 )}
                 {mitUnterlagen && (
                   <>
-                    <a href={`/application/${encodeURIComponent(job.uuid)}`} className="btn-secondary">
+                    <a href={`/application/${encodeURIComponent(job.uuid)}?von=${encodeURIComponent(status)}`} className="btn-secondary">
                       <Icon name="file" size={15} />
                       Unterlagen
                     </a>
                     {["beworben", "interview"].includes(status) && (
-                      <a href={`/application/${encodeURIComponent(job.uuid)}#vorbereitung`} className="btn-secondary">
+                      <a href={`/application/${encodeURIComponent(job.uuid)}?von=${encodeURIComponent(status)}#vorbereitung`} className="btn-secondary">
                         <Icon name="interview" size={15} />
                         Vorbereitung
                       </a>
@@ -567,7 +567,7 @@ function StatusMenue({ status, onWahl }: { status: string; onWahl: (key: string)
           role="menu"
           aria-label="Status ändern"
           onKeyDown={pfeile}
-          className="absolute bottom-full right-0 z-20 mb-1 w-52 rounded-lg border border-rule bg-surface p-1 shadow-raised sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1"
+          className="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-rule bg-surface p-1 shadow-raised"
         >
           {STATUS.map((entry) => (
             <button

@@ -7,6 +7,8 @@ import { profilId } from "@/lib/schreiben";
 import LebenslaufClient, { type CvStand } from "./LebenslaufClient";
 import type { SuchprofilStand } from "./SuchprofilClient";
 import TelegramClient from "./TelegramClient";
+import Avatar from "@/components/ui/Avatar";
+import { fotoAus, fotoUrl } from "@/lib/foto";
 import { verbindungAus } from "@/lib/telegram-profil";
 import { kriterienAus } from "@/lib/suchprofil";
 
@@ -67,7 +69,12 @@ export default async function ProfilSeite() {
     <main className="page">
       <PageHeader
         eyebrow="Mein Profil"
-        titel={profil?.name ?? slug}
+        titel={
+          <span className="flex items-center gap-3">
+            <Avatar name={profil?.name ?? slug} src={fotoUrl(slug, fotoAus(einstellungen))} groesse={44} />
+            {profil?.name ?? slug}
+          </span>
+        }
         lead="Hier sagst du nojobs, wer du bist und welche beruflichen Möglichkeiten du suchst: Lebenslauf hochladen, ein paar Fragen beantworten — daraus entsteht dein Suchprofil. Erfunden wird nichts; was fehlt, fragen wir nach."
       />
       {hinweis ? (

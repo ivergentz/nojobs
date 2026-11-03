@@ -5,6 +5,7 @@ import { CV_BASE, loadCv } from "@/lib/cv-source";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { dauerText, ensureRef, trackingLink, type Besuch } from "@/lib/tracking";
 import TrackingLink from "./TrackingLink";
+import BeworbenKnopf from "./BeworbenKnopf";
 import VorbereitungClient from "./VorbereitungClient";
 import type { Vorbereitung } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
@@ -17,10 +18,16 @@ export const dynamic = "force-dynamic";
 
 export default async function ApplicationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ uuid: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { uuid } = await params;
+  // Aus welchem Reiter der Inbox kam man? (für „Beworben“ → zurück dorthin)
+  const vonRoh = (await searchParams).von;
+  const von = typeof vonRoh === "string" && /^[a-z]{2,20}$/.test(vonRoh) ? vonRoh : null;
+  const schonBeworben = von !== null && ["beworben", "interview", "absage"].includes(von);
 
   // Schritt 2.2: Unterlagen gibt es vorerst nur für dein Profil.
   if (!istStandard(await profilAusCookies())) {
@@ -92,7 +99,7 @@ export default async function ApplicationPage({
 
   return (
     <main className="page">
-      <Link href="/inbox" className="link-quiet inline-flex items-center gap-1 text-sm no-underline">
+      <Link href={von === "interessant" ? "/inbox#interessant" : "/inbox"} className="link-quiet inline-flex items-center gap-1 text-sm no-underline">
         <Icon name="chevronRight" size={14} className="rotate-180" /> Meine Jobs
       </Link>
 
@@ -111,10 +118,18 @@ export default async function ApplicationPage({
             </span>
           ) : null}
         </div>
-        {job.application_url && (
-          <a href={job.application_url as string} target="_blank" rel="noopener noreferrer" className="btn-secondary mt-4">
-            Ausschreibung öffnen <Icon name="external" size={14} />
-          </a>
+        <div className="mt-4 flex flex-wrap items-start gap-2">
+          {job.application_url && (
+            <a href={job.application_url as string} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+              Ausschreibung öffnen <Icon name="external" size={14} />
+            </a>
+          )}
+          {!schonBeworben && <BeworbenKnopf uuid={job.uuid as string} von={von} />}
+        </div>
+        {!schonBeworben && (
+          <p className="mt-2 text-xs text-muted">
+            Bewerbung abgeschickt? „Beworben“ legt die Stelle unter Beworben ab und bringt dich zurück zur Liste.
+          </p>
         )}
       </header>
 

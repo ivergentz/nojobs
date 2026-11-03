@@ -2,25 +2,35 @@
 
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
+import Avatar from "@/components/ui/Avatar";
 
 /**
  * Schritt 2.2 · Profil-Auswahl in der Navigation. Speichert die Wahl im Cookie
  * „ci-profil“ (ein Jahr, nur diese Seite). Erscheint erst, wenn es mehr als
  * ein aktives Profil gibt. Verhalten unverändert — nur neu gestaltet.
  */
-export default function ProfilWahl({ profile, aktuell }: { profile: Array<{ slug: string; name: string }>; aktuell: string }) {
+export default function ProfilWahl({
+  profile,
+  aktuell,
+}: {
+  profile: Array<{ slug: string; name: string; fotoVersion?: string | null }>;
+  aktuell: string;
+}) {
   const router = useRouter();
   const waehlen = (slug: string) => {
     document.cookie = `ci-profil=${encodeURIComponent(slug)}; path=/; max-age=31536000; samesite=lax`;
     router.refresh();
   };
-  const name = profile.find((p) => p.slug === aktuell)?.name ?? "";
+  const gewaehlt = profile.find((p) => p.slug === aktuell);
+  const name = gewaehlt?.name ?? "";
+  // Schritt 2.5: Foto des gewählten Profils als Avatar
+  const foto = gewaehlt?.fotoVersion ? `/api/foto?profil=${encodeURIComponent(aktuell)}&v=${encodeURIComponent(gewaehlt.fotoVersion)}` : null;
   return (
     <label className="block rounded px-2.5 py-1.5">
       <span className="text-2xs font-medium uppercase tracking-[0.1em] text-muted/80">Profil</span>
       <span className="relative mt-1 flex items-center">
-        <span aria-hidden className="pointer-events-none absolute left-2.5 grid h-5 w-5 place-items-center rounded-full bg-brand-soft text-2xs font-semibold text-brand-strong">
-          {name.slice(0, 1).toUpperCase()}
+        <span className="pointer-events-none absolute left-2.5">
+          <Avatar name={name} src={foto} groesse={20} />
         </span>
         <select
           value={aktuell}
