@@ -30,17 +30,31 @@ export default async function EvalPage() {
   const profil = await profilAusCookies();
   const leseProfil = istStandard(profil) ? undefined : profil;
 
-  const abfrage = (spalten: string) =>
-    lesen(db, leseProfil)
-      .select(spalten)
-      .eq("status", "ACTIVE")
-      .in("source", AKTIVE_QUELLEN)
-      .not("label", "is", null)
-      .not("evaluated_at", "is", null)
-      .limit(500);
+  // Alle gelabelten Stellen, seitenweise. Vorher: eine Abfrage mit .limit(500) ohne Sortierung —
+  // über matches lieferte die Datenbank dann zuerst die „ignore“-Zeilen (Index nach eval_fit),
+  // und ab 500 gelabelten Stellen fielen alle positiven Bewertungen heraus (überall 0 %).
+  const SEITE = 1000;
+  const MAX = 10_000;
+  const abfrage = async (spalten: string, sortieren: boolean) => {
+    const alle: unknown[] = [];
+    for (let von = 0; von < MAX; von += SEITE) {
+      let q = lesen(db, leseProfil)
+        .select(spalten)
+        .eq("status", "ACTIVE")
+        .in("source", AKTIVE_QUELLEN)
+        .not("label", "is", null)
+        .not("evaluated_at", "is", null);
+      q = sortieren ? q.order("labeled_at", { ascending: false, nullsFirst: false }).order("uuid") : q.order("uuid");
+      const { data, error } = await q.range(von, von + SEITE - 1);
+      if (error) return { data: null, error };
+      alle.push(...(data ?? []));
+      if (!data || data.length < SEITE) break;
+    }
+    return { data: alle, error: null };
+  };
   // Mit Suchspur lesen; fehlt die Spalte noch (suchspur.sql), ohne.
-  let { data, error } = await abfrage("uuid,title,employer_name,label,eval_fit,eval_summary,eval_spur,labeled_at");
-  if (error) ({ data, error } = await abfrage("uuid,title,employer_name,label,eval_fit,eval_summary"));
+  let { data, error } = await abfrage("uuid,title,employer_name,label,eval_fit,eval_summary,eval_spur,labeled_at", true);
+  if (error) ({ data, error } = await abfrage("uuid,title,employer_name,label,eval_fit,eval_summary", false));
 
   const rows = (data ?? []) as unknown as Row[];
 
