@@ -29,8 +29,8 @@ function formatDate(value: string | null) {
 function Bar({ value, max }: { value: number; max: number }) {
   const width = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
   return (
-    <span className="block h-1 bg-rule/60">
-      <span className="block h-1 bg-ink/70" style={{ width: `${width}%` }} />
+    <span className="block h-1.5 overflow-hidden rounded-full bg-subtle">
+      <span className="block h-1.5 rounded-full bg-brand/70" style={{ width: `${width}%` }} />
     </span>
   );
 }
@@ -78,18 +78,18 @@ export default async function StatsPage() {
   const running = cursorRow && !cursorRow.at_end;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <header className="border-b border-rule pb-10">
-        <p className="text-sm text-muted">Career Inbox · Validierungslauf</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+    <main className="page">
+      <header className="mb-2">
+        <p className="eyebrow">Validierungslauf</p>
+        <h1 className="page-title mt-1.5">
           Wie viel bleibt vom Markt in Hamburg und remote übrig?
         </h1>
       </header>
 
       {/* Die eine Zahl, wegen der diese Seite existiert. */}
-      <section className="border-b border-rule py-12">
+      <section className="card-pad mt-5 overflow-x-auto">
         <div className="flex items-baseline gap-4">
-          <span className="tnum text-7xl font-semibold leading-none">
+          <span className="tnum text-5xl font-semibold leading-none tracking-tight text-brand-strong">
             {average === null ? "—" : nf.format(average)}
           </span>
           <span className="max-w-[16rem] text-sm leading-snug text-muted">
@@ -135,8 +135,8 @@ export default async function StatsPage() {
       </section>
 
       {/* Frage 2: taugt das Berufscode-Feld als Filtergrundlage? */}
-      <section className="border-b border-rule py-12">
-        <h2 className="text-lg font-semibold tracking-tight">Berufskategorien</h2>
+      <section className="card-pad mt-5 overflow-x-auto">
+        <h2 className="section-title">Berufskategorien</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
           Hauptberuf laut Jobbörse. {categoryCoverage}&nbsp;% der gespeicherten Anzeigen haben einen.
         </p>
@@ -161,8 +161,8 @@ export default async function StatsPage() {
       </section>
 
       {/* Die Gegenprobe zum Drop-Log: warum ist etwas DURCHgekommen? */}
-      <section className="border-b border-rule py-12">
-        <h2 className="text-lg font-semibold tracking-tight">Welcher Begriff hat durchgelassen?</h2>
+      <section className="card-pad mt-5 overflow-x-auto">
+        <h2 className="section-title">Welcher Begriff hat durchgelassen?</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
           Jede Stelle geht auf einen Suchbegriff aus <code>SUCHBEGRIFFE</code> zurück, mit Präfix
           hamburg: oder remote:. Liefert ein Begriff viel und nichts Brauchbares, gehört er
@@ -187,8 +187,8 @@ export default async function StatsPage() {
       </section>
 
       {/* Der Teil, den man sonst nie sieht. */}
-      <section className="border-b border-rule py-12">
-        <h2 className="text-lg font-semibold tracking-tight">Was der Filter aussortiert hat</h2>
+      <section className="card-pad mt-5 overflow-x-auto">
+        <h2 className="section-title">Was der Filter aussortiert hat</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
           Protokolliert werden Titel-Ausschlüsse (Praktikum, Werkstudent …). Standort-Absagen
           werden nur gezählt, nicht gespeichert. Die Stichprobe unten ist zum Gegenlesen da.
@@ -206,7 +206,7 @@ export default async function StatsPage() {
 
         {sampleRows.length > 0 && (
           <>
-            <h3 className="mt-10 text-sm font-semibold">Stichprobe verworfener Titel</h3>
+            <h3 className="mt-8 text-sm font-semibold">Stichprobe verworfener Titel</h3>
             <ul className="mt-4 space-y-1.5 text-sm">
               {sampleRows.map((row, index) => (
                 <li key={index} className="flex justify-between gap-6 border-t border-rule/60 py-1.5">
@@ -219,8 +219,8 @@ export default async function StatsPage() {
         )}
       </section>
 
-      <section className="py-12 text-sm">
-        <h2 className="text-lg font-semibold tracking-tight">Importlauf</h2>
+      <section className="card-pad mt-5 text-sm">
+        <h2 className="section-title">Importlauf</h2>
         <dl className="mt-6 space-y-2">
           <div className="flex justify-between border-t border-rule/60 py-2">
             <dt className="text-muted">Aktive Stellen gespeichert</dt>

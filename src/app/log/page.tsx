@@ -47,18 +47,18 @@ export default async function LogPage() {
   const haeufung = Array.from(zaehler.entries()).sort((a, b) => b[1] - a[1]);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="border-b border-rule pb-6">
-        <p className="text-sm text-muted">Career Inbox · Quellen-Log</p>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">Ausgefallene Schnittstellen</h1>
-        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
+    <main className="page">
+      <header className="mb-2">
+        <p className="eyebrow">Quellen-Log</p>
+        <h1 className="page-title mt-1.5">Ausgefallene Schnittstellen</h1>
+        <p className="page-lead">
           Fällt eine Quelle aus, laufen die anderen weiter. Hier steht, was gefehlt hat. Taucht
           dieselbe Quelle an mehreren Tagen hintereinander auf, ist sie vermutlich dauerhaft kaputt.
         </p>
       </header>
 
-      <section className="mt-8 text-sm">
-        <h2 className="font-semibold">Letzte Läufe</h2>
+      <section className="card-pad mt-6 text-sm">
+        <h2 className="section-title text-base">Letzte Läufe</h2>
         <ul className="mt-3 space-y-1">
           {[
             ["nachtlauf", "🌙 Nachtlauf (Import)"],
@@ -84,19 +84,19 @@ export default async function LogPage() {
       </section>
 
       {error && (
-        <p className="mt-8 text-sm text-drop">
+        <p className="alert-error mt-6">
           Log nicht lesbar: {error.message}. Wurde das SQL-Skript für die Tabelle quellen_log
           ausgeführt?
         </p>
       )}
 
       {!error && eintraege.length === 0 && (
-        <p className="mt-10 text-sm">Keine Ausfälle protokolliert. Alle Quellen liefern.</p>
+        <p className="alert-success mt-6">Keine Ausfälle protokolliert. Alle Quellen liefern.</p>
       )}
 
       {haeufung.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-sm font-semibold">Letzte 7 Tage</h2>
+        <section className="card-pad mt-5">
+          <h2 className="section-title text-base">Letzte 7 Tage</h2>
           <ul className="mt-4 space-y-1 text-sm">
             {haeufung.map(([key, anzahl]) => (
               <li key={key} className="flex justify-between gap-6 border-t border-rule/60 py-1.5">
@@ -112,8 +112,8 @@ export default async function LogPage() {
       )}
 
       {eintraege.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-sm font-semibold">Einträge</h2>
+        <section className="card-pad mt-5">
+          <h2 className="section-title text-base">Einträge</h2>
           <ul className="mt-4 space-y-3 text-sm">
             {eintraege.map((eintrag) => (
               <li key={eintrag.id} className="border-t border-rule/60 pt-3">

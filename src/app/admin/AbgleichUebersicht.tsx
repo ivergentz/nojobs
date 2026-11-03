@@ -19,7 +19,7 @@ export default async function AbgleichUebersicht() {
   }
 
   return (
-    <section className="mt-12 border-t border-rule pt-8 text-sm">
+    <section className="card-pad mt-5 text-sm">
       <h2 className="font-semibold">Abgleich jobs ↔ matches</h2>
       <p className="mt-1 text-xs text-muted">
         Vorbereitung für mehrere Personen: Deine persönlichen Daten werden in die neue Tabelle matches gespiegelt.

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GRUENDE_ANSCHAUEN, GRUENDE_IGNORE, type Grund } from "@/lib/gruende";
+import Icon, { type IconName } from "@/components/ui/Icon";
+import { EmptyState } from "@/components/ui/Bausteine";
 
 export type LabelJob = {
   uuid: string;
@@ -21,10 +23,10 @@ export type LabelJob = {
 
 type Verdict = "must_apply" | "worth_reading" | "ignore";
 
-const BUTTONS: Array<{ verdict: Verdict; label: string; key: string; tone: string }> = [
-  { verdict: "must_apply", label: "🔥 Bewerben", key: "1", tone: "border-keep text-keep" },
-  { verdict: "worth_reading", label: "👍 Anschauen", key: "2", tone: "border-ink text-ink" },
-  { verdict: "ignore", label: "👎 Ignorieren", key: "3", tone: "border-drop text-drop" },
+const BUTTONS: Array<{ verdict: Verdict; label: string; key: string; tone: string; icon: IconName }> = [
+  { verdict: "must_apply", label: "Bewerben", key: "1", tone: "border-keep/40 bg-keep-soft text-keep hover:border-keep", icon: "flame" },
+  { verdict: "worth_reading", label: "Anschauen", key: "2", tone: "border-rule bg-surface text-ink hover:border-ink/40", icon: "eye" },
+  { verdict: "ignore", label: "Ignorieren", key: "3", tone: "border-drop/30 bg-drop-soft text-drop hover:border-drop", icon: "ban" },
 ];
 
 const PREVIEW_LENGTH = 900;
@@ -190,20 +192,21 @@ export default function LabelClient({
 
   if (jobs.length === 0) {
     return (
-      <p className="mt-12 text-sm leading-relaxed">
-        Nichts mehr offen. {alreadyDone} Stellen sind beurteilt.
-      </p>
+      <div className="mt-8">
+        <EmptyState icon="circleCheck" titel="Nichts mehr offen.">
+          {alreadyDone} Stellen sind beurteilt.
+        </EmptyState>
+      </div>
     );
   }
 
   if (!job) {
     return (
-      <div className="mt-12">
-        <p className="text-lg font-semibold">Durch.</p>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          {alreadyDone + history.length} Urteile liegen jetzt in der Datenbank. Damit lässt sich das
-          Prompt gegen echte Daten prüfen statt gegen eine Vermutung.
-        </p>
+      <div className="mt-8">
+        <EmptyState icon="circleCheck" titel="Durch.">
+          {alreadyDone + history.length} Urteile liegen jetzt in der Datenbank. Damit lässt sich das Prompt gegen echte Daten prüfen statt
+          gegen eine Vermutung.
+        </EmptyState>
       </div>
     );
   }
@@ -213,16 +216,19 @@ export default function LabelClient({
   const salary = formatSalary(job);
 
   return (
-    <div className="mt-8">
-      <div className="flex items-baseline justify-between text-sm text-muted">
-        <span className="tnum">
-          {index + 1} von {jobs.length}
+    <div>
+      <div className="flex items-center justify-between gap-3 text-sm text-muted">
+        <span className="tnum font-medium text-ink">
+          {index + 1} <span className="font-normal text-muted">von {jobs.length}</span>
         </span>
-        <span>{job.category}</span>
+        <span className="badge-neutral">{job.category}</span>
+      </div>
+      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-subtle" aria-hidden>
+        <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${(index / Math.max(jobs.length, 1)) * 100}%` }} />
       </div>
 
-      <article className="mt-6">
-        <h2 className="text-lg font-semibold leading-snug">{job.title}</h2>
+      <article className="card-pad mt-5">
+        <h2 className="text-[1.0625rem] font-semibold leading-snug tracking-tight">{job.title}</h2>
         <p className="mt-1 text-sm text-muted">
           {job.employer} · {job.place}
           {job.homeoffice ? ` · ${job.homeoffice}` : ""}
@@ -232,13 +238,16 @@ export default function LabelClient({
 
         <p className="mt-3 text-sm">
           {salary ? (
-            <span className="text-keep">{salary}</span>
+            <span className="inline-flex items-center gap-1.5 font-medium text-keep">
+              <Icon name="euro" size={14} />
+              {salary}
+            </span>
           ) : (
             <span className="text-muted">Kein Gehalt angegeben</span>
           )}
         </p>
 
-        <p className="mt-6 whitespace-pre-line text-sm leading-relaxed">
+        <p className="mt-5 whitespace-pre-line border-t border-rule pt-5 text-sm leading-relaxed text-ink/90">
           {shown}
           {long && !expanded && "…"}
         </p>
@@ -247,31 +256,27 @@ export default function LabelClient({
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="mt-3 text-sm underline underline-offset-4"
+            className="link mt-3 text-sm"
           >
             Ganze Beschreibung
           </button>
         )}
 
         {job.url && (
-          <p className="mt-6 text-sm">
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-4"
-            >
+          <p className="mt-5">
+            <a href={job.url} target="_blank" rel="noopener noreferrer" className="btn-secondary">
               Anzeige öffnen
+              <Icon name="external" size={14} />
             </a>
           </p>
         )}
       </article>
 
-      <div className="sticky bottom-0 mt-10 border-t border-rule bg-paper py-5">
+      <div className="card sticky bottom-3 z-10 mt-5 p-4 shadow-raised">
         {pending ? (
           <div>
             <p className="text-sm font-semibold">
-              {pending === "ignore" ? "👎 Ignoriert — warum?" : "👍 Anschauen — warum nicht Bewerben?"}
+              {pending === "ignore" ? "Ignoriert — warum?" : "Anschauen — warum nicht Bewerben?"}
               <span className="ml-2 font-normal text-muted">Mehrfachauswahl, optional</span>
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -283,11 +288,11 @@ export default function LabelClient({
                     type="button"
                     onClick={() => toggle(grund.key)}
                     aria-pressed={an}
-                    className={`rounded-full border px-3 py-1.5 text-sm ${
-                      an ? "border-ink bg-ink text-paper" : "border-rule text-ink hover:border-ink"
+                    className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                      an ? "border-brand bg-brand text-white" : "border-rule bg-surface text-ink hover:border-ink/40"
                     }`}
                   >
-                    <span className={`mr-1.5 text-xs ${an ? "text-paper/70" : "text-muted"}`}>{i + 1}</span>
+                    <span className={`mr-1.5 text-xs ${an ? "text-white/70" : "text-muted"}`}>{i + 1}</span>
                     {grund.label}
                   </button>
                 );
@@ -299,57 +304,58 @@ export default function LabelClient({
               onChange={(event) => setNotiz(event.target.value)}
               placeholder="Notiz (optional, Taste n) — z. B. „nur 2 Tage Homeoffice“"
               maxLength={300}
-              className="mt-3 w-full rounded border border-rule bg-paper px-3 py-2 text-sm outline-none focus:border-ink"
+              className="field mt-3"
             />
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => void abschliessen(true)}
-                className="rounded border border-ink px-4 py-2 text-sm"
+                className="btn-primary"
               >
-                Weiter <span className="ml-1 text-xs text-muted">Enter</span>
+                Weiter <span className="text-xs text-white/70">Enter</span>
               </button>
               <button
                 type="button"
                 onClick={() => void abschliessen(false)}
-                className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4"
+                className="btn-ghost"
               >
                 Ohne Grund <span className="text-xs">Esc</span>
               </button>
               <button
                 type="button"
                 onClick={() => void undo()}
-                className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4"
+                className="btn-ghost"
               >
                 Urteil ändern
               </button>
             </div>
           </div>
         ) : (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {BUTTONS.map((button) => (
             <button
               key={button.verdict}
               type="button"
               onClick={() => void decide(button.verdict)}
-              className={`rounded border px-4 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${button.tone}`}
+              className={`btn border ${button.tone}`}
             >
+              <Icon name={button.icon} size={15} />
               {button.label}
-              <span className="ml-2 text-xs text-muted">{button.key}</span>
+              <kbd className="rounded border border-current/20 px-1 text-2xs opacity-60">{button.key}</kbd>
             </button>
           ))}
           <button
             type="button"
             onClick={() => void undo()}
             disabled={history.length === 0}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40 disabled:no-underline"
+            className="btn-ghost ml-auto"
           >
             Zurück
           </button>
         </div>
         )}
 
-        {failed && <p className="mt-3 text-sm text-drop">Fehler: {failed}</p>}
+        {failed && <p className="mt-3 text-sm text-drop" role="alert">Fehler: {failed}</p>}
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ export default function NachziehenKnopf() {
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-3">
-      <button type="button" onClick={() => void los()} disabled={busy} className="rounded border border-ink px-3 py-1.5 disabled:opacity-50">
+      <button type="button" onClick={() => void los()} disabled={busy} className="btn-secondary btn-sm">
         {busy ? "Zieht nach …" : "Abweichungen nachziehen"}
       </button>
       {meldung && <span className="text-muted">{meldung}</span>}

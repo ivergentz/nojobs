@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Fortschritt from "@/components/Fortschritt";
+import Icon from "@/components/ui/Icon";
 import SuchprofilClient, { type SuchprofilStand } from "./SuchprofilClient";
 
 /** Stand des Lebenslaufs, wie er in profile_cv steht. */
@@ -22,11 +23,23 @@ export type CvStand = {
   pruefung: Array<{ stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string }> | null;
 };
 
-const STUFE: Record<string, { text: string; farbe: string }> = {
-  rot: { text: "Wichtig", farbe: "text-drop" },
-  gelb: { text: "Verbessern", farbe: "text-[#9a6b00]" },
-  hinweis: { text: "Hinweis", farbe: "text-muted" },
+const STUFE: Record<string, { text: string; badge: string }> = {
+  rot: { text: "Wichtig", badge: "badge-negative" },
+  gelb: { text: "Verbessern", badge: "badge-warn" },
+  hinweis: { text: "Hinweis", badge: "badge-neutral" },
 };
+
+/** Nummerierter Schritt mit Häkchen, sobald erledigt. */
+export function Schritt({ nr, fertig }: { nr: number; fertig?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${fertig ? "bg-keep-soft text-keep" : "bg-brand-soft text-brand-strong"}`}
+    >
+      {fertig ? <Icon name="check" size={14} /> : nr}
+    </span>
+  );
+}
 
 export default function LebenslaufClient({ initial, suchprofil }: { initial: CvStand | null; suchprofil: SuchprofilStand }) {
   const [stand, setStand] = useState<CvStand | null>(initial);
@@ -58,15 +71,19 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
   const cv = stand?.status === "ausgelesen" ? stand.lebenslauf : null;
 
   return (
-    <div className="mt-8 space-y-10 text-sm">
-      <section>
-        <h2 className="font-semibold">Lebenslauf</h2>
-        <p className="mt-1 text-muted">
+    <div className="space-y-6 text-sm">
+      <section className="card-pad">
+        <div className="flex items-start gap-3">
+          <Schritt nr={1} fertig={stand?.status === "ausgelesen"} />
+          <div className="min-w-0 flex-1">
+        <h2 className="section-title">Lebenslauf</h2>
+        <p className="section-lead">
           {stand?.datei_name
             ? `Hochgeladen: ${stand.datei_name}${stand.status === "fehler" ? " — konnte nicht ausgelesen werden" : ""}`
             : "PDF oder Word (.docx), höchstens 10 MB."}
         </p>
-        <label className={`mt-3 inline-block rounded border border-ink px-4 py-2 ${busy ? "pointer-events-none opacity-40" : "cursor-pointer"}`}>
+        <label className={`mt-4 ${stand ? "btn-secondary" : "btn-primary"} ${busy ? "pointer-events-none opacity-45" : "cursor-pointer"} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/60 has-[:focus-visible]:ring-offset-2`}>
+          <Icon name="upload" size={15} />
           {stand ? "Neuen Lebenslauf hochladen" : "Lebenslauf hochladen"}
           <input
             ref={eingabe}
@@ -91,20 +108,30 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
           ]}
           hinweis="Seite bitte offen lassen — das dauert etwa eine halbe Minute."
         />
-        {fehler && <p className="mt-3 text-drop">{fehler}</p>}
-        {stand?.status === "fehler" && stand.fehler && !fehler && <p className="mt-3 text-drop">{stand.fehler}</p>}
+        {fehler && <p className="alert-error mt-3">{fehler}</p>}
+        {stand?.status === "fehler" && stand.fehler && !fehler && <p className="alert-error mt-3">{stand.fehler}</p>}
+          </div>
+        </div>
       </section>
 
       {stand?.richtungen && stand.richtungen.length > 0 && (
-        <section>
-          <h2 className="font-semibold">Wohin könnte es gehen?</h2>
-          <p className="mt-1 text-muted">Vorschläge aus deinem Lebenslauf. Darunter entscheidest du selbst — auch für eine ganz andere Richtung.</p>
+        <section className="card-pad">
+          <h2 className="section-title">Wohin könnte es gehen?</h2>
+          <p className="section-lead">Vorschläge aus deinem Lebenslauf. Darunter entscheidest du selbst — auch für eine ganz andere Richtung.</p>
           <ul className="mt-4 grid gap-3 sm:grid-cols-3">
             {stand.richtungen.map((r) => (
-              <li key={r.titel} className="rounded border border-rule p-4">
+              <li key={r.titel} className="rounded-lg border border-rule bg-paper/60 p-4">
                 <p className="font-semibold">{r.titel}</p>
                 <p className="mt-1 text-muted">{r.begruendung}</p>
-                {r.suchbegriffe.length > 0 && <p className="mt-2 text-xs text-muted">Sucht nach: {r.suchbegriffe.join(" · ")}</p>}
+                {r.suchbegriffe.length > 0 && (
+                  <p className="mt-3 flex flex-wrap gap-1">
+                    {r.suchbegriffe.map((b) => (
+                      <span key={b} className="badge-neutral font-normal">
+                        {b}
+                      </span>
+                    ))}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -118,14 +145,16 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
       />
 
       {stand?.pruefung && stand.pruefung.length > 0 && (
-        <section>
-          <h2 className="font-semibold">Was sich am Lebenslauf verbessern lässt</h2>
-          <ul className="mt-3 space-y-2">
+        <section className="card-pad">
+          <h2 className="section-title">Was sich am Lebenslauf verbessern lässt</h2>
+          <ul className="mt-4 divide-y divide-rule/70">
             {stand.pruefung.map((p, i) => (
-              <li key={i} className="border-t border-rule/60 pt-2">
-                <span className={`mr-2 text-xs font-semibold uppercase ${STUFE[p.stufe]?.farbe ?? "text-muted"}`}>{STUFE[p.stufe]?.text ?? p.stufe}</span>
-                {p.punkt}
-                {p.vorschlag && <p className="mt-0.5 text-muted">→ {p.vorschlag}</p>}
+              <li key={i} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                <span className={`${STUFE[p.stufe]?.badge ?? "badge-neutral"} h-fit`}>{STUFE[p.stufe]?.text ?? p.stufe}</span>
+                <div className="min-w-0">
+                  <p>{p.punkt}</p>
+                  {p.vorschlag && <p className="mt-0.5 text-muted">→ {p.vorschlag}</p>}
+                </div>
               </li>
             ))}
           </ul>
@@ -134,13 +163,13 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
       )}
 
       {cv && (
-        <section>
-          <h2 className="font-semibold">So haben wir deinen Lebenslauf gelesen</h2>
+        <section className="card-pad">
+          <h2 className="section-title">So haben wir deinen Lebenslauf gelesen</h2>
           {cv.kurzprofil && <p className="mt-2 max-w-xl leading-relaxed">{cv.kurzprofil}</p>}
           {cv.stationen && cv.stationen.length > 0 && (
             <ul className="mt-4 space-y-3">
               {cv.stationen.map((s, i) => (
-                <li key={i} className="border-t border-rule/60 pt-2">
+                <li key={i} className="border-l-2 border-rule pl-3">
                   <p>
                     <span className="font-semibold">{s.titel}</span>
                     {s.arbeitgeber ? ` · ${s.arbeitgeber}` : ""}

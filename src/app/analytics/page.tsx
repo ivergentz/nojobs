@@ -117,34 +117,34 @@ export default async function AnalyticsPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="border-b border-rule pb-6">
-        <p className="text-sm text-muted">Career Inbox · Analytics</p>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">Wer hat deine Bewerbung geöffnet?</h1>
-        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
+    <main className="page">
+      <header className="mb-2">
+        <p className="eyebrow">Bewerbungs-Tracking</p>
+        <h1 className="page-title mt-1.5">Wer hat deine Bewerbung geöffnet?</h1>
+        <p className="page-lead">
           Jede Bewerbung enthält einen eigenen Link ({TRACKING_DOMAIN}/firma). Gezählt wird, wenn jemand
           ihn öffnet. „Nicht geöffnet“ heißt nicht „nicht gelesen“ — wer nur das PDF liest, taucht hier nicht auf.
         </p>
       </header>
 
       {fehler && (
-        <p className="mt-8 text-sm text-drop">
+        <p className="alert-error mt-6">
           Daten nicht lesbar: {fehler.message}. Wurde supabase/besuche.sql im Supabase SQL Editor ausgeführt?
         </p>
       )}
 
-      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
+      <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {kennzahlen.map((k) => (
-          <div key={k.label} className="border-t-2 border-ink pt-2">
-            <dt className="text-xs text-muted">{k.label}</dt>
-            <dd className="tnum mt-1 text-2xl font-semibold tracking-tight">{k.wert}</dd>
+          <div key={k.label} className="metric">
+            <dt className="metric-label">{k.label}</dt>
+            <dd className="metric-value">{k.wert}</dd>
             {k.hinweis && <dd className="mt-0.5 text-xs text-muted">{k.hinweis}</dd>}
           </div>
         ))}
       </dl>
 
-      <section className="mt-12">
-        <h2 className="text-sm font-semibold">Bewerbungen</h2>
+      <section className="card-pad mt-5">
+        <h2 className="section-title">Bewerbungen</h2>
         {zeilen.length === 0 ? (
           <p className="mt-4 text-sm text-muted">
             Noch keine Links vergeben. Ein Link entsteht, sobald du auf der Unterlagen-Seite einen Entwurf
@@ -153,7 +153,7 @@ export default async function AnalyticsPage() {
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="text-xs text-muted">
+              <thead className="text-xs text-muted [&_th]:bg-subtle/60 [&_th]:px-2 first:[&_th]:rounded-l">
                 <tr className="border-b border-rule">
                   <th className="py-2 pr-4 font-normal">Firma · Stelle</th>
                   <th className="py-2 pr-4 font-normal">Status</th>
@@ -203,8 +203,8 @@ export default async function AnalyticsPage() {
         )}
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-sm font-semibold">Letzte Besuche</h2>
+      <section className="card-pad mt-5">
+        <h2 className="section-title">Letzte Besuche</h2>
         {alle.length === 0 ? (
           <p className="mt-4 text-sm text-muted">Noch keine.</p>
         ) : (

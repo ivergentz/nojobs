@@ -16,7 +16,7 @@ export default async function ProfileUebersicht() {
   const { profile, fehler } = ergebnis;
 
   return (
-    <section className="mt-12 border-t border-rule pt-8 text-sm">
+    <section className="card-pad mt-5 text-sm">
       <h2 className="font-semibold">Profile</h2>
       {fehler ? (
         <p className="mt-3 text-muted">

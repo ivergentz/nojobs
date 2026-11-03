@@ -6,6 +6,7 @@ import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
 import { kandidatenFilter, ladeProfilVoll } from "@/lib/profil";
 import { gruendeFuer } from "@/lib/gruende";
 import Link from "next/link";
+import { EmptyState, Hinweis, PageHeader } from "@/components/ui/Bausteine";
 
 export const dynamic = "force-dynamic";
 
@@ -79,32 +80,29 @@ export default async function LabelPage() {
   }));
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
-      <header className="border-b border-rule pb-6">
-        <p className="text-sm text-muted">Career Inbox · Kalibrierung</p>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">
-          Würdest du dich hierauf bewerben?
-        </h1>
-        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
-          Kein KI-Vorschlag, absichtlich. Erst dein Urteil, dann das Prompt — sonst richtet sich
-          deine Messlatte nach dem Modell statt umgekehrt. Zügig entscheiden, Bauchgefühl reicht.
-        </p>
-      </header>
+    <main className="page max-w-2xl">
+      <PageHeader
+        eyebrow="Stellen beurteilen"
+        titel="Würdest du dich hierauf bewerben?"
+        lead="Kein KI-Vorschlag, absichtlich. Erst dein Urteil, dann das Prompt — sonst richtet sich deine Messlatte nach dem Modell statt umgekehrt. Zügig entscheiden, Bauchgefühl reicht."
+      />
 
       {error && (
-        <p className="mt-8 text-sm text-drop">
-          Stellen konnten nicht geladen werden: {error.message}
-        </p>
+        <div className="mb-6">
+          <Hinweis ton="error" titel="Stellen konnten nicht geladen werden">
+            {error.message}
+          </Hinweis>
+        </div>
       )}
 
       {ohneSuchprofil ? (
-        <p className="mt-8 text-sm leading-relaxed">
+        <EmptyState icon="user" titel="Noch kein Suchprofil">
           Für dieses Profil gibt es noch kein Suchprofil — darum auch keine Stellen zum Beurteilen.{" "}
-          <Link href="/profil" className="underline underline-offset-4">
+          <Link href="/profil" className="link">
             Unter „Mein Profil“ den Fragebogen ausfüllen
           </Link>
           .
-        </p>
+        </EmptyState>
       ) : leseProfil ? (
         <LabelClient
           jobs={jobs}

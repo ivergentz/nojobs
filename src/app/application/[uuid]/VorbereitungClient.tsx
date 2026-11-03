@@ -43,22 +43,22 @@ export default function VorbereitungClient({ uuid, initial }: { uuid: string; in
     : null;
 
   return (
-    <section id="vorbereitung" className="mt-12 border-t border-rule pt-8">
-      <h2 className="text-lg font-semibold tracking-tight">Gesprächsvorbereitung</h2>
-      <p className="mt-1 text-sm text-muted">
+    <section id="vorbereitung" className="card-pad mt-6 scroll-mt-20">
+      <h2 className="section-title">Gesprächsvorbereitung</h2>
+      <p className="section-lead">
         {data
           ? `Erstellt ${wann ?? ""}${data.quellen?.length ? " mit Websuche" : ""} · höchstens zwei Seiten: Unternehmen, Rolle, dein Fit, Pitch, Beispiele, Fragen, Gehalt.`
           : "Entsteht automatisch, sobald du die Stelle auf „Beworben“ setzt — oder jetzt per Knopf (1–2 Minuten, inkl. Websuche zum Unternehmen)."}
       </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
         {data && (
-          <PdfKnopf href={`/api/application/vorbereitung?uuid=${encodeURIComponent(uuid)}`} className="rounded border border-ink px-4 py-2">
+          <PdfKnopf href={`/api/application/vorbereitung?uuid=${encodeURIComponent(uuid)}`} className="btn-secondary">
             PDF herunterladen
           </PdfKnopf>
         )}
         {data && (
-          <button type="button" onClick={() => setOffen((v) => !v)} className="text-muted underline underline-offset-4">
+          <button type="button" onClick={() => setOffen((v) => !v)} aria-expanded={offen} className="btn-ghost">
             {offen ? "Einklappen" : "Hier ansehen"}
           </button>
         )}
@@ -66,7 +66,7 @@ export default function VorbereitungClient({ uuid, initial }: { uuid: string; in
           type="button"
           onClick={() => void erzeugen()}
           disabled={busy}
-          className={data ? "text-muted underline underline-offset-4 disabled:opacity-50" : "rounded border border-ink px-4 py-2 disabled:opacity-50"}
+          className={data ? "btn-ghost" : "btn-primary"}
         >
           {busy ? "Recherchiert und schreibt …" : data ? "Neu erzeugen" : "Jetzt erzeugen"}
         </button>
@@ -87,7 +87,7 @@ export default function VorbereitungClient({ uuid, initial }: { uuid: string; in
       {failed && <p className="mt-3 text-sm text-drop">Fehler: {failed}</p>}
 
       {data && offen && (
-        <div className="mt-6 space-y-6 text-sm leading-relaxed">
+        <div className="mt-6 grid gap-4 text-sm leading-relaxed">
           <Block titel="Unternehmen">
             <p>{data.unternehmen.kurz}</p>
             <Liste punkte={data.unternehmen.fakten} />
@@ -117,12 +117,12 @@ export default function VorbereitungClient({ uuid, initial }: { uuid: string; in
             <ul className="space-y-1">
               {data.fit.staerken.map((st, i) => (
                 <li key={i}>
-                  <span className="font-semibold text-keep">+ {st.punkt}</span> — {st.beleg}
+                  <span className="font-semibold text-keep">+ {st.punkt}</span> <span className="text-ink/80">— {st.beleg}</span>
                 </li>
               ))}
               {data.fit.luecken.map((l, i) => (
                 <li key={`l${i}`}>
-                  <span className="font-semibold text-drop">− {l.punkt}</span> — {l.antwort}
+                  <span className="font-semibold text-drop">− {l.punkt}</span> <span className="text-ink/80">— {l.antwort}</span>
                 </li>
               ))}
             </ul>
@@ -165,9 +165,9 @@ export default function VorbereitungClient({ uuid, initial }: { uuid: string; in
 
 function Block({ titel, children }: { titel: string; children: React.ReactNode }) {
   return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-drop">{titel}</h3>
-      <div className="mt-1.5">{children}</div>
+    <div className="rounded-lg border border-rule bg-paper/60 p-4">
+      <h3 className="eyebrow text-brand">{titel}</h3>
+      <div className="mt-2 text-ink/90">{children}</div>
     </div>
   );
 }

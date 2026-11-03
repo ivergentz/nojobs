@@ -79,33 +79,33 @@ export default function FragenClient({ uuid, initial }: { uuid: string; initial:
   };
 
   return (
-    <section className="mt-14 border-t border-rule pt-8">
-      <h2 className="text-lg font-semibold tracking-tight">Fragen im Bewerbungsformular</h2>
-      <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">
+    <section className="card-pad mt-10">
+      <h2 className="section-title">Fragen im Bewerbungsformular</h2>
+      <p className="section-lead max-w-lg">
         Frage aus dem Formular einfügen, gern mit dem Hinweistext darunter (z. B. „1–2 sentences
         are enough“). Die Antwort passt zur Ausschreibung, zu deinem Lebenslauf und zum Anschreiben.
       </p>
 
       {fragen.length > 0 && (
-        <ul className="mt-6 space-y-6">
+        <ul className="mt-6 space-y-5">
           {fragen.map((f, index) => (
-            <li key={index}>
+            <li key={index} className="border-t border-rule pt-5 first:border-t-0 first:pt-0">
               <p className="whitespace-pre-line text-sm font-medium">{f.frage}</p>
               <textarea
                 value={f.antwort}
                 onChange={(event) => andern(index, event.target.value)}
                 rows={Math.max(3, Math.ceil(f.antwort.length / 90))}
-                className="mt-2 w-full rounded border border-rule bg-transparent px-3 py-2 text-sm leading-relaxed"
+                className="field text-[0.9375rem] leading-relaxed"
               />
-              <div className="mt-1 flex flex-wrap items-center gap-4 text-xs text-muted">
-                <span className={f.limit && f.antwort.length > f.limit ? "text-drop" : ""}>
+              <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted">
+                <span className={`tnum ${f.limit && f.antwort.length > f.limit ? "font-medium text-drop" : ""}`}>
                   {f.antwort.length}
                   {f.limit ? ` / ${f.limit}` : ""} Zeichen
                 </span>
-                <button type="button" onClick={() => void kopieren(index)} className="underline underline-offset-4">
+                <button type="button" onClick={() => void kopieren(index)} className="btn-ghost btn-sm">
                   {kopiert === index ? "kopiert ✓" : "kopieren"}
                 </button>
-                <button type="button" onClick={() => loeschen(index)} className="underline underline-offset-4">
+                <button type="button" onClick={() => loeschen(index)} className="btn-ghost btn-sm hover:text-drop">
                   löschen
                 </button>
               </div>
@@ -119,21 +119,21 @@ export default function FragenClient({ uuid, initial }: { uuid: string; initial:
           type="button"
           onClick={() => void call({ aktion: "speichern", fragen })}
           disabled={busy}
-          className="mt-4 rounded border border-ink px-4 py-2 text-sm disabled:opacity-40"
+          className="btn-primary mt-4"
         >
           Änderungen sichern
         </button>
       )}
 
-      <div className="mt-8">
+      <div className="mt-6 rounded-lg border border-dashed border-rule bg-subtle/40 p-4">
         <label className="block">
-          <span className="text-sm text-muted">Neue Frage</span>
+          <span className="field-label">Neue Frage</span>
           <textarea
             value={neu}
             onChange={(event) => setNeu(event.target.value)}
             rows={4}
             placeholder="What motivates you to apply, and why does this role feel like a great fit from your perspective?"
-            className="mt-2 w-full rounded border border-rule bg-transparent px-3 py-2 text-sm"
+            className="field"
           />
         </label>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -141,13 +141,14 @@ export default function FragenClient({ uuid, initial }: { uuid: string; initial:
             value={limit}
             onChange={(event) => setLimit(event.target.value.replace(/\D/g, ""))}
             placeholder="Zeichenlimit (optional)"
-            className="w-48 rounded border border-rule bg-transparent px-3 py-2 text-sm"
+            aria-label="Zeichenlimit (optional)"
+            className="field mt-0 w-48"
           />
           <button
             type="button"
             onClick={() => void entwerfen()}
             disabled={busy || !neu.trim()}
-            className="rounded border border-keep px-4 py-2 text-sm text-keep disabled:opacity-40"
+            className="btn-primary"
           >
             {busy ? "wird entworfen …" : "Antwort entwerfen"}
           </button>
@@ -155,7 +156,7 @@ export default function FragenClient({ uuid, initial }: { uuid: string; initial:
         <Fortschritt aktiv={busy && neu.trim() !== ""} dauer={15} schritte={[{ ab: 0, text: "Antwort wird entworfen …" }]} />
       </div>
 
-      {hinweis && <p className="mt-4 border-l-2 border-rule pl-3 text-sm text-muted">{hinweis}</p>}
+      {hinweis && <p className="alert-info mt-4">{hinweis}</p>}
       {failed && <p className="mt-4 text-sm text-drop">{failed}</p>}
     </section>
   );

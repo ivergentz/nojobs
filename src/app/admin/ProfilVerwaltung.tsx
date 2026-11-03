@@ -54,20 +54,20 @@ export function NeuesProfilFormular() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Name"
-          className="w-44 rounded border border-rule bg-transparent px-3 py-2"
+          className="field mt-0 w-44"
         />
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="E-Mail (für den Login später)"
           type="email"
-          className="w-64 rounded border border-rule bg-transparent px-3 py-2"
+          className="field mt-0 w-64"
         />
         <button
           type="button"
           onClick={() => void anlegen()}
           disabled={busy || name.trim().length < 2}
-          className="rounded border border-ink px-4 py-2 disabled:opacity-40"
+          className="btn-secondary"
         >
           {busy ? "Legt an …" : "Profil anlegen"}
         </button>
@@ -95,7 +95,7 @@ export function AktivSchalter({ slug, aktiv }: { slug: string; aktiv: boolean })
   };
   return (
     <span className="inline-flex items-center gap-2">
-      <button type="button" onClick={() => void umschalten()} disabled={busy} className="text-xs text-muted underline underline-offset-4 disabled:opacity-40">
+      <button type="button" onClick={() => void umschalten()} disabled={busy} className="link-quiet text-xs disabled:opacity-40">
         {aktiv ? "deaktivieren" : "aktivieren"}
       </button>
       {fehler && <span className="text-xs text-drop">{fehler}</span>}
@@ -132,7 +132,7 @@ export function EinladenKnopf({ slug, email, aktiv }: { slug: string; email: str
   };
   if (!offen) {
     return (
-      <button type="button" onClick={() => setOffen(true)} className="text-xs text-muted underline underline-offset-4">
+      <button type="button" onClick={() => setOffen(true)} className="link-quiet text-xs">
         einladen
       </button>
     );
@@ -144,9 +144,9 @@ export function EinladenKnopf({ slug, email, aktiv }: { slug: string; email: str
         value={adresse}
         onChange={(e) => setAdresse(e.target.value)}
         placeholder="E-Mail-Adresse"
-        className="w-56 rounded border border-rule bg-transparent px-2 py-1 text-xs"
+        className="field mt-0 w-56 py-1 text-xs"
       />
-      <button type="button" onClick={() => void einladen()} disabled={busy || !adresse} className="rounded border border-keep px-2 py-1 text-xs text-keep disabled:opacity-40">
+      <button type="button" onClick={() => void einladen()} disabled={busy || !adresse} className="btn-primary btn-sm">
         {busy ? "Sendet …" : "Einladung senden"}
       </button>
       {meldung && <span className={`text-xs ${meldung.fehler ? "text-drop" : "text-keep"}`}>{meldung.text}</span>}
@@ -244,31 +244,31 @@ export function SuchprofilBearbeiten({
 
   if (!offen) {
     return (
-      <button type="button" onClick={() => setOffen(true)} className="text-xs text-muted underline underline-offset-4">
+      <button type="button" onClick={() => setOffen(true)} className="link-quiet text-xs">
         Suchprofil
       </button>
     );
   }
 
   return (
-    <div className="mt-3 w-full space-y-3 rounded border border-rule p-4">
+    <div className="card-quiet mt-3 w-full space-y-3">
       <label className="block">
         <span className="text-xs text-muted">Suchbegriffe (durch Komma getrennt) — damit sucht der Nachtlauf bei der Arbeitsagentur; bewertet werden nur passende Stellen</span>
         <input
           value={begriffe}
           onChange={(e) => setBegriffe(e.target.value)}
           placeholder="z. B. Erzieherin, Kita, Pädagogische Fachkraft"
-          className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2"
+          className="field"
         />
       </label>
       <div className="flex flex-wrap gap-3">
         <label className="block">
           <span className="text-xs text-muted">Ort oder PLZ</span>
-          <input value={suchOrt} onChange={(e) => setSuchOrt(e.target.value)} placeholder="z. B. Hamburg oder 20357" className="mt-1 block w-56 rounded border border-rule bg-transparent px-3 py-2" />
+          <input value={suchOrt} onChange={(e) => setSuchOrt(e.target.value)} placeholder="z. B. Hamburg oder 20357" className="field w-56" />
         </label>
         <label className="block">
           <span className="text-xs text-muted">Umkreis</span>
-          <select value={km} onChange={(e) => setKm(Number(e.target.value))} className="mt-1 block rounded border border-rule bg-transparent px-3 py-2">
+          <select value={km} onChange={(e) => setKm(Number(e.target.value))} className="field w-auto">
             {[10, 25, 50, 100, 200].map((k) => (
               <option key={k} value={k}>
                 {k} km
@@ -279,20 +279,20 @@ export function SuchprofilBearbeiten({
       </div>
       <label className="block">
         <span className="text-xs text-muted">Profiltext — wer sucht was, wo, ab welchem Gehalt, No-Gos</span>
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2" />
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} className="field" />
       </label>
       <label className="block">
         <span className="text-xs text-muted">Eigene Bewertungsregeln (optional — leer = allgemeine Regeln)</span>
-        <textarea value={eigeneRegeln} onChange={(e) => setEigeneRegeln(e.target.value)} rows={4} className="mt-1 w-full rounded border border-rule bg-transparent px-3 py-2" />
+        <textarea value={eigeneRegeln} onChange={(e) => setEigeneRegeln(e.target.value)} rows={4} className="field" />
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => void speichern()} disabled={busy !== ""} className="rounded border border-ink px-4 py-2 disabled:opacity-40">
+        <button type="button" onClick={() => void speichern()} disabled={busy !== ""} className="btn-secondary">
           {busy === "speichern" ? "Speichert …" : "Speichern"}
         </button>
-        <button type="button" onClick={() => void bewerten()} disabled={busy !== ""} className="rounded border border-keep px-4 py-2 text-keep disabled:opacity-40">
+        <button type="button" onClick={() => void bewerten()} disabled={busy !== ""} className="btn-primary">
           {busy === "bewerten" ? "Sucht und bewertet …" : "Stellen suchen und bewerten (14 Tage)"}
         </button>
-        <button type="button" onClick={() => setOffen(false)} className="text-xs text-muted underline underline-offset-4">
+        <button type="button" onClick={() => setOffen(false)} className="link-quiet text-xs">
           schließen
         </button>
       </div>

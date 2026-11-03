@@ -32,9 +32,9 @@ export default function LoginForm({ weiter }: { weiter: string }) {
     }
   };
 
-  const feld = "mt-1 w-full rounded border border-rule bg-transparent px-3 py-2";
+  const feld = "field";
   return (
-    <div className="mt-8 text-sm">
+    <div className="mt-6 text-sm">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -42,18 +42,22 @@ export default function LoginForm({ weiter }: { weiter: string }) {
         }}
       >
         <label className="block">
-          <span className="font-semibold">E-Mail-Adresse</span>
+          <span className="field-label">E-Mail-Adresse</span>
           <input type="email" required autoComplete="email" className={feld} value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
-        <button type="submit" disabled={busy} className="mt-4 w-full rounded bg-ink px-4 py-2 text-paper disabled:opacity-40">
+        <button type="submit" disabled={busy} className="btn-primary mt-4 w-full py-2.5">
           {busy && !notzugang ? "Wird gesendet …" : "Anmelde-Link senden"}
         </button>
       </form>
-      {antwort && <p className={`mt-4 leading-relaxed ${antwort.fehler ? "text-drop" : ""}`}>{antwort.text}</p>}
+      {antwort && (
+        <p className={`mt-4 ${antwort.fehler ? "alert-error" : "alert-success"}`} role={antwort.fehler ? "alert" : "status"}>
+          {antwort.text}
+        </p>
+      )}
 
-      <div className="mt-12 border-t border-rule pt-4">
+      <div className="mt-8 border-t border-rule pt-4">
         {!notzugang ? (
-          <button type="button" onClick={() => setNotzugang(true)} className="text-xs text-muted underline underline-offset-4">
+          <button type="button" onClick={() => setNotzugang(true)} className="link-quiet text-xs">
             Notzugang für den Admin
           </button>
         ) : (
@@ -64,10 +68,10 @@ export default function LoginForm({ weiter }: { weiter: string }) {
             }}
           >
             <label className="block">
-              <span className="text-xs text-muted">Schlüssel aus der Steuerung (IMPORT_SECRET)</span>
+              <span className="field-hint mt-0">Schlüssel aus der Steuerung (IMPORT_SECRET)</span>
               <input type="password" autoComplete="current-password" className={feld} value={schluessel} onChange={(e) => setSchluessel(e.target.value)} />
             </label>
-            <button type="submit" disabled={busy || !schluessel} className="mt-2 rounded border border-ink px-4 py-2 disabled:opacity-40">
+            <button type="submit" disabled={busy || !schluessel} className="btn-secondary mt-2">
               Mit Schlüssel anmelden
             </button>
           </form>

@@ -17,7 +17,7 @@ export default async function AufbewahrungUebersicht() {
   const an = loeschenAn();
 
   return (
-    <section className="mt-12 border-t border-rule pt-8 text-sm">
+    <section className="card-pad mt-5 text-sm">
       <h2 className="font-semibold">Aufbewahrung</h2>
       <p className="mt-1 text-xs text-muted">
         Für immer behalten: jede Stelle, die du angefasst hast (Label, Status, Notiz, Entwurf, Vorbereitung, Tracking).

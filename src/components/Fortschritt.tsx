@@ -74,13 +74,13 @@ export default function Fortschritt({
         </span>
       </div>
       <div
-        className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-rule"
+        className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-subtle"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(anteil * 100)}
       >
-        <div className="h-full rounded-full bg-keep transition-[width] duration-300 ease-out" style={{ width: `${anteil * 100}%` }} />
+        <div className="h-full rounded-full bg-brand transition-[width] duration-300 ease-out" style={{ width: `${anteil * 100}%` }} />
       </div>
       <p className="mt-1.5 text-xs text-muted">
         {lang ? "Dauert länger als üblich — läuft aber noch. " : ""}

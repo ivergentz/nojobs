@@ -75,8 +75,8 @@ export default async function EvalPage() {
 
   // Präzision je Suchspur (KI vs. Career Upgrade).
   const spuren = [
-    { key: "ki", name: "🤖 KI & Automation" },
-    { key: "upgrade", name: "⬆️ Career Upgrade" },
+    { key: "ki", name: "KI & Automation" },
+    { key: "upgrade", name: "Career Upgrade" },
   ].map((sp) => {
     const vorschlaege = rows.filter((row) => row.eval_spur === sp.key && positiv(row.eval_fit));
     return { ...sp, gezeigt: vorschlaege.length, gewollt: vorschlaege.filter((row) => positiv(row.label)).length };
@@ -101,33 +101,33 @@ export default async function EvalPage() {
   );
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <header className="border-b border-rule pb-10">
-        <p className="text-sm text-muted">Career Inbox · Kalibrierung</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+    <main className="page">
+      <header className="mb-2">
+        <p className="eyebrow">Kalibrierung</p>
+        <h1 className="page-title mt-1.5">
           Urteilt das Modell wie du?
         </h1>
       </header>
 
-      {error && <p className="mt-8 text-sm text-drop">Fehler: {error.message}</p>}
+      {error && <p className="alert-error mt-6">Fehler: {error.message}</p>}
 
-      <section className="border-b border-rule py-12">
+      <section className="card-pad mt-5 overflow-x-auto">
         <div className="grid gap-8 sm:grid-cols-3">
           <div>
-            <p className="tnum text-5xl font-semibold leading-none">{trefferquote}%</p>
+            <p className="tnum text-4xl font-semibold leading-none tracking-tight text-brand-strong">{trefferquote}%</p>
             <p className="mt-2 text-sm leading-snug text-muted">
               Trefferquote: von {willSehen.length} Stellen, die du sehen willst, zeigt das Modell{" "}
               {beides.length}
             </p>
           </div>
           <div>
-            <p className="tnum text-5xl font-semibold leading-none">{praezision}%</p>
+            <p className="tnum text-4xl font-semibold leading-none tracking-tight text-brand-strong">{praezision}%</p>
             <p className="mt-2 text-sm leading-snug text-muted">
               Präzision: von {gezeigt.length} Stellen in der Inbox willst du {beides.length} sehen
             </p>
           </div>
           <div>
-            <p className="tnum text-5xl font-semibold leading-none">{bewerbenPraezision}%</p>
+            <p className="tnum text-4xl font-semibold leading-none tracking-tight text-brand-strong">{bewerbenPraezision}%</p>
             <p className="mt-2 text-sm leading-snug text-muted">
               der {modellBewerben.length} „Bewerben“-Empfehlungen hättest du auch so bewertet
             </p>
@@ -146,8 +146,8 @@ export default async function EvalPage() {
       </section>
 
       {spuren.some((sp) => sp.gezeigt > 0) && (
-        <section className="border-b border-rule py-12">
-          <h2 className="text-lg font-semibold tracking-tight">Nach Suchspur</h2>
+        <section className="card-pad mt-5 overflow-x-auto">
+          <h2 className="section-title">Nach Suchspur</h2>
           <table className="mt-6 w-full text-sm">
             <thead>
               <tr className="border-b border-rule text-left text-muted">
@@ -178,8 +178,8 @@ export default async function EvalPage() {
         </section>
       )}
 
-      <section className="border-b border-rule py-12">
-        <h2 className="text-lg font-semibold tracking-tight">Wo es auseinandergeht</h2>
+      <section className="card-pad mt-5 overflow-x-auto">
+        <h2 className="section-title">Wo es auseinandergeht</h2>
         <table className="mt-8 w-full text-sm">
           <thead>
             <tr className="border-b border-rule text-left text-muted">
@@ -222,8 +222,8 @@ export default async function EvalPage() {
       </section>
 
       {missed.length > 0 && (
-        <section className="border-b border-rule py-12">
-          <h2 className="text-lg font-semibold tracking-tight text-drop">Übersehene Treffer</h2>
+        <section className="card-pad mt-5 overflow-x-auto">
+          <h2 className="section-title text-drop">Übersehene Treffer</h2>
           <ul className="mt-6 space-y-5">
             {missed.map((row) => (
               <li key={row.uuid} className="border-t border-rule/60 pt-4">
@@ -240,8 +240,8 @@ export default async function EvalPage() {
         </section>
       )}
 
-      <section className="py-12 text-sm">
-        <h2 className="text-lg font-semibold tracking-tight">Fehlalarme</h2>
+      <section className="card-pad mt-5 text-sm">
+        <h2 className="section-title">Fehlalarme</h2>
         <p className="mt-2 leading-relaxed text-muted">
           {noisy.length} Stellen stuft das Modell höher ein als du. Solange die Zahl klein bleibt,
           ist das der günstigere Fehler.
