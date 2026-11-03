@@ -16,6 +16,8 @@ export type Profil = {
   aktiv?: boolean;
   suchbegriffe?: string[];
   suchort?: Suchort;
+  /** Phase 3: Telegram verbunden (nur weitere Profile) */
+  telegram?: boolean;
   /** null = Standard aus dem Code */
   profiltext: string | null;
   /** null = Standard aus dem Code */
@@ -77,6 +79,7 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
         aktiv: row.aktiv !== false,
         suchbegriffe: Array.isArray(row.suchbegriffe) ? (row.suchbegriffe as unknown[]).filter((x): x is string => typeof x === "string") : [],
         suchort: suchortAus(row.einstellungen),
+        telegram: Boolean((row.einstellungen as { telegram?: { chat_id?: unknown } } | null)?.telegram?.chat_id),
         profiltext: leer(row.profiltext),
         regeln: leer(row.regeln),
         ausDatenbank: true,

@@ -8,7 +8,8 @@ import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
 import { usd } from "@/lib/kosten";
-import { ladeProfile } from "@/lib/profil";
+import { ladeEinstellungen, ladeProfile } from "@/lib/profil";
+import { morgennachrichtFuer, verbindungAus } from "@/lib/telegram-profil";
 import { lesen } from "@/lib/lesen";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
       }
 
       // Schritt 2.2: weitere Profile bewerten — erst NACH der Antwort, damit deine
-      // Nachricht und dein Lauf davon nie aufgehalten werden. Telegram für sie folgt in Phase 3.
+      // Nachricht und dein Lauf davon nie aufgehalten werden. Phase 3: danach ihre eigene Telegram-Nachricht.
       if (!url.searchParams.get("dry")) {
         after(async () => {
           const start = Date.now();
@@ -82,6 +83,17 @@ export async function GET(request: Request) {
                 }
               } catch (err) {
                 await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: `Morgenlauf · ${p.name}`, meldung: err instanceof Error ? err.message : String(err) }]);
+              }
+              // Phase 3: eigene Morgennachricht, wenn die Person Telegram verbunden hat.
+              try {
+                const t = verbindungAus(await ladeEinstellungen(db, p.slug));
+                if (t) {
+                  const basis = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;
+                  // Bewusst kein Eintrag im Laufprotokoll: dort steht dein Morgenlauf und soll es bleiben.
+                  await morgennachrichtFuer(db, p, t.chat_id, `${basis}/inbox`);
+                }
+              } catch (err) {
+                await logFehler(db, [{ quelle: "Telegram", detail: `Morgenlauf · ${p.name}`, meldung: err instanceof Error ? err.message : String(err) }]);
               }
             }
           } catch {

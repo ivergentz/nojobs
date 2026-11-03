@@ -32,6 +32,7 @@ export default async function ProfileUebersicht() {
                   {p.name} <span className="text-muted">· {p.rolle === "admin" ? "Admin" : "Nutzer"}</span>
                   {p.email ? <span className="text-muted"> · {p.email}</span> : null}
                   {p.aktiv === false ? <span className="text-muted"> · deaktiviert</span> : null}
+                  {p.rolle !== "admin" && p.telegram ? <span className="text-keep"> · Telegram ✓</span> : null}
                 </span>
                 <span className="flex flex-wrap items-center gap-x-4 text-muted">
                   <span>

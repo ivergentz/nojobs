@@ -6,6 +6,8 @@ import { ladeEinstellungen, ladeProfilVoll } from "@/lib/profil";
 import { profilId } from "@/lib/schreiben";
 import LebenslaufClient, { type CvStand } from "./LebenslaufClient";
 import type { SuchprofilStand } from "./SuchprofilClient";
+import TelegramClient from "./TelegramClient";
+import { verbindungAus } from "@/lib/telegram-profil";
 import { kriterienAus } from "@/lib/suchprofil";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +48,7 @@ export default async function ProfilSeite() {
           umkreis: profil.suchort.umkreis,
         }
       : null;
+  const telegram = verbindungAus(einstellungen);
   const suchprofil: SuchprofilStand = {
     antworten: (einstellungen.fragebogen as SuchprofilStand["antworten"]) ?? null,
     vorschlag: gespeichert ?? ausSteuerung,
@@ -67,7 +70,23 @@ export default async function ProfilSeite() {
         titel={profil?.name ?? slug}
         lead="Hier sagst du nojobs, wer du bist und welche beruflichen Möglichkeiten du suchst: Lebenslauf hochladen, ein paar Fragen beantworten — daraus entsteht dein Suchprofil. Erfunden wird nichts; was fehlt, fragen wir nach."
       />
-      {hinweis ? <Hinweis ton="error">{hinweis}</Hinweis> : <LebenslaufClient initial={stand} suchprofil={suchprofil} />}
+      {hinweis ? (
+        <Hinweis ton="error">{hinweis}</Hinweis>
+      ) : (
+        <>
+          <LebenslaufClient initial={stand} suchprofil={suchprofil} />
+          {/* Phase 3: Telegram — erst sinnvoll, wenn ein Suchprofil steht */}
+          {suchprofil.bestaetigt_at || profil?.suchbegriffe.length ? (
+            <TelegramClient
+              initial={{
+                verbunden: Boolean(telegram),
+                name: telegram?.name ?? null,
+                seit: telegram?.verbunden_at ?? null,
+              }}
+            />
+          ) : null}
+        </>
+      )}
     </main>
   );
 }
