@@ -6,6 +6,7 @@ import Icon from "@/components/ui/Icon";
 import Avatar from "@/components/ui/Avatar";
 import { fotoAus, fotoUrl } from "@/lib/foto";
 import ProfilWahl from "./ProfilWahl";
+import ZurueckZuMir from "./ZurueckZuMir";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile, STANDARD_SLUG } from "@/lib/profil";
 import { profilAusCookies } from "@/lib/aktuelles-profil";
@@ -26,6 +27,20 @@ const PROFIL: NavPunkt = { href: "/profil", label: "Mein Profil", icon: "user" }
 const LABELN: NavPunkt = { href: "/label", label: "Stellen beurteilen", icon: "label" };
 const KALIBRIERUNG: NavPunkt = { href: "/eval", label: "Kalibrierung", icon: "sliders" };
 const HILFE: NavPunkt = { href: "/so-funktionierts", label: "So funktioniert's", icon: "help" };
+
+/**
+ * Du hast ein anderes Profil gewählt: nur die Bereiche dieses Profils — so, wie die Person sie sieht.
+ * Dazu Kalibrierung und Auswertung für genau dieses Profil (nur für dich).
+ * Betreiber-Seiten für alle (Steuerung, Kosten, Log, Tracking) erscheinen erst wieder auf deinem Profil.
+ */
+const GRUPPEN_FREMD: NavGruppe[] = [
+  { punkte: [JOBS, PROFIL, LABELN] },
+  {
+    titel: "Nur für dich",
+    punkte: [KALIBRIERUNG, { href: "/stats", label: "Auswertung", icon: "chart" }],
+  },
+  { punkte: [HILFE], nachrangig: true },
+];
 
 function gruppenAdmin(mitProfil: boolean): NavGruppe[] {
   return [
@@ -140,7 +155,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return html(
     <AppShell
       // Schritt 2.4: „Mein Profil“ nur für weitere Profile — dein Profil nutzt den Lebenslauf der Website.
-      gruppen={gruppenAdmin(Boolean(fremd))}
+      gruppen={fremd ? GRUPPEN_FREMD : gruppenAdmin(false)}
       unten={
         auswahl.profile.length > 1 || sitzung ? (
           <div className="space-y-1">
@@ -152,13 +167,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       hinweis={
         fremd ? (
           <div className="border-b border-brand/15 bg-brand-soft/70">
-            <p className="mx-auto flex max-w-5xl items-start gap-2 px-4 py-2 text-xs leading-relaxed text-brand-strong sm:px-6">
-              <Icon name="eye" size={14} className="mt-0.5" />
-              <span>
-                Ansicht für <span className="font-semibold">{fremd.name}</span> — Inbox, Labeln und Kalibrierung zeigen die Daten dieses
-                Profils. Steuerung, Statistik, Analytics und Kosten gelten für alle.
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 text-xs leading-relaxed text-brand-strong sm:px-6">
+              <Icon name="eye" size={14} />
+              <span className="min-w-0 flex-1">
+                Ansicht als <span className="font-semibold">{fremd.name}</span> — du siehst, was diese Person sieht. Steuerung, Kosten und
+                Log gibt es nur auf deinem Profil.
               </span>
-            </p>
+              <ZurueckZuMir slug={STANDARD_SLUG} />
+            </div>
           </div>
         ) : undefined
       }

@@ -1,6 +1,10 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { lesen } from "@/lib/lesen";
+import { profilAusCookies } from "@/lib/aktuelles-profil";
+import { ladeProfile, STANDARD_SLUG } from "@/lib/profil";
+import { ladeAuswertung, ladeBegriffe, zaehleKategorien, type Auswertung } from "@/lib/auswertung";
+import ProfilAuswertung from "./ProfilAuswertung";
 
 export const dynamic = "force-dynamic";
 
@@ -35,17 +39,78 @@ function Bar({ value, max }: { value: number; max: number }) {
   );
 }
 
+/** Berufe nur aus aktiven Stellen der aktiven Quellen — alte Norwegen-/Schweden-Stellen zählen nicht mit. */
+async function ladeKategorien(db: ReturnType<typeof supabaseAdmin>) {
+  const zeilen: Array<{ occupation_level1: string | null }> = [];
+  for (let seite = 0; seite < 20; seite++) {
+    const { data, error } = await db
+      .from("jobs")
+      .select("occupation_level1")
+      .eq("status", "ACTIVE")
+      .in("source", AKTIVE_QUELLEN)
+      .order("uuid", { ascending: true })
+      .range(seite * 1000, seite * 1000 + 999);
+    if (error) return { data: [] as Array<{ occupation_level1: string | null; jobs: number }>, error };
+    const teil = (data ?? []) as Array<{ occupation_level1: string | null }>;
+    zeilen.push(...teil);
+    if (teil.length < 1000) break;
+  }
+  return { data: zaehleKategorien(zeilen).slice(0, 25), error: null };
+}
+
+const sicher = async <T,>(p: Promise<T>): Promise<T | null> => {
+  try {
+    return await p;
+  } catch {
+    return null;
+  }
+};
+
 export default async function StatsPage() {
   const db = supabaseAdmin();
+  const [aktuell, { profile }] = await Promise.all([profilAusCookies(), ladeProfile(db)]);
+  const fremd = aktuell !== STANDARD_SLUG ? profile.find((p) => p.slug === aktuell) : undefined;
 
-  const [cursor, weekly, occupations, reasons, samples, matches, totals] = await Promise.all([
+  // Anderes Profil gewählt: nur die Auswertung dieses Profils — keine Zahlen von dir oder vom Gesamtimport.
+  if (fremd) {
+    const [auswertung, begriffe] = await Promise.all([
+      sicher(ladeAuswertung(db, fremd.slug)),
+      sicher(ladeBegriffe(db, fremd.slug, fremd.suchbegriffe ?? [], AKTIVE_QUELLEN)),
+    ]);
+    return (
+      <main className="page">
+        <header className="mb-2">
+          <p className="eyebrow">Auswertung · nur für dich sichtbar</p>
+          <h1 className="page-title mt-1.5">So läuft es für {fremd.name}</h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+            Der Vergleich aller Profile und der Gesamtimport stehen in der Statistik deines eigenen Profils.
+          </p>
+        </header>
+        {auswertung ? (
+          <ProfilAuswertung name={fremd.name} auswertung={auswertung} begriffe={begriffe ?? []} />
+        ) : (
+          <p className="alert-error mt-5">Die Auswertung konnte gerade nicht geladen werden.</p>
+        )}
+      </main>
+    );
+  }
+
+  const aktive = profile.filter((p) => p.aktiv !== false);
+  // Überblick erst ab zwei Profilen — vorher gibt es nichts zu vergleichen.
+  const ueberblickPromise =
+    aktive.length > 1
+      ? Promise.all(aktive.map(async (p) => ({ slug: p.slug, name: p.name, a: await sicher<Auswertung>(ladeAuswertung(db, p.slug)) })))
+      : Promise.resolve([] as Array<{ slug: string; name: string; a: Auswertung | null }>);
+
+  const [cursor, weekly, occupations, reasons, samples, matches, totals, ueberblick] = await Promise.all([
     db.from("import_cursor").select("*").eq("id", "de").maybeSingle(),
     db.from("v_weekly_candidates").select("*").order("week_start", { ascending: false }).limit(8),
-    db.from("v_occupation_distribution").select("*").order("jobs", { ascending: false }).limit(25),
+    ladeKategorien(db),
     db.from("v_drop_reasons").select("*").order("drops", { ascending: false }).limit(15),
     db.from("v_drop_samples").select("*").limit(40),
     db.from("v_match_terms").select("*").order("jobs", { ascending: false }).limit(20),
     lesen(db).select("uuid", { count: "exact", head: true }).eq("status", "ACTIVE").in("source", AKTIVE_QUELLEN),
+    ueberblickPromise,
   ]);
 
   const cursorRow = (cursor.data ?? null) as CursorRow | null;
@@ -80,11 +145,52 @@ export default async function StatsPage() {
   return (
     <main className="page">
       <header className="mb-2">
-        <p className="eyebrow">Validierungslauf</p>
-        <h1 className="page-title mt-1.5">
-          Wie viel bleibt vom Markt in Hamburg und remote übrig?
-        </h1>
+        <p className="eyebrow">Statistik</p>
+        <h1 className="page-title mt-1.5">Profile und Import im Überblick</h1>
       </header>
+
+      {ueberblick.length > 1 && (
+        <section className="card-pad mt-5 overflow-x-auto">
+          <h2 className="section-title">Profile im Überblick</h2>
+          <p className="section-lead">
+            Letzte 8 Wochen. Details zu einem Profil: unten links das Profil wählen und „Auswertung“ öffnen.
+          </p>
+          <table className="mt-4 w-full min-w-[36rem] text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted">
+                <th className="py-2 pr-3 font-medium">Profil</th>
+                <th className="py-2 pr-3 text-right font-medium">bewertet</th>
+                <th className="py-2 pr-3 text-right font-medium">Bewerben</th>
+                <th className="py-2 pr-3 text-right font-medium">gelabelt</th>
+                <th className="py-2 pr-3 text-right font-medium">gemerkt</th>
+                <th className="py-2 pr-3 text-right font-medium">Unterlagen</th>
+                <th className="py-2 text-right font-medium">beworben</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ueberblick.map(({ slug, name, a }) => (
+                <tr key={slug} className="border-t border-rule/60">
+                  <td className="py-2 pr-3">{name}</td>
+                  {a ? (
+                    [a.bewertet, a.bewerben, a.gelabelt, a.gemerkt, a.unterlagen, a.beworben].map((z, i) => (
+                      <td key={i} className="tnum py-2 pr-3 text-right last:pr-0">
+                        {nf.format(z)}
+                      </td>
+                    ))
+                  ) : (
+                    <td colSpan={6} className="py-2 text-right text-muted">
+                      nicht ladbar
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      <p className="eyebrow mt-10">Import gesamt · gilt für alle Profile</p>
+      <h2 className="mt-1.5 text-lg font-semibold">Wie viel bleibt vom Markt übrig?</h2>
 
       {/* Die eine Zahl, wegen der diese Seite existiert. */}
       <section className="card-pad mt-5 overflow-x-auto">
@@ -138,7 +244,7 @@ export default async function StatsPage() {
       <section className="card-pad mt-5 overflow-x-auto">
         <h2 className="section-title">Berufskategorien</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-          Hauptberuf laut Jobbörse. {categoryCoverage}&nbsp;% der gespeicherten Anzeigen haben einen.
+          Hauptberuf laut Jobbörse, nur aktive Stellen. {categoryCoverage}&nbsp;% davon haben einen.
         </p>
 
         <table className="mt-8 w-full text-sm">
@@ -164,9 +270,9 @@ export default async function StatsPage() {
       <section className="card-pad mt-5 overflow-x-auto">
         <h2 className="section-title">Welcher Begriff hat durchgelassen?</h2>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-          Jede Stelle geht auf einen Suchbegriff aus <code>SUCHBEGRIFFE</code> zurück, mit Präfix
-          hamburg: oder remote:. Liefert ein Begriff viel und nichts Brauchbares, gehört er
-          gestrichen oder verengt.
+          Jede Stelle geht auf einen Suchbegriff zurück: hamburg: und remote: sind deine,
+          profil:&lt;name&gt;: die eines weiteren Profils. Liefert ein Begriff viel und nichts
+          Brauchbares, gehört er gestrichen oder verengt.
         </p>
 
         <div className="mt-8 space-y-3">

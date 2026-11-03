@@ -4,6 +4,7 @@ import { PROFIL_COOKIE } from "./lib/aktuelles-profil";
 import { erlaubtFuerNutzer, loginAktiv, oeffentlich, SITZUNG_COOKIE, sitzungAusHeader } from "./lib/sitzung";
 import { profilNutzbar } from "./lib/profil-sperre";
 import { supabaseAdmin } from "./lib/supabase";
+import { STANDARD_SLUG } from "./lib/profil";
 
 /**
  * Schritt 2.3 · Login vor jeder Seite und jeder API.
@@ -33,7 +34,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(ziel);
   }
 
-  if (sitzung.r === "admin") return NextResponse.next();
+  if (sitzung.r === "admin") return adminWeiter(request, pfad, istApi);
 
   // Weitere Person — deaktiviert oder gelöscht? Dann gilt die alte Anmeldung nicht mehr.
   let nutzbar = true;
@@ -61,6 +62,27 @@ export async function proxy(request: NextRequest) {
     .filter((t) => t && !t.startsWith(`${PROFIL_COOKIE}=`));
   headers.set("cookie", [...andere, `${PROFIL_COOKIE}=${sitzung.s}`].join("; "));
   return NextResponse.next({ request: { headers } });
+}
+
+/**
+ * Betreiber-Seiten, die für alle Profile gelten. Ist gerade ein anderes Profil gewählt,
+ * schaltet der Aufruf auf dein Profil zurück — sonst stünden fremde und eigene Zahlen gemischt nebeneinander.
+ */
+const SEITEN_NUR_EIGENES_PROFIL = ["/admin", "/kosten", "/log", "/analytics"];
+
+function adminWeiter(request: NextRequest, pfad: string, istApi: boolean) {
+  if (istApi || !SEITEN_NUR_EIGENES_PROFIL.some((p) => pfad === p || pfad.startsWith(`${p}/`))) return NextResponse.next();
+  // Nur echte Seitenaufrufe (Adresse eingegeben, Lesezeichen, Neu laden) schalten um. Das Vorab-Laden von Links
+  // im Hintergrund würde sonst schon beim bloßen Anzeigen eines Links umschalten (Next entfernt dessen Kennung vor dem Proxy).
+  if (!(request.headers.get("accept") ?? "").includes("text/html")) return NextResponse.next();
+  const teile = (request.headers.get("cookie") ?? "").split(";").map((t) => t.trim()).filter(Boolean);
+  const gewaehlt = teile.find((t) => t.startsWith(`${PROFIL_COOKIE}=`))?.slice(PROFIL_COOKIE.length + 1);
+  if (!gewaehlt || decodeURIComponent(gewaehlt) === STANDARD_SLUG) return NextResponse.next();
+  const headers = new Headers(request.headers);
+  headers.set("cookie", [...teile.filter((t) => !t.startsWith(`${PROFIL_COOKIE}=`)), `${PROFIL_COOKIE}=${STANDARD_SLUG}`].join("; "));
+  const antwort = NextResponse.next({ request: { headers } });
+  antwort.cookies.set(PROFIL_COOKIE, STANDARD_SLUG, { path: "/", maxAge: 31536000, sameSite: "lax" });
+  return antwort;
 }
 
 /**
