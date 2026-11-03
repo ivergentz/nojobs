@@ -187,10 +187,13 @@ function datum(value: string | null): string | null {
 export default function InboxClient({
   jobs,
   mitUnterlagen = true,
+  suchHinweis = !mitUnterlagen,
   ablageGruende,
 }: {
   jobs: InboxJob[];
   mitUnterlagen?: boolean;
+  /** Leere Liste „Neu“: auf die Suche unter „Mein Profil“ hinweisen (weitere Profile). */
+  suchHinweis?: boolean;
   ablageGruende?: AblageGruende;
 }) {
   const [state, setState] = useState<Record<string, string>>({});
@@ -363,7 +366,7 @@ export default function InboxClient({
           <EmptyState icon={sucht ? "search" : "inbox"} titel={sucht ? `Nichts gefunden für „${suche.trim()}“.` : "Hier ist gerade nichts."}>
             {sucht
               ? "Gesucht wird in Firma, Titel und Ort — über alle Reiter."
-              : !mitUnterlagen && reiter === "neu"
+              : suchHinweis && reiter === "neu"
                 ? "Nichts Neues. Neue Stellen kommen jeden Morgen — oder unter „Mein Profil“ jetzt nach neuen Stellen suchen."
                 : LEER[reiter]}
           </EmptyState>

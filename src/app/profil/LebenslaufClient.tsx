@@ -24,6 +24,7 @@ export type CvStand = {
     ausbildung?: Array<{ zeitraum: string; abschluss: string; einrichtung: string }>;
     kenntnisse?: string[];
     sprachen?: Array<{ sprache: string; niveau: string }>;
+    bearbeitet_at?: string | null;
   } | null;
   richtungen: Array<{ titel: string; begruendung: string; suchbegriffe: string[] }> | null;
   pruefung: Array<{ stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string; erledigt?: boolean; bereich?: string; eintrag?: number | null }> | null;
@@ -71,6 +72,9 @@ export default function LebenslaufClient({
   const [reiter, waehlen] = useReiter(REITER_KEYS, initial?.status !== "ausgelesen" ? "lebenslauf" : bestaetigt ? "lebenslauf" : "suchprofil");
   const idBasis = useReiterId();
   const offenePunkte = (stand?.pruefung ?? []).filter((p) => !p.erledigt).length;
+  // Lebenslauf nach dem Suchprofil bearbeitet? Dann Hinweis im Reiter Suchprofil.
+  const bearbeitet = stand?.lebenslauf?.bearbeitet_at ?? null;
+  const lebenslaufNeuer = Boolean(ausgelesen && bearbeitet && suchprofil.bestaetigt_at && bearbeitet > suchprofil.bestaetigt_at);
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const eingabe = useRef<HTMLInputElement>(null);
@@ -209,7 +213,7 @@ export default function LebenslaufClient({
 
       {cv && (
         <section className="card-pad">
-          <h2 className="section-title">So haben wir deinen Lebenslauf gelesen</h2>
+          <h2 className="section-title">{bearbeitet ? "Dein Lebenslauf — bearbeitete Fassung" : "So haben wir deinen Lebenslauf gelesen"}</h2>
           {cv.kurzprofil && <p className="mt-2 max-w-xl leading-relaxed">{cv.kurzprofil}</p>}
           {cv.stationen && cv.stationen.length > 0 && (
             <ul className="mt-4 space-y-3">
@@ -265,6 +269,15 @@ export default function LebenslaufClient({
 
         <ReiterInhalt idBasis={idBasis} key_="suchprofil" aktiv={reiter}>
           <div className={panel}>
+            {lebenslaufNeuer && (
+              <div className="alert-warn" role="status">
+                <p className="font-medium">Dein Lebenslauf wurde geändert, nachdem dein Suchprofil entstanden ist.</p>
+                <p className="mt-0.5">
+                  Damit die Änderungen auch in die Suche einfließen: unten bei „Was suchst du?“ auf „Neuen Vorschlag erstellen“ klicken, prüfen und
+                  übernehmen. Deine Antworten bleiben erhalten.
+                </p>
+              </div>
+            )}
       {stand?.richtungen && stand.richtungen.length > 0 && (
         <section className="card-pad">
           <h2 className="section-title">Wohin könnte es gehen?</h2>

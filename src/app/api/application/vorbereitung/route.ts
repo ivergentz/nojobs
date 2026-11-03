@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { supabaseAdmin } from "@/lib/supabase";
-import { vorbereitungFuerStelle, type Vorbereitung } from "@/lib/vorbereitung";
+import { vorbereitungFuerProfil, vorbereitungFuerStelle, type Vorbereitung } from "@/lib/vorbereitung";
 import VorbereitungDocument from "@/lib/pdf/VorbereitungDocument";
 import { lesen } from "@/lib/lesen";
-import { istStandard, NUR_EIGENES_PROFIL, profilAusRequest } from "@/lib/aktuelles-profil";
+import { istStandard, profilAusRequest } from "@/lib/aktuelles-profil";
 
 export const dynamic = "force-dynamic";
 // Websuche (bis 75 s) + Briefing (bis 150 s). Vercel Hobby mit Fluid Compute erlaubt bis 300 s.
@@ -18,12 +18,14 @@ export const maxDuration = 300;
  * GET  ?uuid=…         → gespeicherte Vorbereitung als PDF
  */
 export async function POST(request: Request) {
-  // Schritt 2.2: nur für dein Profil.
-  if (!istStandard(profilAusRequest(request))) return NextResponse.json({ error: NUR_EIGENES_PROFIL }, { status: 400 });
+  // Phase 4.3: weitere Profile mit eigenem Lebenslauf; dein Profil wie bisher.
+  const profil = profilAusRequest(request);
   try {
     const body = (await request.json()) as { uuid?: string };
     if (!body.uuid) return NextResponse.json({ error: "uuid fehlt" }, { status: 400 });
-    const vorbereitung = await vorbereitungFuerStelle(supabaseAdmin(), body.uuid);
+    const vorbereitung = istStandard(profil)
+      ? await vorbereitungFuerStelle(supabaseAdmin(), body.uuid)
+      : await vorbereitungFuerProfil(supabaseAdmin(), profil, body.uuid);
     return NextResponse.json(vorbereitung);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -44,13 +46,13 @@ function slug(value: string): string {
 }
 
 export async function GET(request: Request) {
-  // Schritt 2.2: nur für dein Profil.
-  if (!istStandard(profilAusRequest(request))) return NextResponse.json({ error: NUR_EIGENES_PROFIL }, { status: 400 });
+  // Phase 4.3: weitere Profile lesen IHRE Vorbereitung (jobs_profil), dein Profil wie bisher.
+  const profil = profilAusRequest(request);
   const uuid = new URL(request.url).searchParams.get("uuid");
   if (!uuid) return NextResponse.json({ error: "uuid fehlt" }, { status: 400 });
 
   try {
-    const { data: job, error } = await lesen(supabaseAdmin())
+    const { data: job, error } = await lesen(supabaseAdmin(), istStandard(profil) ? undefined : profil)
       .select("uuid,title,employer_name,municipal,county,country,vorbereitung")
       .eq("uuid", uuid)
       .maybeSingle();

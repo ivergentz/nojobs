@@ -135,7 +135,7 @@ export default function LebenslaufEditor({ initial, pruefung, foto }: { initial:
       setSprachen(l.sprachen ?? []);
       setKenntnisse((l.kenntnisse ?? []).join(", "));
       setDirty(false);
-      setMeldung({ text: "Gespeichert. Der nächste Suchprofil-Vorschlag nutzt diese Fassung." });
+      setMeldung({ text: "Gespeichert." });
     } catch (err) {
       setMeldung({ text: err instanceof Error ? err.message : String(err), fehler: true });
     } finally {
@@ -149,6 +149,27 @@ export default function LebenslaufEditor({ initial, pruefung, foto }: { initial:
 
   return (
     <div className="space-y-6 text-sm">
+      <section className="rounded-lg border border-brand/20 bg-brand-soft/40 p-4">
+        <p className="font-medium">Wofür diese Fassung genutzt wird</p>
+        <ul className="mt-1.5 space-y-1 text-ink/85">
+          <li className="flex gap-2">
+            <Icon name="file" size={15} className="mt-[2px] shrink-0 text-brand" />
+            <span>
+              <span className="font-medium">Deine Unterlagen:</span> Daraus entsteht dein Lebenslauf — für jede Stelle leicht zugeschnitten. Unten
+              siehst du das Ergebnis als PDF.
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <Icon name="search" size={15} className="mt-[2px] shrink-0 text-brand" />
+            <span>
+              <span className="font-medium">Dein Suchprofil:</span> Neue Suchprofil-Vorschläge nutzen diese Fassung. Ein bestehendes Suchprofil ändert sich
+              dadurch nicht von allein — nach dem Speichern kannst du es aktualisieren.
+            </span>
+          </li>
+        </ul>
+        <p className="mt-2 text-xs text-muted">Deine Originaldatei bleibt unverändert. Lädst du unter „Mein Profil“ eine neue Datei hoch, ersetzt sie diese Fassung.</p>
+      </section>
+
       {pruefung.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="font-medium">
@@ -393,10 +414,27 @@ export default function LebenslaufEditor({ initial, pruefung, foto }: { initial:
             </>
           )}
         </button>
+        {dirty ? (
+          <span className="btn-ghost pointer-events-none opacity-45" title="Erst speichern">
+            <Icon name="eye" size={15} /> Ergebnis ansehen
+          </span>
+        ) : (
+          <a href="/api/layout?vorschau=cv" target="_blank" rel="noopener noreferrer" className="btn-ghost">
+            <Icon name="eye" size={15} /> Ergebnis ansehen
+          </a>
+        )}
         {dirty && !busy && <span className="text-xs text-warn">Ungespeicherte Änderungen</span>}
         {meldung && (
           <span className={`text-sm ${meldung.fehler ? "text-drop" : "text-keep"}`} role={meldung.fehler ? "alert" : "status"}>
             {meldung.text}
+            {!meldung.fehler && (
+              <>
+                {" "}
+                <a href="/profil#suchprofil" className="link">
+                  Suchprofil aktualisieren →
+                </a>
+              </>
+            )}
           </span>
         )}
       </div>

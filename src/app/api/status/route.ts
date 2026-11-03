@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { vorbereitungFuerStelle } from "@/lib/vorbereitung";
+import { vorbereitungFuerProfil, vorbereitungFuerStelle } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
 import { schreibeFelder } from "@/lib/schreiben";
 import { istStandard, profilAusRequest } from "@/lib/aktuelles-profil";
@@ -90,6 +90,19 @@ export async function POST(request: Request) {
           await vorbereitungFuerStelle(db, uuid, "status");
         } catch {
           /* Nicht schlimm — auf der Unterlagen-Seite lässt sie sich von Hand erzeugen. */
+        }
+      });
+    }
+    // Phase 4.3: weitere Profile — nur mit ausgelesenem Lebenslauf, sonst still nichts.
+    if (body.status === "beworben" && !istStandard(profil)) {
+      const uuid = body.uuid;
+      after(async () => {
+        try {
+          const { data } = await lesen(db, profil).select("vorbereitung").eq("uuid", uuid).maybeSingle();
+          if (data?.vorbereitung) return;
+          await vorbereitungFuerProfil(db, profil, uuid, "status");
+        } catch {
+          /* z. B. noch kein Lebenslauf — auf der Unterlagen-Seite von Hand möglich. */
         }
       });
     }

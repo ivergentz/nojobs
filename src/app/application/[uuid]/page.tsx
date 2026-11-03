@@ -9,10 +9,11 @@ import BeworbenKnopf from "./BeworbenKnopf";
 import VorbereitungClient from "./VorbereitungClient";
 import type { Vorbereitung } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
-import { istStandard, NUR_EIGENES_PROFIL, profilAusCookies } from "@/lib/aktuelles-profil";
+import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
+import { ProfilUnterlagen } from "./ProfilUnterlagen";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
-import { EmptyState, Hinweis } from "@/components/ui/Bausteine";
+import { Hinweis } from "@/components/ui/Bausteine";
 
 export const dynamic = "force-dynamic";
 
@@ -29,19 +30,9 @@ export default async function ApplicationPage({
   const von = typeof vonRoh === "string" && /^[a-z]{2,20}$/.test(vonRoh) ? vonRoh : null;
   const schonBeworben = von !== null && ["beworben", "interview", "absage"].includes(von);
 
-  // Schritt 2.2: Unterlagen gibt es vorerst nur für dein Profil.
-  if (!istStandard(await profilAusCookies())) {
-    return (
-      <main className="page">
-        <EmptyState icon="file" titel="Unterlagen">
-          <p>{NUR_EIGENES_PROFIL}</p>
-          <Link href="/inbox" className="btn-secondary mt-4">
-            Zu meinen Jobs
-          </Link>
-        </EmptyState>
-      </main>
-    );
-  }
+  // Phase 4.3: weitere Profile — Unterlagen aus dem eigenen Lebenslauf. Dein Profil unten wie bisher.
+  const profil = await profilAusCookies();
+  if (!istStandard(profil)) return <ProfilUnterlagen profil={profil} uuid={uuid} von={von} schonBeworben={schonBeworben} />;
 
   const db = supabaseAdmin();
   const { quelle } = await loadCv("de");

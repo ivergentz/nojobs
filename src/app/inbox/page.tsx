@@ -154,7 +154,7 @@ export default async function InboxPage() {
         )}
       </PageHeader>
 
-      <InboxClient jobs={jobs} mitUnterlagen={eigenes} ablageGruende={{ passtNicht: gruendeFuer(profil).ignore, passtAber: GRUENDE_ABLAGE_PASST }} />
+      <InboxClient jobs={jobs} mitUnterlagen suchHinweis={!eigenes} ablageGruende={{ passtNicht: gruendeFuer(profil).ignore, passtAber: GRUENDE_ABLAGE_PASST }} />
     </main>
   );
 }

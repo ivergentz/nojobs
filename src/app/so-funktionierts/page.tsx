@@ -194,11 +194,12 @@ function schritte(eigenes: boolean): Array<{ phase: string; dauer: string; schri
           icon: "briefcase",
           titel: "Bewerben und Unterlagen erstellen",
           wo: { text: "Meine Jobs → Unterlagen", href: "/inbox" },
-          bald: !eigenes,
           text: eigenes
             ? "Für jede Stelle schreibt nojobs Anschreiben und Lebenslauf passend zur Anzeige — als PDF zum Herunterladen. Setzt du den Status auf „Beworben“, entsteht eine Vorbereitung fürs Vorstellungsgespräch."
-            : "Bald: Für jede Stelle schreibt nojobs Anschreiben und Lebenslauf passend zur Anzeige, im Layout deiner Wahl. Mit „Beworben“ entsteht dann eine Vorbereitung fürs Vorstellungsgespräch.",
-          tun: ["bewerben, dann Status „Beworben“ setzen", "im Status-Menü weiter: „Interview“ oder „Absage“"],
+            : "Für jede Stelle schreibt nojobs ein Anschreiben und schärft deinen Lebenslauf auf die Anzeige zu — nur aus deinem Lebenslauf, im Layout deiner Wahl (nojobs schlägt pro Stelle eins vor). Setzt du den Status auf „Beworben“, entsteht eine Vorbereitung fürs Vorstellungsgespräch.",
+          tun: eigenes
+            ? ["bewerben, dann Status „Beworben“ setzen", "im Status-Menü weiter: „Interview“ oder „Absage“"]
+            : ["„Unterlagen“ öffnen → „Unterlagen erstellen“", "lesen, anpassen, speichern, als PDF laden", "nach dem Absenden: „Beworben“ — die Gesprächsvorbereitung entsteht von allein"],
         },
         {
           nr: 11,

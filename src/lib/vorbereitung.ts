@@ -52,6 +52,26 @@ UMFANG (Obergrenzen):
 - fragen_an_dich: 6 wahrscheinliche Fragen mit Antwortskizze (1–2 Sätze).
 - fragen_an_sie: 4–5.`;
 
+/** Phase 4.3 · Dieselbe Vorbereitung für weitere Profile — allgemein formuliert, aus IHREM Lebenslauf. */
+const REGELN_PROFIL = (name: string) => `Du bereitest ${name} auf ein Bewerbungsgespräch vor. Ergebnis: ein kompaktes Briefing, das auf ZWEI A4-Seiten passt. Sprache: Deutsch, Du-Form, direkt und konkret.
+
+HARTE REGELN:
+- Nichts über ${name} erfinden. Jede Aussage über die Person muss aus dem Lebenslauf (oder dem Anschreiben-Entwurf) belegbar sein. Zahlen nur, wenn sie dort stehen.
+- Über den Arbeitgeber: Nutze vor allem die WEB-RECHERCHE (aktuell, mit Quellen), dazu die Anzeige. Was weder dort noch in der Anzeige steht und du nicht sicher weißt, mit "(prüfen)" kennzeichnen. Keine erfundenen Zahlen, Personen oder Projekte.
+- Knapp: Stichpunkte höchstens 20 Wörter, Absätze höchstens 3 Sätze. Lieber weniger, aber treffend.
+- Lücken ehrlich benennen (z. B. fehlende Qualifikation, fehlende Erfahrung in einem Bereich) und jeweils eine ehrliche, kurze Antwort vorschlagen, die zur Stärke zurückführt. Nie beschönigen.
+- Fragen an den Arbeitgeber: konkret zu dieser Stelle, keine Allerweltsfragen. Die letzte Frage zum weiteren Ablauf.
+- Gehalt: kurze Einschätzung, was für diese Stelle üblich ist (bei Tarifbindung: Entgeltgruppe nennen bzw. danach fragen), und eine Empfehlung, wie man das Thema anspricht. Ein Ziel nur nennen, wenn im Hinweis eines steht.
+
+UMFANG (Obergrenzen):
+- unternehmen.kurz: 2–3 Sätze. fakten: 3–5.
+- rolle.kern: 1–2 Sätze. aufgaben: 3–5. worauf_es_ankommt: 3 (was sie wirklich suchen, zwischen den Zeilen).
+- fit.staerken: 3–4 mit Beleg aus dem Lebenslauf. fit.luecken: 2–3 mit Antwortvorschlag.
+- pitch: 60-Sekunden-Vorstellung, 4–6 Sätze, auf diese Stelle zugeschnitten.
+- beispiele: 2–3 Situationen aus dem Lebenslauf (Situation, Vorgehen, Ergebnis — Ergebnis mit Zahl, wenn vorhanden).
+- fragen_an_dich: 6 wahrscheinliche Fragen mit Antwortskizze (1–2 Sätze).
+- fragen_an_sie: 4–5.`;
+
 const SCHEMA = {
   type: "object",
   properties: {
@@ -131,8 +151,11 @@ export async function erstelleVorbereitung(input: {
   gehalt?: string;
   /** Anlass und Stelle für die Kostentabelle; der Zweck wird hier gesetzt. */
   kosten?: Omit<KostenKontext, "zweck">;
+  /** Phase 4.3: weiteres Profil — Name und eigener Lebenslauf. Ohne = Iver, alles wie bisher. */
+  person?: { name: string; lebenslauf: unknown };
 }): Promise<Vorbereitung> {
-  const { cv } = await loadCv("de");
+  const person = input.person;
+  const { cv } = person ? { cv: null } : await loadCv("de");
 
   // 1. Unternehmensrecherche im Web — darf scheitern, dann ohne.
   let recherche: { text: string; quellen: Quelle[] } = { text: "", quellen: [] };
@@ -146,7 +169,9 @@ export async function erstelleVorbereitung(input: {
         kosten: { ...input.kosten, zweck: "recherche" },
         prompt: [
           `Recherchiere für eine Gesprächsvorbereitung zum Arbeitgeber "${input.employer}" (Stelle: ${input.title}${input.place ? `, ${input.place}` : ""}).`,
-          "Gesucht, soweit auffindbar: was das Unternehmen macht, Größe und Konzernzugehörigkeit, Standorte, aktuelle Nachrichten der letzten 12 Monate, Digitalisierungs- und KI-Initiativen, Tarifbindung oder Gehaltsinfos, Kultur (z. B. Arbeitgeberbewertungen).",
+          person
+            ? "Gesucht, soweit auffindbar: was der Arbeitgeber macht (bzw. Träger und Einrichtung), Größe, Standorte, aktuelle Nachrichten der letzten 12 Monate, Tarifbindung oder Gehaltsinfos, Kultur (z. B. Arbeitgeberbewertungen)."
+            : "Gesucht, soweit auffindbar: was das Unternehmen macht, Größe und Konzernzugehörigkeit, Standorte, aktuelle Nachrichten der letzten 12 Monate, Digitalisierungs- und KI-Initiativen, Tarifbindung oder Gehaltsinfos, Kultur (z. B. Arbeitgeberbewertungen).",
           "Höchstens 4 Suchen. Antworte auf Deutsch in knappen Stichpunkten, insgesamt höchstens 250 Wörter, nur mit Fakten aus den Quellen. Was du nicht findest, lässt du weg.",
         ].join("\n"),
       });
@@ -158,14 +183,16 @@ export async function erstelleVorbereitung(input: {
   // 2. Briefing als strukturiertes JSON.
   const roh = await callClaudeJson<Partial<Vorbereitung>>({
     model: process.env.DRAFT_MODEL || DEFAULT_MODEL,
-    system: `${REGELN}\n\nIVERS LEBENSLAUF:\n${JSON.stringify({
-      role: cv.role,
-      tagline: cv.tagline,
-      competencies: cv.competencies,
-      experience: cv.experience,
-      products: cv.products,
-      education: cv.education,
-      languages: cv.languages,
+    system: person
+      ? `${REGELN_PROFIL(person.name)}\n\nLEBENSLAUF VON ${person.name.toUpperCase()}:\n${JSON.stringify(person.lebenslauf).slice(0, 20_000)}`
+      : `${REGELN}\n\nIVERS LEBENSLAUF:\n${JSON.stringify({
+      role: cv!.role,
+      tagline: cv!.tagline,
+      competencies: cv!.competencies,
+      experience: cv!.experience,
+      products: cv!.products,
+      education: cv!.education,
+      languages: cv!.languages,
     })}`,
     user: [
       `Stelle: ${input.title}`,
@@ -173,7 +200,7 @@ export async function erstelleVorbereitung(input: {
       `Ort: ${input.place || "unbekannt"}`,
       input.gehalt ? `Hinweis Gehaltsziel: ${input.gehalt}` : "",
       recherche.text ? `\nWEB-RECHERCHE ZUM UNTERNEHMEN (aktuell):\n${recherche.text.slice(0, 4000)}` : "\n(Keine Web-Recherche verfügbar — Unternehmensangaben nur aus Anzeige und allgemeinem Wissen, unsicheres mit \"(prüfen)\".)",
-      input.anschreiben ? `\nAnschreiben-Entwurf (so hat Iver sich präsentiert):\n${input.anschreiben.slice(0, 3000)}` : "",
+      input.anschreiben ? `\nAnschreiben-Entwurf (so hat ${person ? person.name : "Iver"} sich präsentiert):\n${input.anschreiben.slice(0, 3000)}` : "",
       "",
       "Ausschreibung:",
       input.description ? input.description.slice(0, 10000) : "(keine Beschreibung verfügbar — Briefing aus Titel und Unternehmen ableiten und das kennzeichnen)",
@@ -236,5 +263,38 @@ export async function vorbereitungFuerStelle(db: any, uuid: string, anlass = "kn
 
   const { error: writeError } = await db.from("jobs").update({ vorbereitung }).eq("uuid", uuid);
   if (writeError) throw new Error(`Vorbereitung nicht gespeichert — wurde supabase/vorbereitung.sql ausgeführt? (${writeError.message})`);
+  return vorbereitung;
+}
+
+/** Phase 4.3 · Vorbereitung für ein weiteres Profil: eigener Lebenslauf, Speichern in SEINEN matches. */
+export async function vorbereitungFuerProfil(db: any, profil: string, uuid: string, anlass = "knopf"): Promise<Vorbereitung> {
+  const { ladeProfilVoll } = await import("./profil");
+  const { profilId, schreibeFelder } = await import("./schreiben");
+  const { ohneKontakt } = await import("./suchprofil");
+  const [person, id] = await Promise.all([ladeProfilVoll(db, profil), profilId(db, profil)]);
+  if (!person || !id) throw new Error("Profil nicht gefunden");
+  const { data: cvZeile } = await db.from("profile_cv").select("status,lebenslauf").eq("profile_id", id).maybeSingle();
+  if (cvZeile?.status !== "ausgelesen" || !cvZeile.lebenslauf) throw new Error("Erst einen Lebenslauf hochladen (Mein Profil).");
+
+  const { data: job, error } = await lesen(db, profil)
+    .select("uuid,title,employer_name,municipal,county,country,description,application_draft")
+    .eq("uuid", uuid)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!job) throw new Error("Stelle nicht gefunden");
+  const e = (job.application_draft ?? null) as Record<string, any> | null;
+  const anschreiben = e?.art === "profil" ? [...(e.absaetze ?? [])].filter(Boolean).join("\n\n") : "";
+
+  const vorbereitung = await erstelleVorbereitung({
+    title: job.title ?? "",
+    employer: job.employer_name ?? "",
+    place: [job.municipal, job.county].filter(Boolean).join(", ") || job.country || "",
+    description: job.description ?? "",
+    anschreiben,
+    kosten: { anlass, jobUuid: uuid, profil },
+    person: { name: person.name, lebenslauf: ohneKontakt(cvZeile.lebenslauf) },
+  });
+  const { error: writeError } = await schreibeFelder(db, profil, uuid, { vorbereitung });
+  if (writeError) throw new Error(`Vorbereitung nicht gespeichert (${writeError.message})`);
   return vorbereitung;
 }
