@@ -19,7 +19,8 @@ export const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessin
 
 export type Station = { zeitraum: string; titel: string; arbeitgeber: string; ort: string; stichpunkte: string[] };
 export type Richtung = { titel: string; begruendung: string; suchbegriffe: string[] };
-export type Pruefpunkt = { stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string };
+export type Pruefpunkt = { stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string; bereich?: string; eintrag?: number | null };
+const BEREICHE = ["person", "kurzprofil", "station", "ausbildung", "kenntnisse", "sprachen", "allgemein"];
 
 /** Phase 4: Kontaktdaten und Zeile unter dem Namen — für die Unterlagen. Ältere Einträge haben sie nicht. */
 export type Person = { name: string; ort: string; titel?: string; email?: string; telefon?: string; linkedin?: string; xing?: string };
@@ -98,6 +99,8 @@ const SCHEMA = {
           stufe: { type: "string", enum: ["rot", "gelb", "hinweis"] },
           punkt: { type: "string" },
           vorschlag: { type: "string" },
+          bereich: { type: "string", enum: ["person", "kurzprofil", "station", "ausbildung", "kenntnisse", "sprachen", "allgemein"] },
+          eintrag: { type: "integer" },
         },
         required: ["stufe", "punkt", "vorschlag"],
       },
@@ -128,6 +131,7 @@ pruefung: Prüfbericht mit konkreten Verbesserungen. Je Punkt eine stufe:
 - "hinweis": heute unübliche Angaben (Geburtsort, Familienstand, Religion, Eltern) mit Empfehlung zum Entfernen
 punkt: was auffällt (konkret, mit Station oder Zeitraum). vorschlag: die konkrete Verbesserung — bei Dingen, die nur die Person wissen kann (eine Zahl, ein Zeitraum), als Frage formulieren statt raten.
 Layout-Punkte nur, wenn sie eindeutig erkennbar sind (bei Word-Dateien siehst du nur den Text — dann keine Layout-Punkte).
+bereich: wo im Lebenslauf der Punkt geändert wird — "person" (Name, Kontakt, persönliche Angaben), "kurzprofil", "station", "ausbildung", "kenntnisse", "sprachen" oder "allgemein" (betrifft mehreres). eintrag: bei "station" bzw. "ausbildung" die Position in DEINER Liste oben (0 = erster Eintrag); betrifft der Punkt zwei Einträge (z. B. eine Lücke dazwischen), den späteren (kleinere Zahl).
 Höchstens 10 Punkte, die wichtigsten zuerst.
 
 ANREDE: In begruendung, punkt und vorschlag die Person immer mit „du“ ansprechen (du, dein, dir) — nie „Sie“. kurzprofil in der dritten Person.`;
@@ -184,6 +188,8 @@ export function bereinige(roh: Partial<Lebenslauf>): Lebenslauf {
         stufe: (["rot", "gelb", "hinweis"].includes(p?.stufe as string) ? p.stufe : "gelb") as Pruefpunkt["stufe"],
         punkt: text(p?.punkt, 300),
         vorschlag: text(p?.vorschlag, 400),
+        ...(BEREICHE.includes(p?.bereich as string) ? { bereich: p.bereich } : {}),
+        ...(Number.isInteger(p?.eintrag) && (p.eintrag as number) >= 0 && (p.eintrag as number) < 20 ? { eintrag: p.eintrag } : {}),
       }))
       .filter((p) => p.punkt),
   };

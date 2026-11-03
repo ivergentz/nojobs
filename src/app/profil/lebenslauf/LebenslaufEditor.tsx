@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
 import { ReiterInhalt, ReiterLeiste, useReiter, useReiterId } from "@/components/ui/Reiter";
+import { zuordnen, type Bereich } from "@/lib/pruefung-zuordnen";
 
 const REITER_KEYS = ["person", "erfahrung", "ausbildung", "kenntnisse", "foto"];
 
@@ -18,7 +19,10 @@ export type CvDaten = {
   sprachen: Sprache[];
   bearbeitet_at?: string | null;
 };
-export type Pruefpunkt = { stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string; erledigt?: boolean };
+export type Pruefpunkt = { stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string; erledigt?: boolean; bereich?: string; eintrag?: number | null };
+
+/** Einträge mit festem Schlüssel — damit ein Hinweis an „seiner“ Station bleibt, auch wenn sie verschoben wird. */
+type MitKey<T> = T & { _k: string };
 
 const STUFE: Record<string, { text: string; badge: string }> = {
   rot: { text: "Wichtig", badge: "badge-negative" },
@@ -26,30 +30,60 @@ const STUFE: Record<string, { text: string; badge: string }> = {
   hinweis: { text: "Hinweis", badge: "badge-neutral" },
 };
 
-const leereStation = (): Station => ({ zeitraum: "", titel: "", arbeitgeber: "", ort: "", stichpunkte: [] });
-const leereAusbildung = (): Ausbildung => ({ zeitraum: "", abschluss: "", einrichtung: "" });
+let zaehler = 0;
+const neuerKey = (p: string) => `${p}-neu-${++zaehler}`;
+const leereStation = (): MitKey<Station> => ({ _k: neuerKey("s"), zeitraum: "", titel: "", arbeitgeber: "", ort: "", stichpunkte: [] });
+const leereAusbildung = (): MitKey<Ausbildung> => ({ _k: neuerKey("a"), zeitraum: "", abschluss: "", einrichtung: "" });
+const ohneKey = <T,>({ _k, ...rest }: MitKey<T>) => rest as T;
 
-/** Schritt 2.5 · Ausgelesenen Lebenslauf korrigieren und Prüfpunkte abhaken. */
-export default function LebenslaufEditor({ initial, pruefung: pruefungStart, foto }: { initial: CvDaten; pruefung: Pruefpunkt[]; foto?: ReactNode }) {
+/**
+ * Schritt 2.5 · Ausgelesenen Lebenslauf korrigieren und Prüfpunkte abhaken.
+ * Jeder Prüfpunkt steht dort, wo man ihn ändert: im passenden Reiter, bei Stationen und
+ * Abschlüssen direkt am Eintrag. Gespeichert wird genau wie vorher (Felder + erledigte Punkte).
+ */
+export default function LebenslaufEditor({ initial, pruefung, foto }: { initial: CvDaten; pruefung: Pruefpunkt[]; foto?: ReactNode }) {
   const [reiter, waehlen] = useReiter(REITER_KEYS, "person");
   const idBasis = useReiterId();
-  const [listeOffen, setListeOffen] = useState(false);
-  const [cv, setCv] = useState<CvDaten>(initial);
-  const [erledigt, setErledigt] = useState<Set<number>>(new Set(pruefungStart.flatMap((p, i) => (p.erledigt ? [i] : []))));
+  const [person, setPerson] = useState(initial.person);
+  const [kurzprofil, setKurzprofil] = useState(initial.kurzprofil);
+  const [stationen, setStationen] = useState<MitKey<Station>[]>(() => initial.stationen.map((s, i) => ({ ...s, _k: `s${i}` })));
+  const [ausbildung, setAusbildung] = useState<MitKey<Ausbildung>[]>(() => initial.ausbildung.map((a, i) => ({ ...a, _k: `a${i}` })));
+  const [sprachen, setSprachen] = useState(initial.sprachen);
   const [kenntnisse, setKenntnisse] = useState(initial.kenntnisse.join(", "));
+  const [erledigt, setErledigt] = useState<Set<number>>(new Set(pruefung.flatMap((p, i) => (p.erledigt ? [i] : []))));
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [meldung, setMeldung] = useState<{ text: string; fehler?: boolean } | null>(null);
 
-  const aendern = (neu: Partial<CvDaten>) => {
-    setCv((alt) => ({ ...alt, ...neu }));
+  // Prüfpunkte einmal zuordnen — gegen den Stand beim Laden, an die Schlüssel der Einträge gebunden.
+  const orte = useMemo(
+    () =>
+      pruefung.map((p) => {
+        const z = zuordnen(p, initial);
+        const key = z.eintrag === null ? null : z.bereich === "erfahrung" ? `s${z.eintrag}` : z.bereich === "ausbildung" ? `a${z.eintrag}` : null;
+        return { bereich: z.bereich, key };
+      }),
+    [pruefung, initial]
+  );
+  // Ein Eintrag wurde gelöscht → dessen Hinweise oben im Reiter zeigen, nicht verlieren.
+  const vorhanden = new Set([...stationen.map((s) => s._k), ...ausbildung.map((a) => a._k)]);
+  const indizes = (bereich: Bereich, key: string | null = null) =>
+    orte.flatMap((o, i) => (o.bereich === bereich && (key === null ? o.key === null || !vorhanden.has(o.key) : o.key === key) ? [i] : []));
+  const offen = (bereich: Bereich) => orte.filter((o, i) => o.bereich === bereich && !erledigt.has(i)).length;
+
+  const geaendert = () => {
     setDirty(true);
     setMeldung(null);
   };
-  const person = (neu: Partial<CvDaten["person"]>) => aendern({ person: { ...cv.person, ...neu } });
-  const station = (i: number, neu: Partial<Station>) => aendern({ stationen: cv.stationen.map((s, j) => (j === i ? { ...s, ...neu } : s)) });
-  const ausbildung = (i: number, neu: Partial<Ausbildung>) => aendern({ ausbildung: cv.ausbildung.map((a, j) => (j === i ? { ...a, ...neu } : a)) });
-  const sprache = (i: number, neu: Partial<Sprache>) => aendern({ sprachen: cv.sprachen.map((s, j) => (j === i ? { ...s, ...neu } : s)) });
+  const umschalten = (i: number) => {
+    setErledigt((alt) => {
+      const neu = new Set(alt);
+      if (neu.has(i)) neu.delete(i);
+      else neu.add(i);
+      return neu;
+    });
+    geaendert();
+  };
   const verschieben = <T,>(liste: T[], i: number, um: number): T[] => {
     const ziel = i + um;
     if (ziel < 0 || ziel >= liste.length) return liste;
@@ -57,15 +91,30 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart, fot
     [neu[i], neu[ziel]] = [neu[ziel], neu[i]];
     return neu;
   };
+  const setzeStation = (i: number, neu: Partial<Station>) => {
+    setStationen((alt) => alt.map((s, j) => (j === i ? { ...s, ...neu } : s)));
+    geaendert();
+  };
+  const setzeAusbildung = (i: number, neu: Partial<Ausbildung>) => {
+    setAusbildung((alt) => alt.map((a, j) => (j === i ? { ...a, ...neu } : a)));
+    geaendert();
+  };
+  const setzePerson = (neu: Partial<CvDaten["person"]>) => {
+    setPerson((alt) => ({ ...alt, ...neu }));
+    geaendert();
+  };
 
   const speichern = async () => {
     setBusy(true);
     setMeldung(null);
     try {
-      const daten = {
-        ...cv,
+      const daten: CvDaten = {
+        person,
+        kurzprofil,
+        stationen: stationen.map((s) => ({ ...ohneKey(s), stichpunkte: s.stichpunkte.map((p) => p.trim()).filter(Boolean) })),
+        ausbildung: ausbildung.map((a) => ohneKey(a)),
         kenntnisse: kenntnisse.split(/[,;\n]+/).map((k) => k.trim()).filter(Boolean),
-        stationen: cv.stationen.map((s) => ({ ...s, stichpunkte: s.stichpunkte.map((p) => p.trim()).filter(Boolean) })),
+        sprachen,
       };
       const res = await fetch("/api/lebenslauf", {
         method: "PATCH",
@@ -77,8 +126,14 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart, fot
         setMeldung({ text: body.error ?? `HTTP ${res.status}`, fehler: true });
         return;
       }
-      setCv(body.lebenslauf);
-      setKenntnisse((body.lebenslauf.kenntnisse ?? []).join(", "));
+      const l = body.lebenslauf as CvDaten;
+      setPerson(l.person);
+      setKurzprofil(l.kurzprofil);
+      // Bereinigte Fassung übernehmen, Schlüssel (und damit die Hinweise) behalten
+      setStationen((alt) => (l.stationen ?? []).map((s, i) => ({ ...s, _k: alt[i]?._k ?? neuerKey("s") })));
+      setAusbildung((alt) => (l.ausbildung ?? []).map((a, i) => ({ ...a, _k: alt[i]?._k ?? neuerKey("a") })));
+      setSprachen(l.sprachen ?? []);
+      setKenntnisse((l.kenntnisse ?? []).join(", "));
       setDirty(false);
       setMeldung({ text: "Gespeichert. Der nächste Suchprofil-Vorschlag nutzt diese Fassung." });
     } catch (err) {
@@ -88,240 +143,247 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart, fot
     }
   };
 
-  const reiterInhalt = (
-    <>
-      <div>
-        <ReiterInhalt idBasis={idBasis} key_="person" aktiv={reiter}>
-      <section className="card-pad space-y-4">
-        <h2 className="section-title">Person und Kurzprofil</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Feld label="Name" wert={cv.person.name} setze={(v) => person({ name: v })} />
-          <Feld label="Wohnort" wert={cv.person.ort} setze={(v) => person({ ort: v })} />
-          <Feld
-            label="Zeile unter dem Namen"
-            hinweis="Steht in Lebenslauf und Anschreiben, z. B. deine Berufsbezeichnung."
-            platzhalter={cv.stationen[0]?.titel || "z. B. Erzieherin"}
-            wert={cv.person.titel ?? ""}
-            setze={(v) => person({ titel: v })}
-            breit
-          />
-        </div>
-        <fieldset className="grid gap-4 sm:grid-cols-2">
-          <legend className="field-label mb-1">Kontakt für deine Unterlagen</legend>
-          <Feld label="E-Mail" typ="email" wert={cv.person.email ?? ""} setze={(v) => person({ email: v })} />
-          <Feld label="Telefon" typ="tel" platzhalter="z. B. 0170 1234567" wert={cv.person.telefon ?? ""} setze={(v) => person({ telefon: v })} />
-          <Feld label="LinkedIn (optional)" platzhalter="linkedin.com/in/dein-name" wert={cv.person.linkedin ?? ""} setze={(v) => person({ linkedin: v })} />
-          <Feld label="Xing (optional)" platzhalter="xing.com/profile/Dein_Name" wert={cv.person.xing ?? ""} setze={(v) => person({ xing: v })} />
-        </fieldset>
-        <label className="block">
-          <span className="field-label">Kurzprofil</span>
-          <span className="field-hint">2–3 Sätze, was dich beruflich ausmacht.</span>
-          <textarea className="field min-h-24 leading-relaxed" value={cv.kurzprofil} onChange={(e) => aendern({ kurzprofil: e.target.value })} />
-        </label>
-      </section>
-
-        </ReiterInhalt>
-        <ReiterInhalt idBasis={idBasis} key_="erfahrung" aktiv={reiter}>
-      <section className="card-pad">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="section-title">Berufserfahrung</h2>
-          <button type="button" className="btn-secondary btn-sm" onClick={() => aendern({ stationen: [leereStation(), ...cv.stationen] })}>
-            <Icon name="plus" size={14} /> Station
-          </button>
-        </div>
-        <p className="section-lead">Neueste zuerst. Ein Stichpunkt pro Zeile.</p>
-        <ol className="mt-4 space-y-4">
-          {cv.stationen.map((s, i) => (
-            <li key={i} className="rounded-lg border border-rule bg-paper/50 p-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="field-label">Titel</span>
-                  <input className="field" value={s.titel} onChange={(e) => station(i, { titel: e.target.value })} />
-                </label>
-                <label className="block">
-                  <span className="field-label">Zeitraum</span>
-                  <input className="field" placeholder="MM/JJJJ – MM/JJJJ" value={s.zeitraum} onChange={(e) => station(i, { zeitraum: e.target.value })} />
-                </label>
-                <label className="block">
-                  <span className="field-label">Arbeitgeber</span>
-                  <input className="field" value={s.arbeitgeber} onChange={(e) => station(i, { arbeitgeber: e.target.value })} />
-                </label>
-                <label className="block">
-                  <span className="field-label">Ort</span>
-                  <input className="field" value={s.ort} onChange={(e) => station(i, { ort: e.target.value })} />
-                </label>
-              </div>
-              <label className="mt-3 block">
-                <span className="field-label">Aufgaben und Erfolge</span>
-                <textarea
-                  className="field min-h-20 leading-relaxed"
-                  value={s.stichpunkte.join("\n")}
-                  onChange={(e) => station(i, { stichpunkte: e.target.value.split("\n") })}
-                />
-              </label>
-              <Zeilenaktionen
-                nach_oben={i > 0 ? () => aendern({ stationen: verschieben(cv.stationen, i, -1) }) : undefined}
-                nach_unten={i < cv.stationen.length - 1 ? () => aendern({ stationen: verschieben(cv.stationen, i, 1) }) : undefined}
-                entfernen={() => aendern({ stationen: cv.stationen.filter((_, j) => j !== i) })}
-                was="Station"
-              />
-            </li>
-          ))}
-        </ol>
-      </section>
-
-        </ReiterInhalt>
-        <ReiterInhalt idBasis={idBasis} key_="ausbildung" aktiv={reiter}>
-      <section className="card-pad">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="section-title">Ausbildung</h2>
-          <button type="button" className="btn-secondary btn-sm" onClick={() => aendern({ ausbildung: [...cv.ausbildung, leereAusbildung()] })}>
-            <Icon name="plus" size={14} /> Abschluss
-          </button>
-        </div>
-        <ol className="mt-4 space-y-3">
-          {cv.ausbildung.map((a, i) => (
-            <li key={i} className="rounded-lg border border-rule bg-paper/50 p-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="block sm:col-span-2">
-                  <span className="field-label">Abschluss</span>
-                  <input className="field" value={a.abschluss} onChange={(e) => ausbildung(i, { abschluss: e.target.value })} />
-                </label>
-                <label className="block">
-                  <span className="field-label">Zeitraum</span>
-                  <input className="field" value={a.zeitraum} onChange={(e) => ausbildung(i, { zeitraum: e.target.value })} />
-                </label>
-                <label className="block sm:col-span-3">
-                  <span className="field-label">Einrichtung</span>
-                  <input className="field" value={a.einrichtung} onChange={(e) => ausbildung(i, { einrichtung: e.target.value })} />
-                </label>
-              </div>
-              <Zeilenaktionen
-                nach_oben={i > 0 ? () => aendern({ ausbildung: verschieben(cv.ausbildung, i, -1) }) : undefined}
-                nach_unten={i < cv.ausbildung.length - 1 ? () => aendern({ ausbildung: verschieben(cv.ausbildung, i, 1) }) : undefined}
-                entfernen={() => aendern({ ausbildung: cv.ausbildung.filter((_, j) => j !== i) })}
-                was="Abschluss"
-              />
-            </li>
-          ))}
-        </ol>
-      </section>
-
-        </ReiterInhalt>
-        <ReiterInhalt idBasis={idBasis} key_="kenntnisse" aktiv={reiter}>
-      <section className="card-pad space-y-4">
-        <h2 className="section-title">Kenntnisse und Sprachen</h2>
-        <label className="block">
-          <span className="field-label">Kenntnisse</span>
-          <span className="field-hint">Mit Komma getrennt, höchstens 15.</span>
-          <textarea
-            className="field min-h-16"
-            value={kenntnisse}
-            onChange={(e) => {
-              setKenntnisse(e.target.value);
-              setDirty(true);
-            }}
-          />
-        </label>
-        <div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="field-label">Sprachen</span>
-            <button type="button" className="btn-ghost btn-sm" onClick={() => aendern({ sprachen: [...cv.sprachen, { sprache: "", niveau: "" }] })}>
-              <Icon name="plus" size={14} /> Sprache
-            </button>
-          </div>
-          <ul className="mt-2 space-y-2">
-            {cv.sprachen.map((s, i) => (
-              <li key={i} className="flex flex-wrap items-center gap-2">
-                <input aria-label="Sprache" className="field mt-0 w-40" placeholder="Sprache" value={s.sprache} onChange={(e) => sprache(i, { sprache: e.target.value })} />
-                <input aria-label="Niveau" className="field mt-0 w-48" placeholder="z. B. Muttersprache, B2" value={s.niveau} onChange={(e) => sprache(i, { niveau: e.target.value })} />
-                <button type="button" className="btn-ghost btn-sm hover:text-drop" aria-label="Sprache entfernen" onClick={() => aendern({ sprachen: cv.sprachen.filter((_, j) => j !== i) })}>
-                  <Icon name="x" size={14} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-        </ReiterInhalt>
-        {foto && (
-          <ReiterInhalt idBasis={idBasis} key_="foto" aktiv={reiter}>
-            {foto}
-          </ReiterInhalt>
-        )}
-      </div>
-    </>
-  );
+  const hinweise = (liste: number[]) =>
+    liste.length > 0 ? <Hinweise pruefung={pruefung} indizes={liste} erledigt={erledigt} umschalten={umschalten} /> : null;
+  const allgemein = indizes("allgemein");
 
   return (
     <div className="space-y-6 text-sm">
+      {pruefung.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="font-medium">
+            <span className="tnum">{erledigt.size}</span> von <span className="tnum">{pruefung.length}</span> Verbesserungen erledigt
+          </span>
+          <span className="text-muted">Die Hinweise stehen direkt an der Stelle, die du ändern solltest. Zahlen an den Reitern = noch offen.</span>
+        </div>
+      )}
+      {allgemein.length > 0 && (
+        <section className="card-pad">
+          <h2 className="section-title">Betrifft den ganzen Lebenslauf</h2>
+          {hinweise(allgemein)}
+        </section>
+      )}
+
       <ReiterLeiste
         label="Bereiche des Lebenslaufs"
         idBasis={idBasis}
         aktiv={reiter}
         onWahl={waehlen}
         eintraege={[
-          { key: "person", label: "Person" },
-          { key: "erfahrung", label: "Erfahrung", zahl: cv.stationen.length },
-          { key: "ausbildung", label: "Ausbildung", zahl: cv.ausbildung.length },
-          { key: "kenntnisse", label: "Kenntnisse" },
+          { key: "person", label: "Person", zahl: offen("person") },
+          { key: "erfahrung", label: "Erfahrung", zahl: offen("erfahrung") },
+          { key: "ausbildung", label: "Ausbildung", zahl: offen("ausbildung") },
+          { key: "kenntnisse", label: "Kenntnisse", zahl: offen("kenntnisse") },
           ...(foto ? [{ key: "foto", label: "Foto" }] : []),
         ]}
       />
-      <div className={pruefungStart.length > 0 ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}>
-        <div className="min-w-0 lg:order-1">{reiterInhalt}</div>
-        {pruefungStart.length > 0 && <div className="order-first lg:order-2">
-      {pruefungStart.length > 0 && (
-        <aside className="card-pad lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto" aria-labelledby={`${idBasis}-pruef`}>
-          <div className="flex items-center justify-between gap-2">
-            <h2 id={`${idBasis}-pruef`} className="section-title">Was sich verbessern lässt</h2>
-            <span className="tnum shrink-0 text-xs text-muted">
-              {erledigt.size} von {pruefungStart.length} erledigt
-            </span>
-          </div>
-          <button type="button" className="btn-ghost btn-sm mt-2 lg:hidden" aria-expanded={listeOffen} onClick={() => setListeOffen((v) => !v)}>
-            <Icon name="chevronDown" size={14} className={listeOffen ? "rotate-180" : ""} />
-            {listeOffen ? "Liste zuklappen" : "Liste anzeigen"}
-          </button>
-          <div className={listeOffen ? "" : "hidden lg:block"}>
-          <p className="section-lead">Daneben im passenden Reiter ändern, hier abhaken — die Liste bleibt dabei sichtbar.</p>
-          <ul className="mt-4 divide-y divide-rule/70">
-            {pruefungStart.map((p, i) => {
-              const fertig = erledigt.has(i);
-              return (
-                <li key={i} className="py-3 first:pt-0 last:pb-0">
-                  <label className="flex cursor-pointer gap-3">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 shrink-0"
-                      checked={fertig}
-                      onChange={() => {
-                        setErledigt((alt) => {
-                          const neu = new Set(alt);
-                          if (neu.has(i)) neu.delete(i);
-                          else neu.add(i);
-                          return neu;
-                        });
-                        setDirty(true);
-                      }}
-                    />
-                    <span className={`min-w-0 ${fertig ? "text-muted line-through decoration-muted/50" : ""}`}>
-                      <span className={`${STUFE[p.stufe]?.badge ?? "badge-neutral"} mr-2 no-underline`}>{STUFE[p.stufe]?.text ?? p.stufe}</span>
-                      {p.punkt}
-                      {p.vorschlag && <span className="mt-0.5 block text-muted">→ {p.vorschlag}</span>}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-          </div>
-        </aside>
-      )}
 
-        </div>}
-      </div>
+      <ReiterInhalt idBasis={idBasis} key_="person" aktiv={reiter}>
+        <section className="card-pad space-y-4">
+          <h2 className="section-title">Person und Kurzprofil</h2>
+          {hinweise(indizes("person"))}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Feld label="Name" wert={person.name} setze={(v) => setzePerson({ name: v })} />
+            <Feld label="Wohnort" wert={person.ort} setze={(v) => setzePerson({ ort: v })} />
+            <Feld
+              label="Zeile unter dem Namen"
+              hinweis="Steht in Lebenslauf und Anschreiben, z. B. deine Berufsbezeichnung."
+              platzhalter={stationen[0]?.titel || "z. B. Erzieherin"}
+              wert={person.titel ?? ""}
+              setze={(v) => setzePerson({ titel: v })}
+              breit
+            />
+          </div>
+          <fieldset className="grid gap-4 sm:grid-cols-2">
+            <legend className="field-label mb-1">Kontakt für deine Unterlagen</legend>
+            <Feld label="E-Mail" typ="email" wert={person.email ?? ""} setze={(v) => setzePerson({ email: v })} />
+            <Feld label="Telefon" typ="tel" platzhalter="z. B. 0170 1234567" wert={person.telefon ?? ""} setze={(v) => setzePerson({ telefon: v })} />
+            <Feld label="LinkedIn (optional)" platzhalter="linkedin.com/in/dein-name" wert={person.linkedin ?? ""} setze={(v) => setzePerson({ linkedin: v })} />
+            <Feld label="Xing (optional)" platzhalter="xing.com/profile/Dein_Name" wert={person.xing ?? ""} setze={(v) => setzePerson({ xing: v })} />
+          </fieldset>
+          <label className="block">
+            <span className="field-label">Kurzprofil</span>
+            <span className="field-hint">2–3 Sätze, was dich beruflich ausmacht.</span>
+            <textarea
+              className="field min-h-24 leading-relaxed"
+              value={kurzprofil}
+              onChange={(e) => {
+                setKurzprofil(e.target.value);
+                geaendert();
+              }}
+            />
+          </label>
+        </section>
+      </ReiterInhalt>
+
+      <ReiterInhalt idBasis={idBasis} key_="erfahrung" aktiv={reiter}>
+        <section className="card-pad">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="section-title">Berufserfahrung</h2>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => {
+                setStationen((alt) => [leereStation(), ...alt]);
+                geaendert();
+              }}
+            >
+              <Icon name="plus" size={14} /> Station
+            </button>
+          </div>
+          <p className="section-lead">Neueste zuerst. Ein Stichpunkt pro Zeile.</p>
+          {indizes("erfahrung").length > 0 && <div className="mt-4">{hinweise(indizes("erfahrung"))}</div>}
+          <ol className="mt-4 space-y-4">
+            {stationen.map((s, i) => (
+              <li key={s._k} className="rounded-lg border border-rule bg-paper/50 p-4">
+                {hinweise(indizes("erfahrung", s._k)) && <div className="mb-3">{hinweise(indizes("erfahrung", s._k))}</div>}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="field-label">Titel</span>
+                    <input className="field" value={s.titel} onChange={(e) => setzeStation(i, { titel: e.target.value })} />
+                  </label>
+                  <label className="block">
+                    <span className="field-label">Zeitraum</span>
+                    <input className="field" placeholder="MM/JJJJ – MM/JJJJ" value={s.zeitraum} onChange={(e) => setzeStation(i, { zeitraum: e.target.value })} />
+                  </label>
+                  <label className="block">
+                    <span className="field-label">Arbeitgeber</span>
+                    <input className="field" value={s.arbeitgeber} onChange={(e) => setzeStation(i, { arbeitgeber: e.target.value })} />
+                  </label>
+                  <label className="block">
+                    <span className="field-label">Ort</span>
+                    <input className="field" value={s.ort} onChange={(e) => setzeStation(i, { ort: e.target.value })} />
+                  </label>
+                </div>
+                <label className="mt-3 block">
+                  <span className="field-label">Aufgaben und Erfolge</span>
+                  <textarea className="field min-h-20 leading-relaxed" value={s.stichpunkte.join("\n")} onChange={(e) => setzeStation(i, { stichpunkte: e.target.value.split("\n") })} />
+                </label>
+                <Zeilenaktionen
+                  nach_oben={i > 0 ? () => (setStationen((alt) => verschieben(alt, i, -1)), geaendert()) : undefined}
+                  nach_unten={i < stationen.length - 1 ? () => (setStationen((alt) => verschieben(alt, i, 1)), geaendert()) : undefined}
+                  entfernen={() => (setStationen((alt) => alt.filter((_, j) => j !== i)), geaendert())}
+                  was="Station"
+                />
+              </li>
+            ))}
+          </ol>
+        </section>
+      </ReiterInhalt>
+
+      <ReiterInhalt idBasis={idBasis} key_="ausbildung" aktiv={reiter}>
+        <section className="card-pad">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="section-title">Ausbildung</h2>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => {
+                setAusbildung((alt) => [...alt, leereAusbildung()]);
+                geaendert();
+              }}
+            >
+              <Icon name="plus" size={14} /> Abschluss
+            </button>
+          </div>
+          {indizes("ausbildung").length > 0 && <div className="mt-4">{hinweise(indizes("ausbildung"))}</div>}
+          <ol className="mt-4 space-y-3">
+            {ausbildung.map((a, i) => (
+              <li key={a._k} className="rounded-lg border border-rule bg-paper/50 p-4">
+                {hinweise(indizes("ausbildung", a._k)) && <div className="mb-3">{hinweise(indizes("ausbildung", a._k))}</div>}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="block sm:col-span-2">
+                    <span className="field-label">Abschluss</span>
+                    <input className="field" value={a.abschluss} onChange={(e) => setzeAusbildung(i, { abschluss: e.target.value })} />
+                  </label>
+                  <label className="block">
+                    <span className="field-label">Zeitraum</span>
+                    <input className="field" value={a.zeitraum} onChange={(e) => setzeAusbildung(i, { zeitraum: e.target.value })} />
+                  </label>
+                  <label className="block sm:col-span-3">
+                    <span className="field-label">Einrichtung</span>
+                    <input className="field" value={a.einrichtung} onChange={(e) => setzeAusbildung(i, { einrichtung: e.target.value })} />
+                  </label>
+                </div>
+                <Zeilenaktionen
+                  nach_oben={i > 0 ? () => (setAusbildung((alt) => verschieben(alt, i, -1)), geaendert()) : undefined}
+                  nach_unten={i < ausbildung.length - 1 ? () => (setAusbildung((alt) => verschieben(alt, i, 1)), geaendert()) : undefined}
+                  entfernen={() => (setAusbildung((alt) => alt.filter((_, j) => j !== i)), geaendert())}
+                  was="Abschluss"
+                />
+              </li>
+            ))}
+          </ol>
+        </section>
+      </ReiterInhalt>
+
+      <ReiterInhalt idBasis={idBasis} key_="kenntnisse" aktiv={reiter}>
+        <section className="card-pad space-y-4">
+          <h2 className="section-title">Kenntnisse und Sprachen</h2>
+          {hinweise(indizes("kenntnisse"))}
+          <label className="block">
+            <span className="field-label">Kenntnisse</span>
+            <span className="field-hint">Mit Komma getrennt, höchstens 15.</span>
+            <textarea
+              className="field min-h-16"
+              value={kenntnisse}
+              onChange={(e) => {
+                setKenntnisse(e.target.value);
+                geaendert();
+              }}
+            />
+          </label>
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="field-label">Sprachen</span>
+              <button
+                type="button"
+                className="btn-ghost btn-sm"
+                onClick={() => {
+                  setSprachen((alt) => [...alt, { sprache: "", niveau: "" }]);
+                  geaendert();
+                }}
+              >
+                <Icon name="plus" size={14} /> Sprache
+              </button>
+            </div>
+            <ul className="mt-2 space-y-2">
+              {sprachen.map((s, i) => (
+                <li key={i} className="flex flex-wrap items-center gap-2">
+                  <input
+                    aria-label="Sprache"
+                    className="field mt-0 w-40"
+                    placeholder="Sprache"
+                    value={s.sprache}
+                    onChange={(e) => (setSprachen((alt) => alt.map((x, j) => (j === i ? { ...x, sprache: e.target.value } : x))), geaendert())}
+                  />
+                  <input
+                    aria-label="Niveau"
+                    className="field mt-0 w-48"
+                    placeholder="z. B. Muttersprache, B2"
+                    value={s.niveau}
+                    onChange={(e) => (setSprachen((alt) => alt.map((x, j) => (j === i ? { ...x, niveau: e.target.value } : x))), geaendert())}
+                  />
+                  <button
+                    type="button"
+                    className="btn-ghost btn-sm hover:text-drop"
+                    aria-label="Sprache entfernen"
+                    onClick={() => (setSprachen((alt) => alt.filter((_, j) => j !== i)), geaendert())}
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      </ReiterInhalt>
+
+      {foto && (
+        <ReiterInhalt idBasis={idBasis} key_="foto" aktiv={reiter}>
+          {foto}
+        </ReiterInhalt>
+      )}
 
       <div className="card z-10 flex flex-wrap items-center gap-3 p-3 sm:sticky sm:bottom-3 sm:shadow-raised">
         <button type="button" onClick={() => void speichern()} disabled={busy || !dirty} className={dirty ? "btn-primary" : "btn-secondary"}>
@@ -332,9 +394,37 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart, fot
           )}
         </button>
         {dirty && !busy && <span className="text-xs text-warn">Ungespeicherte Änderungen</span>}
-        {meldung && <span className={`text-sm ${meldung.fehler ? "text-drop" : "text-keep"}`} role={meldung.fehler ? "alert" : "status"}>{meldung.text}</span>}
+        {meldung && (
+          <span className={`text-sm ${meldung.fehler ? "text-drop" : "text-keep"}`} role={meldung.fehler ? "alert" : "status"}>
+            {meldung.text}
+          </span>
+        )}
       </div>
     </div>
+  );
+}
+
+/** Prüfpunkte an Ort und Stelle — abhaken, sobald geändert. */
+function Hinweise({ pruefung, indizes, erledigt, umschalten }: { pruefung: Pruefpunkt[]; indizes: number[]; erledigt: Set<number>; umschalten: (i: number) => void }) {
+  return (
+    <ul className="space-y-2" aria-label="Verbesserungsvorschläge">
+      {indizes.map((i) => {
+        const p = pruefung[i];
+        const fertig = erledigt.has(i);
+        return (
+          <li key={i} className={`rounded-lg border px-3 py-2.5 ${fertig ? "border-rule bg-subtle/50" : p.stufe === "rot" ? "border-drop/30 bg-drop-soft/60" : "border-warn/30 bg-warn-soft/40"}`}>
+            <label className="flex cursor-pointer gap-3">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={fertig} onChange={() => umschalten(i)} aria-label={`Erledigt: ${p.punkt}`} />
+              <span className={`min-w-0 ${fertig ? "text-muted line-through decoration-muted/50" : ""}`}>
+                <span className={`${STUFE[p.stufe]?.badge ?? "badge-neutral"} mr-2 no-underline`}>{STUFE[p.stufe]?.text ?? p.stufe}</span>
+                {p.punkt}
+                {p.vorschlag && <span className="mt-0.5 block text-muted">→ {p.vorschlag}</span>}
+              </span>
+            </label>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

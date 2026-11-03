@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import SuchprofilClient, { type SuchprofilStand } from "./SuchprofilClient";
 import LayoutClient, { type LayoutStand } from "./LayoutClient";
 import { ReiterInhalt, ReiterLeiste, useReiter, useReiterId } from "@/components/ui/Reiter";
+import { REITER_ZU, zuordnen } from "@/lib/pruefung-zuordnen";
 
 const REITER_KEYS = ["lebenslauf", "suchprofil", "unterlagen", "benachrichtigung"];
 
@@ -25,7 +26,7 @@ export type CvStand = {
     sprachen?: Array<{ sprache: string; niveau: string }>;
   } | null;
   richtungen: Array<{ titel: string; begruendung: string; suchbegriffe: string[] }> | null;
-  pruefung: Array<{ stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string; erledigt?: boolean }> | null;
+  pruefung: Array<{ stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string; erledigt?: boolean; bereich?: string; eintrag?: number | null }> | null;
 };
 
 const STUFE: Record<string, { text: string; badge: string }> = {
@@ -126,7 +127,14 @@ export default function LebenslaufClient({
             ? `Hochgeladen: ${stand.datei_name}${stand.status === "fehler" ? " — konnte nicht ausgelesen werden" : ""}`
             : "PDF oder Word (.docx), höchstens 10 MB."}
         </p>
-        <label className={`mt-4 ${stand ? "btn-secondary" : "btn-primary"} ${busy ? "pointer-events-none opacity-45" : "cursor-pointer"} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/60 has-[:focus-visible]:ring-offset-2`}>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+        {stand?.status === "ausgelesen" && !busy && (
+          <Link href="/profil/lebenslauf" className="btn-primary">
+            <Icon name="file" size={15} /> Lebenslauf bearbeiten
+            {offenePunkte > 0 && <span className="tnum rounded-full bg-white/20 px-1.5 text-2xs">{offenePunkte} offen</span>}
+          </Link>
+        )}
+        <label className={`${stand ? "btn-secondary" : "btn-primary"} ${busy ? "pointer-events-none opacity-45" : "cursor-pointer"} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/60 has-[:focus-visible]:ring-offset-2`}>
           <Icon name="upload" size={15} />
           {stand ? "Neuen Lebenslauf hochladen" : "Lebenslauf hochladen"}
           <input
@@ -141,10 +149,9 @@ export default function LebenslaufClient({
             }}
           />
         </label>
+        </div>
         {stand?.status === "ausgelesen" && !busy && (
-          <Link href="/profil/lebenslauf" className="btn-ghost ml-2 mt-4">
-            <Icon name="file" size={15} /> Bearbeiten und Foto
-          </Link>
+          <p className="mt-2 text-xs text-muted">Felder korrigieren, Kontaktdaten und Foto ergänzen, Verbesserungen abhaken.</p>
         )}
         <Fortschritt
           aktiv={busy}
@@ -185,15 +192,18 @@ export default function LebenslaufClient({
                     {p.erledigt && <span className="ml-2 text-xs text-keep no-underline">erledigt</span>}
                   </p>
                   {p.vorschlag && <p className="mt-0.5 text-muted">→ {p.vorschlag}</p>}
+                  {!p.erledigt && (
+                    <Link href={`/profil/lebenslauf#${REITER_ZU[zuordnen(p, stand.lebenslauf ?? {}).bereich]}`} className="link mt-1 inline-block text-xs">
+                      Hier ändern →
+                    </Link>
+                  )}
                 </div>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-sm">
-            <Link href="/profil/lebenslauf" className="link">
-              Punkte abhaken und Lebenslauf bearbeiten →
-            </Link>
-          </p>
+          <Link href="/profil/lebenslauf" className="btn-primary mt-4">
+            <Icon name="file" size={15} /> Lebenslauf bearbeiten
+          </Link>
         </section>
       )}
 
