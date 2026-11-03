@@ -5,6 +5,10 @@ import Icon from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/Bausteine";
 import type { FruehereBewerbung } from "@/lib/firma";
 import type { BesuchsSumme } from "@/lib/tracking";
+import type { Grund } from "@/lib/gruende";
+
+export type AblageGruende = { passtNicht: Grund[]; passtAber: Grund[] };
+type Ablage = { gruende: string[]; notiz: string };
 
 export type InboxJob = {
   uuid: string;
@@ -180,8 +184,18 @@ function datum(value: string | null): string | null {
     : parsed.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 }
 
-export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: InboxJob[]; mitUnterlagen?: boolean }) {
+export default function InboxClient({
+  jobs,
+  mitUnterlagen = true,
+  ablageGruende,
+}: {
+  jobs: InboxJob[];
+  mitUnterlagen?: boolean;
+  ablageGruende?: AblageGruende;
+}) {
   const [state, setState] = useState<Record<string, string>>({});
+  // Stelle, für die gerade der Grund fürs Ablegen abgefragt wird
+  const [ablegen, setAblegen] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [reiter, setReiter] = useState("neu");
   const [spurFilter, setSpurFilter] = useState<"alle" | "ki" | "upgrade">("alle");
@@ -211,14 +225,14 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
     window.history.replaceState(null, "", key === "neu" ? window.location.pathname : `#${key}`);
   };
 
-  const setStatus = async (uuid: string, status: string) => {
+  const setStatus = async (uuid: string, status: string, ablage?: Ablage) => {
     const previous = state[uuid];
     setState((prev) => ({ ...prev, [uuid]: status }));
     try {
       const res = await fetch("/api/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uuid, status }),
+        body: JSON.stringify(ablage ? { uuid, status, ablage } : { uuid, status }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -231,7 +245,8 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
           return next;
         });
       } else {
-        setFailed(null);
+        const body = await res.json().catch(() => ({}));
+        setFailed(body.warnung ?? null);
       }
     } catch (error) {
       setFailed(error instanceof Error ? error.message : String(error));
@@ -461,6 +476,17 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
                 )}
               </article>
 
+              {ablegen === job.uuid && ablageGruende && (
+                <AblageDialog
+                  gruende={ablageGruende}
+                  onAbbrechen={() => setAblegen(null)}
+                  onAblegen={(ablage) => {
+                    setAblegen(null);
+                    void setStatus(job.uuid, "abgelegt", ablage);
+                  }}
+                />
+              )}
+
               {/* Ebene 4: Aktionen */}
               <div className="flex flex-wrap items-center gap-2 rounded-b-lg border-t border-rule bg-subtle/40 px-4 py-3 sm:px-5">
                 {job.url && (
@@ -486,13 +512,101 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
                   </>
                 )}
                 <span className="ml-auto">
-                  <StatusMenue status={status} onWahl={(key) => void setStatus(job.uuid, key)} />
+                  <StatusMenue
+                    status={status}
+                    onWahl={(key) => {
+                      // Ablegen: erst nach dem Grund fragen (fließt ins Lernen ein)
+                      if (key === "abgelegt" && ablageGruende && status !== "abgelegt") setAblegen(job.uuid);
+                      else void setStatus(job.uuid, key);
+                    }}
+                  />
                 </span>
               </div>
             </li>
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * Warum ablegen? Zwei Gruppen, die sich ausschließen:
+ *   „Passt nicht“ → nojobs lernt, solche Stellen seltener vorzuschlagen.
+ *   „Passt, aber …“ → äußerer Grund; zählt nicht gegen die Stelle.
+ * Alles optional — ohne Grund zählt Ablegen wie bisher als „passt nicht“.
+ */
+function AblageDialog({ gruende, onAblegen, onAbbrechen }: { gruende: AblageGruende; onAblegen: (a: Ablage) => void; onAbbrechen: () => void }) {
+  const [gewaehlt, setGewaehlt] = useState<string[]>([]);
+  const [notiz, setNotiz] = useState("");
+  const id = useId();
+  const wurzel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    wurzel.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, []);
+  const istAber = (key: string) => gruende.passtAber.some((g) => g.key === key);
+  const umschalten = (key: string) =>
+    setGewaehlt((alt) =>
+      alt.includes(key)
+        ? alt.filter((k) => k !== key)
+        : [...alt.filter((k) => istAber(k) === istAber(key)), key] // andere Gruppe abwählen
+    );
+  const aber = gewaehlt.some(istAber);
+  const nicht = gewaehlt.length > 0 && !aber;
+  const chip = (g: Grund) => {
+    const an = gewaehlt.includes(g.key);
+    return (
+      <button
+        key={g.key}
+        type="button"
+        aria-pressed={an}
+        onClick={() => umschalten(g.key)}
+        className={`rounded-full border px-3 py-1.5 text-left text-sm transition ${
+          an ? (istAber(g.key) ? "border-keep bg-keep-soft font-medium text-keep" : "border-drop/60 bg-drop/10 font-medium text-drop") : "border-rule bg-surface text-ink hover:border-ink/30"
+        }`}
+      >
+        {an && <Icon name="check" size={13} className="-ml-0.5 mr-1 inline" />}
+        {g.label}
+      </button>
+    );
+  };
+  return (
+    <div
+      ref={wurzel}
+      role="group"
+      aria-labelledby={`${id}-t`}
+      onKeyDown={(e) => e.key === "Escape" && onAbbrechen()}
+      className="border-t border-rule bg-subtle/60 px-4 py-4 sm:px-5"
+    >
+      <p id={`${id}-t`} className="font-semibold">Warum ablegen?</p>
+      <p className="mt-0.5 text-sm text-muted">Optional — hilft nojobs, dir bessere Stellen vorzuschlagen.</p>
+      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted">Passt nicht</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {gruende.passtNicht.map(chip)}
+      </div>
+      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted">Passt eigentlich, aber …</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {gruende.passtAber.map(chip)}
+      </div>
+      <label className="mt-3 block">
+        <span className="sr-only">Notiz</span>
+        <input className="field" maxLength={300} placeholder="Notiz (optional)" value={notiz} onChange={(e) => setNotiz(e.target.value)} />
+      </label>
+      <p className="mt-2 text-xs text-muted" aria-live="polite">
+        {aber
+          ? "Zählt nicht gegen die Stelle — nojobs schlägt solche Stellen weiter vor."
+          : nicht
+            ? "nojobs schlägt Stellen mit diesem Grund künftig seltener vor."
+            : "Ohne Grund zählt Ablegen als „passt nicht“."}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" className="btn-primary" onClick={() => onAblegen({ gruende: gewaehlt, notiz: notiz.trim() })}>
+          <Icon name="archive" size={15} /> Ablegen
+        </button>
+        <button type="button" className="btn-ghost" onClick={onAbbrechen}>
+          Abbrechen
+        </button>
+      </div>
     </div>
   );
 }

@@ -55,6 +55,22 @@ export const GRUENDE_ANSCHAUEN_ALLGEMEIN: Grund[] = [
   { key: "arbeitgeber-unbekannt", label: "Arbeitgeber unbekannt" },
 ];
 
+/**
+ * Ablegen in der Inbox: „Passt, aber …“ — die Stelle war ein guter Vorschlag, beworben
+ * wurde aus einem äußeren Grund. Diese Gründe zählen NICHT gegen die Stelle.
+ * (Die Gründe „Passt nicht“ sind dieselben wie beim Labeln mit Ignorieren.)
+ */
+export const GRUENDE_ABLAGE_PASST: Grund[] = [
+  { key: "ablage-schon-beworben", label: "Schon beworben (anderer Weg)" },
+  { key: "ablage-nicht-abrufbar", label: "Stelle nicht mehr abrufbar / besetzt" },
+  { key: "ablage-frist", label: "Bewerbungsfrist abgelaufen" },
+  { key: "ablage-doppelt", label: "Doppelt in der Liste" },
+  { key: "ablage-zeitpunkt", label: "Gerade nicht der richtige Zeitpunkt" },
+  { key: "ablage-sonstiges", label: "Anderer Grund (siehe Notiz)" },
+];
+export const ABLAGE_BEWORBEN = "ablage-schon-beworben";
+export const istAblageGrund = (key: string) => GRUENDE_ABLAGE_PASST.some((g) => g.key === key);
+
 /** Welche Begründungen das Profil beim Labeln sieht. Dein Profil: deine Listen wie bisher. */
 export function gruendeFuer(profil: string): { ignore: Grund[]; anschauen: Grund[] } {
   return profil === "iver"
@@ -64,7 +80,7 @@ export function gruendeFuer(profil: string): { ignore: Grund[]; anschauen: Grund
 
 // Deine Bezeichnungen haben Vorrang — gemeinsame Kürzel heißen in deinen Beispielen exakt wie bisher.
 const ALLE = new Map(
-  [...GRUENDE_IGNORE_ALLGEMEIN, ...GRUENDE_ANSCHAUEN_ALLGEMEIN, ...GRUENDE_IGNORE, ...GRUENDE_ANSCHAUEN].map((g) => [g.key, g.label])
+  [...GRUENDE_ABLAGE_PASST, ...GRUENDE_IGNORE_ALLGEMEIN, ...GRUENDE_ANSCHAUEN_ALLGEMEIN, ...GRUENDE_IGNORE, ...GRUENDE_ANSCHAUEN].map((g) => [g.key, g.label])
 );
 
 export function grundText(key: string): string {

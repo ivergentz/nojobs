@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { istGrund } from "@/lib/gruende";
+import { istAblageGrund, istGrund } from "@/lib/gruende";
 import { schreibeFelder } from "@/lib/schreiben";
 import { profilAusRequest } from "@/lib/aktuelles-profil";
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     // Begründung: beim Setzen mitschreiben, beim Aufheben löschen.
     const mitGrund = body.gruende !== undefined || body.notiz !== undefined || body.label === null;
     if (mitGrund) {
-      const gruende = body.label ? (body.gruende ?? []).filter(istGrund).slice(0, 6) : null;
+      const gruende = body.label ? (body.gruende ?? []).filter((k) => istGrund(k) && !istAblageGrund(k)).slice(0, 6) : null;
       const notiz = body.label ? (body.notiz ?? "").trim().slice(0, 300) || null : null;
       const { error: grundError } = await schreibeFelder(db, profil, body.uuid, {
         label_gruende: gruende?.length ? gruende : null,

@@ -4,6 +4,7 @@ import { vorbereitungFuerStelle } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
 import { schreibeFelder } from "@/lib/schreiben";
 import { istStandard, profilAusRequest } from "@/lib/aktuelles-profil";
+import { gruendeFuer, istAblageGrund } from "@/lib/gruende";
 
 export const dynamic = "force-dynamic";
 // Platz für die Gesprächsvorbereitung (Websuche + Briefing), die nach der Antwort im Hintergrund entsteht.
@@ -21,6 +22,11 @@ const ALLOWED = ["neu", "interessant", "beworben", "interview", "absage", "abgel
  *
  * Wechsel auf "beworben" erzeugt im Hintergrund die Gesprächsvorbereitung.
  *
+ *   { uuid, status: "abgelegt", ablage: { gruende, notiz } } → Ablegen mit Grund (fließt ins Lernen ein):
+ *       Gründe „Passt nicht“ (wie beim Labeln) → Urteil „Ignorieren“ mit Begründung.
+ *       Gründe „Passt, aber …“ (ablage-…)  → kein Urteil; die Stelle zählt nicht als Fehlalarm.
+ *       Ohne Grund → wie bisher.
+ *
  * Der Absagegrund fließt als Lernpunkt in die Bewertung neuer Stellen ein
  * (run-evaluate.ts). Fehlt die Spalte noch (absage-notiz.sql), gibt es eine
  * Warnung statt eines Fehlers.
@@ -32,6 +38,7 @@ export async function POST(request: Request) {
       status?: string;
       note?: string;
       absageNotiz?: string;
+      ablage?: { gruende?: unknown; notiz?: unknown };
     };
 
     if (!body.uuid) {
@@ -66,6 +73,11 @@ export async function POST(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    if (body.status === "abgelegt" && body.ablage) {
+      const warnung = await ablageGrundSpeichern(db, profil, body.uuid, body.ablage);
+      if (warnung) return NextResponse.json({ ok: true, warnung });
+    }
+
     // "Beworben": Gesprächsvorbereitung im Hintergrund erzeugen, falls es noch keine gibt.
     // Die Antwort an die Inbox wartet darauf nicht.
     // Nur für dein Profil: Unterlagen und Vorbereitung für weitere Profile kommen in Phase 4.
@@ -87,4 +99,39 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/**
+ * Grund fürs Ablegen. Gibt bei einem Problem eine Warnung zurück — der Status ist dann
+ * schon gespeichert, nur der Grund nicht.
+ */
+async function ablageGrundSpeichern(
+  db: ReturnType<typeof supabaseAdmin>,
+  profil: string,
+  uuid: string,
+  ablage: { gruende?: unknown; notiz?: unknown }
+): Promise<string | null> {
+  const erlaubtNicht = new Set(gruendeFuer(profil).ignore.map((g) => g.key));
+  const roh = Array.isArray(ablage.gruende) ? ablage.gruende.filter((k): k is string => typeof k === "string") : [];
+  const passtNicht = roh.filter((k) => erlaubtNicht.has(k)).slice(0, 6);
+  const passtAber = roh.filter(istAblageGrund).slice(0, 6);
+  const notiz = typeof ablage.notiz === "string" ? ablage.notiz.trim().slice(0, 300) || null : null;
+  if (!passtNicht.length && !passtAber.length && !notiz) return null;
+
+  if (passtNicht.length) {
+    // Echte Absage an die Stelle → dasselbe wie „Ignorieren“ mit Begründung beim Labeln.
+    const { error } = await schreibeFelder(db, profil, uuid, {
+      label: "ignore",
+      labeled_at: new Date().toISOString(),
+      label_gruende: passtNicht,
+      label_notiz: notiz,
+    });
+    return error ? `Grund nicht gespeichert: ${error.message}` : null;
+  }
+  // „Passt, aber …“ (oder nur eine Notiz): kein Urteil setzen. Ein vorhandenes Urteil bleibt unberührt.
+  const { data, error: leseFehler } = await lesen(db, profil).select("label").eq("uuid", uuid).maybeSingle();
+  if (leseFehler) return `Grund nicht gespeichert: ${leseFehler.message}`;
+  if (data?.label) return null;
+  const { error } = await schreibeFelder(db, profil, uuid, { label_gruende: passtAber.length ? passtAber : null, label_notiz: notiz });
+  return error ? `Grund nicht gespeichert: ${error.message}` : null;
 }

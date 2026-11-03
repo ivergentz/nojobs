@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { evaluateAd } from "./evaluate";
 import { AKTIVE_QUELLEN } from "./quellen";
-import { grundText } from "./gruende";
+import { ABLAGE_BEWORBEN, grundText, istAblageGrund } from "./gruende";
 import type { Sammler } from "./kosten";
 import { kandidatenFilter, ladeProfil, ladeProfilVoll } from "./profil";
 import { REGELN_ALLGEMEIN } from "./evaluate";
@@ -255,20 +255,48 @@ async function ladeBeispiele(
   // Inbox-Entscheidungen als zusätzliche Signale: wo du dich beworben hast, ist
   // ein stärkeres "Ja" als jedes Label; "Ablegen" einer vorgeschlagenen Stelle
   // ist genau der Fehlalarm, den das Modell lernen soll zu vermeiden.
-  const { data: inboxData } = await lesen(db, profil)
-    .select("uuid,title,employer_name,municipal,sector,app_status")
-    .in("app_status", ["beworben", "interview", "absage", "abgelegt"])
-    .is("label", null)
-    .order("app_status_at", { ascending: false, nullsFirst: false })
-    .limit(200);
-  const inbox = ((inboxData ?? []) as Array<Record<string, unknown>>).filter(
+  const inboxBasis = "uuid,title,employer_name,municipal,sector,app_status";
+  const inboxAbfrage = (spalten: string) =>
+    lesen(db, profil)
+      .select(spalten)
+      .in("app_status", ["beworben", "interview", "absage", "abgelegt"])
+      .is("label", null)
+      .order("app_status_at", { ascending: false, nullsFirst: false })
+      .limit(200);
+  // Mit dem Grund fürs Ablegen lesen; fehlen die Spalten (SQL nicht ausgeführt), ohne.
+  let { data: inboxData, error: inboxFehler } = await inboxAbfrage(`${inboxBasis},label_gruende,label_notiz`);
+  if (inboxFehler) ({ data: inboxData } = await inboxAbfrage(inboxBasis));
+  const inbox = ((inboxData ?? []) as unknown as Array<Record<string, unknown>>).filter(
     (row) => !ausschliessen.has(row.uuid as string) && row.title && !String(row.uuid).startsWith("manuell-")
   );
-  const inboxZeile = (row: Record<string, unknown>) =>
-    `- [${row.app_status === "abgelegt" ? "IGNORIEREN — in der Inbox abgelegt" : "BEWERBEN — hat sich beworben"}] ${row.title} — ${row.employer_name ?? "?"}, ${row.municipal ?? "Ort?"}` +
-    (row.sector ? ` (${row.sector})` : "");
-  const beworbenZeilen = inbox.filter((row) => row.app_status !== "abgelegt").slice(0, 25).map(inboxZeile);
-  const abgelegtZeilen = inbox.filter((row) => row.app_status === "abgelegt").slice(0, 20).map(inboxZeile);
+  // Ablegen mit „Passt, aber …“: die Stelle war ein guter Vorschlag — kein Fehlalarm.
+  const ablageGruende = (row: Record<string, unknown>) =>
+    Array.isArray(row.label_gruende) ? (row.label_gruende as string[]).filter(istAblageGrund) : [];
+  const abgelegtObwohlPassend = (row: Record<string, unknown>) => row.app_status === "abgelegt" && ablageGruende(row).length > 0;
+  const ablageNotiz = (row: Record<string, unknown>) =>
+    typeof row.label_notiz === "string" && row.label_notiz ? ` → Notiz: „${row.label_notiz}“` : "";
+  const inboxZeile = (row: Record<string, unknown>) => {
+    const art = abgelegtObwohlPassend(row)
+      ? ablageGruende(row).includes(ABLAGE_BEWORBEN)
+        ? "BEWERBEN — hat sich auf anderem Weg beworben"
+        : `PASST — abgelegt nur aus äußerem Grund (${ablageGruende(row).map(grundText).join("; ")}), nicht wegen der Stelle`
+      : row.app_status === "abgelegt"
+        ? "IGNORIEREN — in der Inbox abgelegt"
+        : "BEWERBEN — hat sich beworben";
+    return (
+      `- [${art}] ${row.title} — ${row.employer_name ?? "?"}, ${row.municipal ?? "Ort?"}` +
+      (row.sector ? ` (${row.sector})` : "") +
+      (row.app_status === "abgelegt" ? ablageNotiz(row) : "")
+    );
+  };
+  const beworbenZeilen = inbox
+    .filter((row) => row.app_status !== "abgelegt" || abgelegtObwohlPassend(row))
+    .slice(0, 25)
+    .map(inboxZeile);
+  const abgelegtZeilen = inbox
+    .filter((row) => row.app_status === "abgelegt" && !abgelegtObwohlPassend(row))
+    .slice(0, 20)
+    .map(inboxZeile);
 
   // Absagegründe, die Firmen genannt haben — nur wenn du welche eingetragen hast.
   const { data: absagen } = await lesen(db, profil)

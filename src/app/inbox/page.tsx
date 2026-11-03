@@ -6,6 +6,7 @@ import { besucheJeStelle, type Besuch } from "@/lib/tracking";
 import { lesen } from "@/lib/lesen";
 import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
 import { ladeProfilVoll } from "@/lib/profil";
+import { GRUENDE_ABLAGE_PASST, gruendeFuer } from "@/lib/gruende";
 import { Hinweis, PageHeader } from "@/components/ui/Bausteine";
 
 export const dynamic = "force-dynamic";
@@ -153,7 +154,7 @@ export default async function InboxPage() {
         )}
       </PageHeader>
 
-      <InboxClient jobs={jobs} mitUnterlagen={eigenes} />
+      <InboxClient jobs={jobs} mitUnterlagen={eigenes} ablageGruende={{ passtNicht: gruendeFuer(profil).ignore, passtAber: GRUENDE_ABLAGE_PASST }} />
     </main>
   );
 }
