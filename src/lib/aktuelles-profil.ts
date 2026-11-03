@@ -3,10 +3,11 @@
  *
  * Gespeichert im Cookie "ci-profil" (Profil-Auswahl oben in der Navigation).
  * Kein Cookie, leerer oder ungültiger Wert → dein Profil "iver" — die App
- * verhält sich dann exakt wie vor Schritt 2.2. Login und Rechte kommen in 2.3.
+ * verhält sich dann exakt wie vor Schritt 2.2. Ab 2.3: weitere Personen fest an ihr Login gebunden.
  */
 
 import { STANDARD_SLUG } from "./profil";
+import { loginAktiv, pruefeToken, SITZUNG_COOKIE, sitzungAusHeader } from "./sitzung";
 
 export const PROFIL_COOKIE = "ci-profil";
 
@@ -22,6 +23,9 @@ export function istStandard(slug: string | null | undefined): boolean {
 /** Aus dem Cookie-Header einer Anfrage (API-Routen). */
 export function profilAusRequest(request: Request): string {
   const header = request.headers.get("cookie") ?? "";
+  // Schritt 2.3: Weitere Personen sind fest an ihr Profil gebunden — die Auswahl im Cookie zählt nur für dich.
+  const sitzung = sitzungAusHeader(header);
+  if (sitzung?.r === "nutzer") return gueltigerSlug(sitzung.s);
   const treffer = header.split(";").map((t) => t.trim()).find((t) => t.startsWith(`${PROFIL_COOKIE}=`));
   return gueltigerSlug(treffer ? decodeURIComponent(treffer.slice(PROFIL_COOKIE.length + 1)) : null);
 }
@@ -31,10 +35,16 @@ export async function profilAusCookies(): Promise<string> {
   try {
     const { cookies } = await import("next/headers");
     const c = await cookies();
+    const sitzung = loginPruefen(c.get(SITZUNG_COOKIE)?.value);
+    if (sitzung?.r === "nutzer") return gueltigerSlug(sitzung.s);
     return gueltigerSlug(c.get(PROFIL_COOKIE)?.value);
   } catch {
     return STANDARD_SLUG;
   }
+}
+
+function loginPruefen(wert: string | undefined) {
+  return loginAktiv() && wert ? pruefeToken(wert, "sitzung") : null;
 }
 
 /** Unterlagen, PDFs und Vorbereitung gibt es für weitere Profile erst in Phase 4. */

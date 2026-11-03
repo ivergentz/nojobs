@@ -5,6 +5,7 @@ import ProfilWahl from "./ProfilWahl";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile, STANDARD_SLUG } from "@/lib/profil";
 import { profilAusCookies } from "@/lib/aktuelles-profil";
+import { loginAktiv, SEITEN_NUTZER, sitzungAusCookies } from "@/lib/sitzung";
 
 export const metadata: Metadata = {
   title: "Career Inbox",
@@ -39,6 +40,46 @@ async function profilAuswahl(): Promise<{ profile: Array<{ slug: string; name: s
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Schritt 2.3: Ohne Anmeldung (Login-Seite) keine Navigation; weitere Personen sehen nur ihre Seiten.
+  const sitzung = await sitzungAusCookies();
+  if (loginAktiv() && !sitzung) {
+    return (
+      <html lang="de">
+        <body className="min-h-screen antialiased">{children}</body>
+      </html>
+    );
+  }
+  if (sitzung?.r === "nutzer") {
+    return (
+      <html lang="de">
+        <body className="min-h-screen antialiased">
+          <nav className="border-b border-rule">
+            <ul className="mx-auto flex max-w-3xl gap-5 overflow-x-auto px-6 py-3 text-sm">
+              {NAV.filter((entry) => SEITEN_NUTZER.includes(entry.href)).map((entry) => (
+                <li key={entry.href} className="shrink-0">
+                  <Link href={entry.href} className="text-muted hover:text-ink">
+                    {entry.label}
+                  </Link>
+                </li>
+              ))}
+              <li className="shrink-0">
+                <Link href="/profil" className="text-muted hover:text-ink">
+                  Mein Profil
+                </Link>
+              </li>
+              <li className="ml-auto shrink-0">
+                <a href="/api/abmelden" className="text-muted hover:text-ink">
+                  Abmelden
+                </a>
+              </li>
+            </ul>
+          </nav>
+          {children}
+        </body>
+      </html>
+    );
+  }
+
   const auswahl = await profilAuswahl();
   const fremd = auswahl.aktuell !== STANDARD_SLUG ? auswahl.profile.find((p) => p.slug === auswahl.aktuell) : null;
   return (
@@ -64,6 +105,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {auswahl.profile.length > 1 && (
               <li className="ml-auto shrink-0">
                 <ProfilWahl profile={auswahl.profile} aktuell={auswahl.aktuell} />
+              </li>
+            )}
+            {sitzung && (
+              <li className={`${auswahl.profile.length > 1 ? "" : "ml-auto "}shrink-0`}>
+                <a href="/api/abmelden" className="text-muted hover:text-ink">
+                  Abmelden
+                </a>
               </li>
             )}
           </ul>

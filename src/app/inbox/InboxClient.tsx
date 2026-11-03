@@ -331,7 +331,11 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
 
       {visible.length === 0 && (
         <p className="mt-10 text-sm leading-relaxed">
-          {sucht ? `Nichts gefunden für „${suche.trim()}“.` : LEER[reiter]}
+          {sucht
+            ? `Nichts gefunden für „${suche.trim()}“.`
+            : !mitUnterlagen && reiter === "neu"
+              ? "Nichts Neues. Neue Stellen kommen jeden Morgen — oder unter „Mein Profil“ jetzt nach neuen Stellen suchen."
+              : LEER[reiter]}
         </p>
       )}
 

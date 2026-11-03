@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile } from "@/lib/profil";
-import { AktivSchalter, NeuesProfilFormular, SuchprofilBearbeiten } from "./ProfilVerwaltung";
+import { AktivSchalter, EinladenKnopf, NeuesProfilFormular, SuchprofilBearbeiten } from "./ProfilVerwaltung";
 
 /**
  * Nur lesend: welche Profile gibt es, und woher kommen Profiltext und Regeln?
@@ -37,6 +37,7 @@ export default async function ProfileUebersicht() {
                   <span>
                     Profiltext: {p.profiltext ? "eigener" : "Standard"} · Regeln: {p.regeln ? "eigene" : "Standard"}
                   </span>
+                  {p.rolle !== "admin" && <EinladenKnopf slug={p.slug} email={p.email ?? null} aktiv={p.aktiv !== false} />}
                   {p.rolle !== "admin" && <AktivSchalter slug={p.slug} aktiv={p.aktiv !== false} />}
                 </span>
                 {p.rolle !== "admin" && (

@@ -103,6 +103,57 @@ export function AktivSchalter({ slug, aktiv }: { slug: string; aktiv: boolean })
   );
 }
 
+/** Schritt 2.3: Einladung per E-Mail — fehlt die Adresse, wird sie dabei hinterlegt. */
+export function EinladenKnopf({ slug, email, aktiv }: { slug: string; email: string | null; aktiv: boolean }) {
+  const router = useRouter();
+  const [offen, setOffen] = useState(false);
+  const [adresse, setAdresse] = useState(email ?? "");
+  const [busy, setBusy] = useState(false);
+  const [meldung, setMeldung] = useState<{ text: string; fehler?: boolean } | null>(null);
+  if (!aktiv) return null;
+  const einladen = async () => {
+    setBusy(true);
+    setMeldung(null);
+    try {
+      const res = await fetch("/api/einladung", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret()}` },
+        body: JSON.stringify({ slug, email: adresse }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setMeldung({ text: `Einladung an ${body.an} gesendet.` });
+      router.refresh();
+    } catch (err) {
+      setMeldung({ text: err instanceof Error ? err.message : String(err), fehler: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!offen) {
+    return (
+      <button type="button" onClick={() => setOffen(true)} className="text-xs text-muted underline underline-offset-4">
+        einladen
+      </button>
+    );
+  }
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <input
+        type="email"
+        value={adresse}
+        onChange={(e) => setAdresse(e.target.value)}
+        placeholder="E-Mail-Adresse"
+        className="w-56 rounded border border-rule bg-transparent px-2 py-1 text-xs"
+      />
+      <button type="button" onClick={() => void einladen()} disabled={busy || !adresse} className="rounded border border-keep px-2 py-1 text-xs text-keep disabled:opacity-40">
+        {busy ? "Sendet …" : "Einladung senden"}
+      </button>
+      {meldung && <span className={`text-xs ${meldung.fehler ? "text-drop" : "text-keep"}`}>{meldung.text}</span>}
+    </span>
+  );
+}
+
 /** Schritt 2.2: Suchprofil eines weiteren Profils bearbeiten und Bewertung anstoßen. */
 export function SuchprofilBearbeiten({
   slug,
