@@ -11,7 +11,6 @@ import Avatar from "@/components/ui/Avatar";
 import { fotoAus, fotoUrl } from "@/lib/foto";
 import { verbindungAus } from "@/lib/telegram-profil";
 import { kriterienAus } from "@/lib/suchprofil";
-import LayoutClient from "./LayoutClient";
 import { layoutWahlAus } from "@/lib/unterlagen";
 
 export const dynamic = "force-dynamic";
@@ -83,27 +82,27 @@ export default async function ProfilSeite() {
         <Hinweis ton="error">{hinweis}</Hinweis>
       ) : (
         <>
-          <LebenslaufClient initial={stand} suchprofil={suchprofil} />
-          {/* Phase 3: Telegram — erst sinnvoll, wenn ein Suchprofil steht */}
-          {suchprofil.bestaetigt_at || profil?.suchbegriffe.length ? (
-            <TelegramClient
-              initial={{
-                verbunden: Boolean(telegram),
-                name: telegram?.name ?? null,
-                seit: telegram?.verbunden_at ?? null,
-              }}
-            />
-          ) : null}
-          {/* Phase 4.2: Layout der Unterlagen — sobald ein Lebenslauf ausgelesen ist */}
-          {stand?.status === "ausgelesen" ? (
-            <LayoutClient
-              initial={(() => {
-                const w = layoutWahlAus(einstellungen);
-                return { layout: w.layout, akzent: w.akzentId, mitFoto: w.o.mitFoto };
-              })()}
-              hatFoto={Boolean(fotoAus(einstellungen))}
-            />
-          ) : null}
+          <LebenslaufClient
+            initial={stand}
+            suchprofil={suchprofil}
+            unterlagen={(() => {
+              const w = layoutWahlAus(einstellungen);
+              return { initial: { layout: w.layout, akzent: w.akzentId, mitFoto: w.o.mitFoto }, hatFoto: Boolean(fotoAus(einstellungen)) };
+            })()}
+            telegramVerbunden={Boolean(telegram)}
+            telegram={
+              // Phase 3: Telegram — erst sinnvoll, wenn ein Suchprofil steht
+              suchprofil.bestaetigt_at || profil?.suchbegriffe.length ? (
+                <TelegramClient
+                  initial={{
+                    verbunden: Boolean(telegram),
+                    name: telegram?.name ?? null,
+                    seit: telegram?.verbunden_at ?? null,
+                  }}
+                />
+              ) : null
+            }
+          />
         </>
       )}
     </main>

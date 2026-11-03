@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
+import { ReiterInhalt, ReiterLeiste, useReiter, useReiterId } from "@/components/ui/Reiter";
+
+const REITER_KEYS = ["person", "erfahrung", "ausbildung", "kenntnisse", "foto"];
 
 type Station = { zeitraum: string; titel: string; arbeitgeber: string; ort: string; stichpunkte: string[] };
 type Ausbildung = { zeitraum: string; abschluss: string; einrichtung: string };
@@ -27,7 +30,10 @@ const leereStation = (): Station => ({ zeitraum: "", titel: "", arbeitgeber: "",
 const leereAusbildung = (): Ausbildung => ({ zeitraum: "", abschluss: "", einrichtung: "" });
 
 /** Schritt 2.5 · Ausgelesenen Lebenslauf korrigieren und Prüfpunkte abhaken. */
-export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: { initial: CvDaten; pruefung: Pruefpunkt[] }) {
+export default function LebenslaufEditor({ initial, pruefung: pruefungStart, foto }: { initial: CvDaten; pruefung: Pruefpunkt[]; foto?: ReactNode }) {
+  const [reiter, waehlen] = useReiter(REITER_KEYS, "person");
+  const idBasis = useReiterId();
+  const [listeOffen, setListeOffen] = useState(false);
   const [cv, setCv] = useState<CvDaten>(initial);
   const [erledigt, setErledigt] = useState<Set<number>>(new Set(pruefungStart.flatMap((p, i) => (p.erledigt ? [i] : []))));
   const [kenntnisse, setKenntnisse] = useState(initial.kenntnisse.join(", "));
@@ -82,45 +88,10 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: {
     }
   };
 
-  return (
-    <div className="space-y-6 text-sm">
-      {pruefungStart.length > 0 && (
-        <section className="card-pad">
-          <h2 className="section-title">Was sich verbessern lässt</h2>
-          <p className="section-lead">Haken setzen, wenn du einen Punkt erledigt hast — unten im Lebenslauf direkt ändern.</p>
-          <ul className="mt-4 divide-y divide-rule/70">
-            {pruefungStart.map((p, i) => {
-              const fertig = erledigt.has(i);
-              return (
-                <li key={i} className="py-3 first:pt-0 last:pb-0">
-                  <label className="flex cursor-pointer gap-3">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 shrink-0"
-                      checked={fertig}
-                      onChange={() => {
-                        setErledigt((alt) => {
-                          const neu = new Set(alt);
-                          if (neu.has(i)) neu.delete(i);
-                          else neu.add(i);
-                          return neu;
-                        });
-                        setDirty(true);
-                      }}
-                    />
-                    <span className={`min-w-0 ${fertig ? "text-muted line-through decoration-muted/50" : ""}`}>
-                      <span className={`${STUFE[p.stufe]?.badge ?? "badge-neutral"} mr-2 no-underline`}>{STUFE[p.stufe]?.text ?? p.stufe}</span>
-                      {p.punkt}
-                      {p.vorschlag && <span className="mt-0.5 block text-muted">→ {p.vorschlag}</span>}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
+  const reiterInhalt = (
+    <>
+      <div>
+        <ReiterInhalt idBasis={idBasis} key_="person" aktiv={reiter}>
       <section className="card-pad space-y-4">
         <h2 className="section-title">Person und Kurzprofil</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -149,6 +120,8 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: {
         </label>
       </section>
 
+        </ReiterInhalt>
+        <ReiterInhalt idBasis={idBasis} key_="erfahrung" aktiv={reiter}>
       <section className="card-pad">
         <div className="flex items-center justify-between gap-3">
           <h2 className="section-title">Berufserfahrung</h2>
@@ -197,6 +170,8 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: {
         </ol>
       </section>
 
+        </ReiterInhalt>
+        <ReiterInhalt idBasis={idBasis} key_="ausbildung" aktiv={reiter}>
       <section className="card-pad">
         <div className="flex items-center justify-between gap-3">
           <h2 className="section-title">Ausbildung</h2>
@@ -232,6 +207,8 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: {
         </ol>
       </section>
 
+        </ReiterInhalt>
+        <ReiterInhalt idBasis={idBasis} key_="kenntnisse" aktiv={reiter}>
       <section className="card-pad space-y-4">
         <h2 className="section-title">Kenntnisse und Sprachen</h2>
         <label className="block">
@@ -266,6 +243,85 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: {
           </ul>
         </div>
       </section>
+
+        </ReiterInhalt>
+        {foto && (
+          <ReiterInhalt idBasis={idBasis} key_="foto" aktiv={reiter}>
+            {foto}
+          </ReiterInhalt>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="space-y-6 text-sm">
+      <ReiterLeiste
+        label="Bereiche des Lebenslaufs"
+        idBasis={idBasis}
+        aktiv={reiter}
+        onWahl={waehlen}
+        eintraege={[
+          { key: "person", label: "Person" },
+          { key: "erfahrung", label: "Erfahrung", zahl: cv.stationen.length },
+          { key: "ausbildung", label: "Ausbildung", zahl: cv.ausbildung.length },
+          { key: "kenntnisse", label: "Kenntnisse" },
+          ...(foto ? [{ key: "foto", label: "Foto" }] : []),
+        ]}
+      />
+      <div className={pruefungStart.length > 0 ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}>
+        <div className="min-w-0 lg:order-1">{reiterInhalt}</div>
+        {pruefungStart.length > 0 && <div className="order-first lg:order-2">
+      {pruefungStart.length > 0 && (
+        <aside className="card-pad lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto" aria-labelledby={`${idBasis}-pruef`}>
+          <div className="flex items-center justify-between gap-2">
+            <h2 id={`${idBasis}-pruef`} className="section-title">Was sich verbessern lässt</h2>
+            <span className="tnum shrink-0 text-xs text-muted">
+              {erledigt.size} von {pruefungStart.length} erledigt
+            </span>
+          </div>
+          <button type="button" className="btn-ghost btn-sm mt-2 lg:hidden" aria-expanded={listeOffen} onClick={() => setListeOffen((v) => !v)}>
+            <Icon name="chevronDown" size={14} className={listeOffen ? "rotate-180" : ""} />
+            {listeOffen ? "Liste zuklappen" : "Liste anzeigen"}
+          </button>
+          <div className={listeOffen ? "" : "hidden lg:block"}>
+          <p className="section-lead">Daneben im passenden Reiter ändern, hier abhaken — die Liste bleibt dabei sichtbar.</p>
+          <ul className="mt-4 divide-y divide-rule/70">
+            {pruefungStart.map((p, i) => {
+              const fertig = erledigt.has(i);
+              return (
+                <li key={i} className="py-3 first:pt-0 last:pb-0">
+                  <label className="flex cursor-pointer gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0"
+                      checked={fertig}
+                      onChange={() => {
+                        setErledigt((alt) => {
+                          const neu = new Set(alt);
+                          if (neu.has(i)) neu.delete(i);
+                          else neu.add(i);
+                          return neu;
+                        });
+                        setDirty(true);
+                      }}
+                    />
+                    <span className={`min-w-0 ${fertig ? "text-muted line-through decoration-muted/50" : ""}`}>
+                      <span className={`${STUFE[p.stufe]?.badge ?? "badge-neutral"} mr-2 no-underline`}>{STUFE[p.stufe]?.text ?? p.stufe}</span>
+                      {p.punkt}
+                      {p.vorschlag && <span className="mt-0.5 block text-muted">→ {p.vorschlag}</span>}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+          </div>
+        </aside>
+      )}
+
+        </div>}
+      </div>
 
       <div className="card z-10 flex flex-wrap items-center gap-3 p-3 sm:sticky sm:bottom-3 sm:shadow-raised">
         <button type="button" onClick={() => void speichern()} disabled={busy || !dirty} className={dirty ? "btn-primary" : "btn-secondary"}>

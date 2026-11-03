@@ -74,7 +74,8 @@ export default async function LebenslaufBearbeiten() {
         lead="Korrigiere, was beim Auslesen nicht stimmt, und ergänze, was der Prüfbericht vorschlägt. Diese Fassung nutzen wir für dein Suchprofil — und später für deine Unterlagen."
       />
       <div className="space-y-6">
-        <FotoClient slug={slug} initialUrl={fotoUrl(slug, fotoAus(einstellungen))} />
+        {/* Mit Lebenslauf: Foto als eigener Reiter im Editor, sonst wie bisher allein */}
+        {!cv && <FotoClient slug={slug} initialUrl={fotoUrl(slug, fotoAus(einstellungen))} />}
         {hinweis ? (
           <Hinweis ton="error">{hinweis}</Hinweis>
         ) : cv ? (
@@ -84,7 +85,7 @@ export default async function LebenslaufBearbeiten() {
                 Zuletzt bearbeitet am {new Date(cv.bearbeitet_at).toLocaleDateString("de-DE")}. Ein neuer Upload unter „Mein Profil“ ersetzt diese Fassung.
               </Hinweis>
             )}
-            <LebenslaufEditor initial={cv} pruefung={pruefung} />
+            <LebenslaufEditor initial={cv} pruefung={pruefung} foto={<FotoClient slug={slug} initialUrl={fotoUrl(slug, fotoAus(einstellungen))} />} />
           </>
         ) : (
           <EmptyState icon="file" titel="Noch kein Lebenslauf ausgelesen">

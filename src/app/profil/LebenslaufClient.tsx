@@ -1,10 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Fortschritt from "@/components/Fortschritt";
 import Icon from "@/components/ui/Icon";
 import SuchprofilClient, { type SuchprofilStand } from "./SuchprofilClient";
+import LayoutClient, { type LayoutStand } from "./LayoutClient";
+import { ReiterInhalt, ReiterLeiste, useReiter, useReiterId } from "@/components/ui/Reiter";
+
+const REITER_KEYS = ["lebenslauf", "suchprofil", "unterlagen", "benachrichtigung"];
 
 /** Stand des Lebenslaufs, wie er in profile_cv steht. */
 export type CvStand = {
@@ -42,8 +46,30 @@ export function Schritt({ nr, fertig }: { nr: number; fertig?: boolean }) {
   );
 }
 
-export default function LebenslaufClient({ initial, suchprofil }: { initial: CvStand | null; suchprofil: SuchprofilStand }) {
+/**
+ * „Mein Profil“ in Reitern: Lebenslauf · Suchprofil · Unterlagen · Benachrichtigung.
+ * Alle Bereiche bleiben geladen (nur ausgeblendet) — Funktionen und Abläufe wie vorher.
+ */
+export default function LebenslaufClient({
+  initial,
+  suchprofil,
+  unterlagen,
+  telegram,
+  telegramVerbunden = false,
+}: {
+  initial: CvStand | null;
+  suchprofil: SuchprofilStand;
+  unterlagen?: { initial: LayoutStand; hatFoto: boolean };
+  telegram?: ReactNode;
+  telegramVerbunden?: boolean;
+}) {
   const [stand, setStand] = useState<CvStand | null>(initial);
+  const ausgelesen = stand?.status === "ausgelesen";
+  const bestaetigt = Boolean(suchprofil.bestaetigt_at);
+  // Startet beim ersten offenen Schritt
+  const [reiter, waehlen] = useReiter(REITER_KEYS, initial?.status !== "ausgelesen" ? "lebenslauf" : bestaetigt ? "lebenslauf" : "suchprofil");
+  const idBasis = useReiterId();
+  const offenePunkte = (stand?.pruefung ?? []).filter((p) => !p.erledigt).length;
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const eingabe = useRef<HTMLInputElement>(null);
@@ -71,8 +97,25 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
 
   const cv = stand?.status === "ausgelesen" ? stand.lebenslauf : null;
 
+  const panel = "flex flex-col gap-6 [&>*]:!mt-0";
   return (
-    <div className="space-y-6 text-sm">
+    <div className="text-sm">
+      <ReiterLeiste
+        label="Bereiche von Mein Profil"
+        idBasis={idBasis}
+        aktiv={reiter}
+        onWahl={waehlen}
+        eintraege={[
+          { key: "lebenslauf", label: "Lebenslauf", fertig: ausgelesen, zahl: ausgelesen ? offenePunkte : null },
+          { key: "suchprofil", label: "Suchprofil", fertig: bestaetigt },
+          { key: "unterlagen", label: "Unterlagen" },
+          { key: "benachrichtigung", label: "Telegram", fertig: telegramVerbunden },
+        ]}
+      />
+
+      <div className="mt-5">
+        <ReiterInhalt idBasis={idBasis} key_="lebenslauf" aktiv={reiter}>
+          <div className={panel}>
       <section className="card-pad">
         <div className="flex items-start gap-3">
           <Schritt nr={1} fertig={stand?.status === "ausgelesen"} />
@@ -120,36 +163,15 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
         </div>
       </section>
 
-      {stand?.richtungen && stand.richtungen.length > 0 && (
-        <section className="card-pad">
-          <h2 className="section-title">Wohin könnte es gehen?</h2>
-          <p className="section-lead">Vorschläge aus deinem Lebenslauf. Darunter entscheidest du selbst — auch für eine ganz andere Richtung.</p>
-          <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-            {stand.richtungen.map((r) => (
-              <li key={r.titel} className="rounded-lg border border-rule bg-paper/60 p-4">
-                <p className="font-semibold">{r.titel}</p>
-                <p className="mt-1 text-muted">{r.begruendung}</p>
-                {r.suchbegriffe.length > 0 && (
-                  <p className="mt-3 flex flex-wrap gap-1">
-                    {r.suchbegriffe.map((b) => (
-                      <span key={b} className="badge-neutral font-normal">
-                        {b}
-                      </span>
-                    ))}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
-      <SuchprofilClient
-        richtungen={(stand?.richtungen ?? []).map((r) => r.titel)}
-        ortAusLebenslauf={stand?.lebenslauf?.person?.ort ?? ""}
-        initial={suchprofil}
-      />
-
+            {ausgelesen && !bestaetigt && (
+              <div className="alert-info flex flex-wrap items-center justify-between gap-3">
+                <span>Lebenslauf ist gelesen. Nächster Schritt: dein Suchprofil.</span>
+                <button type="button" className="btn-primary btn-sm" onClick={() => waehlen("suchprofil")}>
+                  Weiter zum Suchprofil <Icon name="chevronRight" size={14} />
+                </button>
+              </div>
+            )}
       {stand?.pruefung && stand.pruefung.length > 0 && (
         <section className="card-pad">
           <h2 className="section-title">Was sich am Lebenslauf verbessern lässt</h2>
@@ -228,6 +250,71 @@ export default function LebenslaufClient({ initial, suchprofil }: { initial: CvS
           )}
         </section>
       )}
+          </div>
+        </ReiterInhalt>
+
+        <ReiterInhalt idBasis={idBasis} key_="suchprofil" aktiv={reiter}>
+          <div className={panel}>
+      {stand?.richtungen && stand.richtungen.length > 0 && (
+        <section className="card-pad">
+          <h2 className="section-title">Wohin könnte es gehen?</h2>
+          <p className="section-lead">Vorschläge aus deinem Lebenslauf. Darunter entscheidest du selbst — auch für eine ganz andere Richtung.</p>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+            {stand.richtungen.map((r) => (
+              <li key={r.titel} className="rounded-lg border border-rule bg-paper/60 p-4">
+                <p className="font-semibold">{r.titel}</p>
+                <p className="mt-1 text-muted">{r.begruendung}</p>
+                {r.suchbegriffe.length > 0 && (
+                  <p className="mt-3 flex flex-wrap gap-1">
+                    {r.suchbegriffe.map((b) => (
+                      <span key={b} className="badge-neutral font-normal">
+                        {b}
+                      </span>
+                    ))}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <SuchprofilClient
+        richtungen={(stand?.richtungen ?? []).map((r) => r.titel)}
+        ortAusLebenslauf={stand?.lebenslauf?.person?.ort ?? ""}
+        initial={suchprofil}
+      />
+
+          </div>
+        </ReiterInhalt>
+
+        <ReiterInhalt idBasis={idBasis} key_="unterlagen" aktiv={reiter}>
+          <div className={panel}>
+            {ausgelesen && unterlagen ? (
+              <LayoutClient initial={unterlagen.initial} hatFoto={unterlagen.hatFoto} />
+            ) : (
+              <Leer text="Lade zuerst deinen Lebenslauf hoch — dann wählst du hier das Aussehen von Lebenslauf und Anschreiben." onWeiter={() => waehlen("lebenslauf")} weiter="Zum Lebenslauf" />
+            )}
+          </div>
+        </ReiterInhalt>
+
+        <ReiterInhalt idBasis={idBasis} key_="benachrichtigung" aktiv={reiter}>
+          <div className={panel}>
+            {telegram ?? <Leer text="Bestätige zuerst dein Suchprofil — dann kannst du dir neue Stellen morgens aufs Handy schicken lassen." onWeiter={() => waehlen("suchprofil")} weiter="Zum Suchprofil" />}
+          </div>
+        </ReiterInhalt>
+      </div>
     </div>
+  );
+}
+
+function Leer({ text, weiter, onWeiter }: { text: string; weiter: string; onWeiter: () => void }) {
+  return (
+    <section className="card-pad text-muted">
+      <p>{text}</p>
+      <button type="button" className="btn-secondary mt-3" onClick={onWeiter}>
+        {weiter}
+      </button>
+    </section>
   );
 }
