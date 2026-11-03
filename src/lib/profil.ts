@@ -19,6 +19,8 @@ export type Profil = {
   suchort?: Suchort;
   /** Phase 3: Telegram verbunden (nur weitere Profile) */
   telegram?: boolean;
+  /** Gelöscht (nur noch Platzhalter für das Kürzel) */
+  geloescht?: boolean;
   /** Einwilligung zur Speicherung erteilt (Zeitpunkt), nur weitere Profile */
   einwilligungAt?: string | null;
   /** Schritt 2.5: Stand des Fotos (für die Avatar-Adresse), null = kein Foto */
@@ -86,6 +88,7 @@ export async function ladeProfile(db: Db): Promise<{ profile: Profil[]; fehler: 
         suchort: suchortAus(row.einstellungen),
         telegram: Boolean((row.einstellungen as { telegram?: { chat_id?: unknown } } | null)?.telegram?.chat_id),
         einwilligungAt: einwilligungAus(row.einstellungen as Record<string, unknown> | null)?.at ?? null,
+        geloescht: Boolean((row.einstellungen as { geloescht_at?: unknown } | null)?.geloescht_at),
         fotoVersion: ((row.einstellungen as { foto?: { pfad?: unknown; aktualisiert?: unknown } } | null)?.foto?.pfad
           ? String((row.einstellungen as { foto: { aktualisiert?: unknown } }).foto.aktualisiert ?? "1")
           : null),

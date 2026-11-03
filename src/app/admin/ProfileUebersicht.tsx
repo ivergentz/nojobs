@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile } from "@/lib/profil";
-import { AktivSchalter, EinladenKnopf, NeuesProfilFormular, SuchprofilBearbeiten } from "./ProfilVerwaltung";
+import { AktivSchalter, EinladenKnopf, LoeschenKnopf, NeuesProfilFormular, SuchprofilBearbeiten } from "./ProfilVerwaltung";
 
 /**
  * Nur lesend: welche Profile gibt es, und woher kommen Profiltext und Regeln?
@@ -26,7 +26,7 @@ export default async function ProfileUebersicht() {
       ) : (
         <>
           <ul className="mt-3 space-y-1">
-            {profile.map((p) => (
+            {profile.filter((p) => !p.geloescht).map((p) => (
               <li key={p.slug} className={`flex flex-wrap justify-between gap-x-6 border-t border-rule/60 py-1.5 ${p.aktiv === false ? "opacity-50" : ""}`}>
                 <span>
                   {p.name} <span className="text-muted">· {p.rolle === "admin" ? "Admin" : "Nutzer"}</span>
@@ -47,6 +47,7 @@ export default async function ProfileUebersicht() {
                   </span>
                   {p.rolle !== "admin" && <EinladenKnopf slug={p.slug} email={p.email ?? null} aktiv={p.aktiv !== false} />}
                   {p.rolle !== "admin" && <AktivSchalter slug={p.slug} aktiv={p.aktiv !== false} />}
+                  {p.rolle !== "admin" && <LoeschenKnopf slug={p.slug} name={p.name} />}
                 </span>
                 {p.rolle !== "admin" && (
                   <div className="w-full">

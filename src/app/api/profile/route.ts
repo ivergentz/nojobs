@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { aktualisiereSuchprofil, erstelleProfil, setzeAktiv } from "@/lib/profil";
+import { loescheProfil } from "@/lib/profil-loeschen";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
  *   POST  { name, email? }   → neues Profil (Rolle „nutzer“)
  *   PATCH { slug, aktiv }    → Profil aktivieren / deaktivieren (dein Admin-Profil nie)
  *   PATCH { slug, profiltext?, regeln?, suchbegriffe? } → Suchprofil eines weiteren Profils (Schritt 2.2)
+ *   DELETE { slug, bestaetigung } → Profil mit allen Daten löschen (Bestätigung = exakter Name; dein Profil nie)
  */
 export async function POST(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "nicht autorisiert — Secret oben eintragen" }, { status: 401 });
@@ -47,6 +49,17 @@ export async function PATCH(request: Request) {
           umkreis: body.umkreis,
         })
       : await setzeAktiv(supabaseAdmin(), body.slug, body.aktiv as boolean);
+    return ergebnis.ok ? NextResponse.json(ergebnis) : NextResponse.json({ error: ergebnis.fehler }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!authorized(request)) return NextResponse.json({ error: "nicht autorisiert — Secret oben eintragen" }, { status: 401 });
+  try {
+    const body = (await request.json().catch(() => ({}))) as { slug?: string; bestaetigung?: string };
+    const ergebnis = await loescheProfil(supabaseAdmin(), String(body.slug ?? ""), String(body.bestaetigung ?? ""));
     return ergebnis.ok ? NextResponse.json(ergebnis) : NextResponse.json({ error: ergebnis.fehler }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });

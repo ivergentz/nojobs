@@ -420,17 +420,57 @@ export default async function SoFunktioniertsPage() {
         </ul>
       </section>
 
+      <section className="card-pad mt-5" aria-labelledby="quellen">
+        <h2 id="quellen" className="section-title">
+          Welche Jobbörsen nojobs durchsucht
+        </h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-keep/30 bg-keep-soft/40 p-4">
+            <p className="flex items-center gap-1.5 font-semibold text-keep">
+              <Icon name="circleCheck" size={16} /> Wird durchsucht
+            </p>
+            <ul className="mt-2 space-y-1.5 text-sm">
+              <li>
+                <span className="font-medium">Jobbörse der Bundesagentur für Arbeit</span> — die größte Jobbörse Deutschlands, auch viele Stellen
+                aus anderen Portalen stehen dort.
+              </li>
+              {eigenes && (
+                <>
+                  <li>
+                    <span className="font-medium">Google Jobs</span> — bündelt Anzeigen vieler Seiten.
+                  </li>
+                  <li>
+                    <span className="font-medium">Ausgewählte Karriereseiten</span> von Firmen und <span className="font-medium">Arbeitnow</span>.
+                  </li>
+                  <li className="text-muted">Doppelte Anzeigen werden zusammengeführt.</li>
+                </>
+              )}
+            </ul>
+          </div>
+          <div className="rounded-lg border border-rule bg-paper/60 p-4">
+            <p className="flex items-center gap-1.5 font-semibold">
+              <Icon name="circleX" size={16} className="text-muted" /> Wird nicht durchsucht
+            </p>
+            <ul className="mt-2 space-y-1.5 text-sm">
+              <li>
+                <span className="font-medium">StepStone, Indeed, LinkedIn, Xing</span> und ähnliche Portale. Sie bieten keinen offenen Zugang und
+                untersagen das automatische Auslesen.
+              </li>
+              <li className="text-muted">
+                Tipp: Dort einen eigenen Suchauftrag mit E-Mail-Benachrichtigung anlegen — so entgeht dir nichts. Eine Stelle von dort lässt sich
+                wie gewohnt direkt beim Arbeitgeber bewerben.
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-muted">Viele, aber nicht alle Stellen erscheinen auf mehreren Portalen — die Arbeitsagentur deckt einen großen Teil ab, nicht alles.</p>
+      </section>
+
       <section className="card-pad mt-5" aria-labelledby="wissen">
         <h2 id="wissen" className="section-title">
           Gut zu wissen
         </h2>
         <ul className="mt-3 space-y-2 text-sm leading-relaxed">
-          <li>
-            <span className="font-semibold">Woher die Stellen kommen:</span>{" "}
-            {eigenes
-              ? "Arbeitsagentur, ausgewählte Karriereseiten, Google Jobs und Arbeitnow. Doppelte Anzeigen werden zusammengeführt."
-              : "aus der Jobbörse der Bundesagentur für Arbeit — dort stehen fast alle Stellen in Deutschland."}
-          </li>
           <li>
             <span className="font-semibold">Am Anfang liegt nojobs öfter daneben.</span> Nach den ersten 20–30 Urteilen wird es deutlich
             genauer. „Nicht vorgeschlagen“ heißt nicht „unpassend“ — ab und zu selbst schauen lohnt sich.

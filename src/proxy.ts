@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authorized } from "./lib/auth";
 import { PROFIL_COOKIE } from "./lib/aktuelles-profil";
-import { erlaubtFuerNutzer, loginAktiv, oeffentlich, sitzungAusHeader } from "./lib/sitzung";
+import { erlaubtFuerNutzer, loginAktiv, oeffentlich, SITZUNG_COOKIE, sitzungAusHeader } from "./lib/sitzung";
+import { profilNutzbar } from "./lib/profil-sperre";
+import { supabaseAdmin } from "./lib/supabase";
 
 /**
  * Schritt 2.3 · Login vor jeder Seite und jeder API.
@@ -14,7 +16,7 @@ import { erlaubtFuerNutzer, loginAktiv, oeffentlich, sitzungAusHeader } from "./
  *
  * Notschalter: LOGIN=aus → dieser Proxy lässt alles durch (Stand vor 2.3).
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (!loginAktiv()) return NextResponse.next();
   const pfad = request.nextUrl.pathname;
   const istApi = pfad.startsWith("/api/");
@@ -33,7 +35,20 @@ export function proxy(request: NextRequest) {
 
   if (sitzung.r === "admin") return NextResponse.next();
 
-  // Weitere Person
+  // Weitere Person — deaktiviert oder gelöscht? Dann gilt die alte Anmeldung nicht mehr.
+  let nutzbar = true;
+  try {
+    nutzbar = await profilNutzbar(supabaseAdmin(), sitzung.s);
+  } catch {
+    /* Datenbank nicht erreichbar: nicht aussperren */
+  }
+  if (!nutzbar) {
+    const antwort = istApi
+      ? NextResponse.json({ error: "Dieses Profil ist nicht mehr aktiv." }, { status: 401 })
+      : NextResponse.redirect(new URL("/login?fehler=gesperrt", request.url));
+    antwort.cookies.delete(SITZUNG_COOKIE);
+    return antwort;
+  }
   if (!erlaubtFuerNutzer(pfad)) {
     if (istApi) return NextResponse.json({ error: "Kein Zugriff." }, { status: 403 });
     return NextResponse.redirect(new URL("/inbox", request.url));

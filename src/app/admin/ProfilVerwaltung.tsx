@@ -13,7 +13,7 @@ function secret(): string {
   }
 }
 
-async function senden(methode: "POST" | "PATCH", body: Record<string, unknown>) {
+async function senden(methode: "POST" | "PATCH" | "DELETE", body: Record<string, unknown>) {
   const res = await fetch("/api/profile", {
     method: methode,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret()}` },
@@ -100,6 +100,64 @@ export function AktivSchalter({ slug, aktiv }: { slug: string; aktiv: boolean })
       </button>
       {fehler && <span className="text-xs text-drop">{fehler}</span>}
     </span>
+  );
+}
+
+/**
+ * Profil löschen — mit allem: Lebenslauf, Foto, Suchprofil, Urteile, Unterlagen, Telegram, Anmeldung.
+ * Zur Sicherheit muss der Name eingetippt werden. Nicht rückgängig zu machen.
+ */
+export function LoeschenKnopf({ slug, name }: { slug: string; name: string }) {
+  const router = useRouter();
+  const [offen, setOffen] = useState(false);
+  const [eingabe, setEingabe] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const loeschen = async () => {
+    setBusy(true);
+    setFehler(null);
+    try {
+      await senden("DELETE", { slug, bestaetigung: eingabe });
+      setOffen(false);
+      router.refresh();
+    } catch (err) {
+      setFehler(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!offen)
+    return (
+      <button type="button" onClick={() => setOffen(true)} className="link-quiet text-xs hover:text-drop">
+        löschen
+      </button>
+    );
+  return (
+    <div className="mt-2 w-full rounded-lg border border-drop/30 bg-drop-soft/60 p-3 text-sm text-ink" role="group" aria-label={`${name} löschen`}>
+      <p className="font-medium text-drop">{name} endgültig löschen?</p>
+      <p className="mt-1 text-muted">
+        Gelöscht werden Lebenslauf (Datei und ausgelesene Fassung), Foto, Suchprofil, alle Urteile und Status, Unterlagen, Gesprächsvorbereitungen,
+        Telegram-Verbindung und der Zugang. Das lässt sich nicht rückgängig machen.
+      </p>
+      <label className="mt-2 block">
+        <span className="text-xs text-muted">Zur Bestätigung den Namen eintippen: „{name}“</span>
+        <input className="field mt-1 w-64" value={eingabe} onChange={(e) => setEingabe(e.target.value)} aria-label="Name zur Bestätigung" />
+      </label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void loeschen()}
+          disabled={busy || eingabe.trim() !== name.trim()}
+          className="btn-sm inline-flex items-center gap-1.5 rounded bg-drop px-3 py-1.5 font-medium text-white disabled:opacity-40"
+        >
+          {busy ? "Löscht …" : "Endgültig löschen"}
+        </button>
+        <button type="button" onClick={() => (setOffen(false), setEingabe(""), setFehler(null))} className="btn-ghost btn-sm">
+          Abbrechen
+        </button>
+      </div>
+      {fehler && <p className="mt-2 text-xs text-drop">{fehler}</p>}
+    </div>
   );
 }
 
