@@ -8,6 +8,7 @@ import SuchprofilClient, { type SuchprofilStand } from "./SuchprofilClient";
 import LayoutClient, { type LayoutStand } from "./LayoutClient";
 import { ReiterInhalt, ReiterLeiste, useReiter, useReiterId } from "@/components/ui/Reiter";
 import { REITER_ZU, zuordnen } from "@/lib/pruefung-zuordnen";
+import { EINWILLIGUNG_PUNKTE, EINWILLIGUNG_SATZ, type Einwilligung } from "@/lib/einwilligung";
 
 const REITER_KEYS = ["lebenslauf", "suchprofil", "unterlagen", "benachrichtigung"];
 
@@ -58,13 +59,19 @@ export default function LebenslaufClient({
   unterlagen,
   telegram,
   telegramVerbunden = false,
+  einwilligung,
 }: {
   initial: CvStand | null;
   suchprofil: SuchprofilStand;
   unterlagen?: { initial: LayoutStand; hatFoto: boolean };
   telegram?: ReactNode;
   telegramVerbunden?: boolean;
+  /** Einwilligung zur Speicherung (null = noch nicht erteilt). undefined = nicht abfragen. */
+  einwilligung?: Einwilligung | null;
 }) {
+  const [zustimmung, setZustimmung] = useState<Einwilligung | null>(einwilligung ?? null);
+  const [haken, setHaken] = useState(false);
+  const braucht = einwilligung !== undefined && !zustimmung;
   const [stand, setStand] = useState<CvStand | null>(initial);
   const ausgelesen = stand?.status === "ausgelesen";
   const bestaetigt = Boolean(suchprofil.bestaetigt_at);
@@ -85,6 +92,7 @@ export default function LebenslaufClient({
     try {
       const form = new FormData();
       form.append("datei", datei);
+      if (haken) form.append("einwilligung", "ja");
       const res = await fetch("/api/lebenslauf", { method: "POST", body: form });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -92,6 +100,7 @@ export default function LebenslaufClient({
         return;
       }
       setStand(body.lebenslauf as CvStand);
+      if (braucht) setZustimmung({ version: "", at: new Date().toISOString() });
     } catch (err) {
       setFehler(err instanceof Error ? err.message : String(err));
     } finally {
@@ -101,6 +110,42 @@ export default function LebenslaufClient({
   };
 
   const cv = stand?.status === "ausgelesen" ? stand.lebenslauf : null;
+  const bestaetigen = async () => {
+    setBusy(true);
+    setFehler(null);
+    try {
+      const res = await fetch("/api/einwilligung", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setZustimmung(body.einwilligung);
+    } catch (err) {
+      setFehler(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const einwilligungsKasten = braucht ? (
+    <div className="mt-4 rounded-lg border border-warn/30 bg-warn-soft/50 p-4">
+      <p className="font-medium">Bevor du deinen Lebenslauf hochlädst</p>
+      <ul className="mt-2 space-y-1.5">
+        {EINWILLIGUNG_PUNKTE.map((t) => (
+          <li key={t} className="flex gap-2">
+            <Icon name="info" size={15} className="mt-[2px] shrink-0 text-warn" />
+            <span>{t}</span>
+          </li>
+        ))}
+      </ul>
+      <label className="mt-3 flex cursor-pointer gap-2.5 font-medium">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={haken} onChange={(e) => setHaken(e.target.checked)} />
+        {EINWILLIGUNG_SATZ}
+      </label>
+      {stand && (
+        <button type="button" className="btn-primary btn-sm mt-3" disabled={!haken || busy} onClick={() => void bestaetigen()}>
+          Bestätigen
+        </button>
+      )}
+    </div>
+  ) : null;
 
   const panel = "flex flex-col gap-6 [&>*]:!mt-0";
   return (
@@ -131,6 +176,7 @@ export default function LebenslaufClient({
             ? `Hochgeladen: ${stand.datei_name}${stand.status === "fehler" ? " — konnte nicht ausgelesen werden" : ""}`
             : "PDF oder Word (.docx), höchstens 10 MB."}
         </p>
+        {einwilligungsKasten}
         <div className="mt-4 flex flex-wrap items-center gap-2">
         {stand?.status === "ausgelesen" && !busy && (
           <Link href="/profil/lebenslauf" className="btn-primary">
@@ -138,7 +184,7 @@ export default function LebenslaufClient({
             {offenePunkte > 0 && <span className="tnum rounded-full bg-white/20 px-1.5 text-2xs">{offenePunkte} offen</span>}
           </Link>
         )}
-        <label className={`${stand ? "btn-secondary" : "btn-primary"} ${busy ? "pointer-events-none opacity-45" : "cursor-pointer"} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/60 has-[:focus-visible]:ring-offset-2`}>
+        <label aria-disabled={braucht && !haken} className={`${stand ? "btn-secondary" : "btn-primary"} ${busy || (braucht && !haken) ? "pointer-events-none opacity-45" : "cursor-pointer"} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/60 has-[:focus-visible]:ring-offset-2`}>
           <Icon name="upload" size={15} />
           {stand ? "Neuen Lebenslauf hochladen" : "Lebenslauf hochladen"}
           <input
@@ -146,7 +192,7 @@ export default function LebenslaufClient({
             type="file"
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             className="sr-only"
-            disabled={busy}
+            disabled={busy || (braucht && !haken)}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void hochladen(f);
@@ -156,6 +202,19 @@ export default function LebenslaufClient({
         </div>
         {stand?.status === "ausgelesen" && !busy && (
           <p className="mt-2 text-xs text-muted">Felder korrigieren, Kontaktdaten und Foto ergänzen, Verbesserungen abhaken.</p>
+        )}
+        {zustimmung && einwilligung !== undefined && (
+          <details className="disclosure mt-3">
+            <summary>
+              <Icon name="chevronRight" size={14} className="chevron" />
+              Einwilligung erteilt{zustimmung.at ? ` am ${new Date(zustimmung.at).toLocaleDateString("de-DE")}` : ""} — was mit deinen Daten passiert
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+              {EINWILLIGUNG_PUNKTE.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </details>
         )}
         <Fortschritt
           aktiv={busy}

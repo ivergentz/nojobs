@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { istStandard, profilAusRequest } from "@/lib/aktuelles-profil";
 import { profilId } from "@/lib/schreiben";
 import { BUCKET, bereinige, dateityp, leseLebenslauf, MAX_BYTES } from "@/lib/lebenslauf";
+import { ladeEinstellungen, speichereEinstellungen } from "@/lib/profil";
+import { EINWILLIGUNG_VERSION, einwilligungAus } from "@/lib/einwilligung";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 180;
@@ -52,6 +54,14 @@ export async function POST(request: Request) {
 
   try {
     const db = supabaseAdmin();
+    // Einwilligung: schon erteilt oder mit diesem Upload — sonst wird nichts gespeichert.
+    if (!einwilligungAus(await ladeEinstellungen(db, profil))) {
+      if (form.get("einwilligung") !== "ja") {
+        return NextResponse.json({ error: "Bitte zuerst bestätigen, dass du mit der Speicherung einverstanden bist." }, { status: 400 });
+      }
+      const ok = await speichereEinstellungen(db, profil, { einwilligung: { version: EINWILLIGUNG_VERSION, at: new Date().toISOString() } });
+      if (!ok.ok) return NextResponse.json({ error: ok.fehler }, { status: 500 });
+    }
     const id = await profilId(db, profil);
     if (!id) return NextResponse.json({ error: "Profil nicht gefunden" }, { status: 404 });
 

@@ -58,7 +58,7 @@ function schritte(eigenes: boolean): Array<{ phase: string; dauer: string; schri
           titel: "Lebenslauf hochladen",
           wo: { text: "Mein Profil → Lebenslauf", href: "/profil#lebenslauf" },
           text: "nojobs liest deinen Lebenslauf aus, schlägt dir 2–3 berufliche Richtungen vor und prüft ihn auf Lücken und Schwachstellen. Erfunden wird nichts.",
-          tun: ["PDF oder Word-Datei (.docx) wählen", "etwa eine halbe Minute warten — die Seite offen lassen"],
+          tun: ["kurz bestätigen, dass dein Lebenslauf gespeichert werden darf", "PDF oder Word-Datei (.docx) wählen", "etwa eine halbe Minute warten — die Seite offen lassen"],
           bild: (
             <>
               <Chip>
@@ -261,7 +261,12 @@ const SIGNALE: Array<{ was: string; wirkung: string; staerke: number }> = [
 
 export default async function SoFunktioniertsPage() {
   const eigenes = istStandard(await profilAusCookies());
-  const phasen = schritte(eigenes);
+  // Kalibrierung gibt es nur in deinem Profil; danach fortlaufend nummerieren.
+  let nr = 0;
+  const phasen = schritte(eigenes).map((p) => ({
+    ...p,
+    schritte: p.schritte.filter((s) => eigenes || s.wo.href !== "/eval").map((s) => ({ ...s, nr: ++nr })),
+  }));
 
   return (
     <main className="page">

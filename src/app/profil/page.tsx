@@ -12,6 +12,7 @@ import { fotoAus, fotoUrl } from "@/lib/foto";
 import { verbindungAus } from "@/lib/telegram-profil";
 import { kriterienAus } from "@/lib/suchprofil";
 import { layoutWahlAus } from "@/lib/unterlagen";
+import { einwilligungAus } from "@/lib/einwilligung";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mein Profil · Career Inbox" };
@@ -90,6 +91,7 @@ export default async function ProfilSeite() {
               return { initial: { layout: w.layout, akzent: w.akzentId, mitFoto: w.o.mitFoto }, hatFoto: Boolean(fotoAus(einstellungen)) };
             })()}
             telegramVerbunden={Boolean(telegram)}
+            einwilligung={einwilligungAus(einstellungen)}
             telegram={
               // Phase 3: Telegram — erst sinnvoll, wenn ein Suchprofil steht
               suchprofil.bestaetigt_at || profil?.suchbegriffe.length ? (

@@ -33,6 +33,13 @@ export default async function ProfileUebersicht() {
                   {p.email ? <span className="text-muted"> · {p.email}</span> : null}
                   {p.aktiv === false ? <span className="text-muted"> · deaktiviert</span> : null}
                   {p.rolle !== "admin" && p.telegram ? <span className="text-keep"> · Telegram ✓</span> : null}
+                  {p.rolle !== "admin" ? (
+                    p.einwilligungAt ? (
+                      <span className="text-keep"> · Einwilligung ✓ {new Date(p.einwilligungAt).toLocaleDateString("de-DE")}</span>
+                    ) : (
+                      <span className="text-warn"> · Einwilligung fehlt</span>
+                    )
+                  ) : null}
                 </span>
                 <span className="flex flex-wrap items-center gap-x-4 text-muted">
                   <span>
