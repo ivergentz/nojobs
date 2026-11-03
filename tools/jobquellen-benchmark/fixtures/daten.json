@@ -1,0 +1,52 @@
+{
+  "_hinweis": "KÜNSTLICHE TESTDATEN. Arbeitgeber, Stellen und Profile sind erfunden und dienen nur dazu, Normalisierung, Duplikaterkennung und Auswertung zu prüfen.",
+  "profile": [
+    { "rolle": "admin", "suchbegriffe": [], "einstellungen": {} },
+    { "rolle": "nutzer", "suchbegriffe": ["Erzieherin", "Kita", "Pädagogische Fachkraft"], "einstellungen": { "ort": "Hamburg", "umkreis": 25, "fragebogen": { "arbeitsort": ["vor-ort"], "nogos": ["zeitarbeit"] } } },
+    { "rolle": "nutzer", "suchbegriffe": ["Koch", "Küchenchef"], "einstellungen": { "ort": "Berlin", "umkreis": 10, "fragebogen": { "arbeitsort": ["vor-ort"], "nogos": [] } } }
+  ],
+  "ba": {
+    "P1|Product Owner": [
+      { "stellenangebotsTitel": "Product Owner (m/w/d) Plattform", "firma": "Beispiel Logistik GmbH", "referenznummer": "10000-1000000001-S", "externeUrl": "https://karriere.beispiel-logistik.de/jobs/product-owner-plattform", "stellenlokationen": [{ "adresse": { "ort": "Hamburg", "plz": "20457" } }], "datumErsteVeroeffentlichung": "2026-11-01", "homeofficemoeglich": true, "_beschreibung": "Als Product Owner verantwortest du unsere Plattform für Disposition und Tracking. Du arbeitest eng mit Entwicklung, Fachbereich und Kunden zusammen, priorisierst das Backlog, schreibst User Stories und misst den Erfolg neuer Funktionen anhand klarer Kennzahlen. Wir bieten hybrides Arbeiten in Hamburg." },
+      { "stellenangebotsTitel": "Senior Product Owner KI (m/w/d)", "firma": "Muster Versicherung AG", "referenznummer": "10000-1000000002-S", "externeUrl": null, "stellenlokationen": [{ "adresse": { "ort": "Hamburg", "plz": "20095" } }], "datumErsteVeroeffentlichung": "2026-10-24", "homeofficemoeglich": null }
+    ],
+    "P2|Erzieherin": [
+      { "stellenangebotsTitel": "Erzieher (m/w/d)", "firma": "Kita Sonnenschein gGmbH", "referenznummer": "10000-2000000001-S", "externeUrl": null, "stellenlokationen": [{ "adresse": { "ort": "Hamburg", "plz": "22041" } }], "datumErsteVeroeffentlichung": "2026-10-30", "homeofficemoeglich": false, "verguetungsangabe": "TVöD S8a", "_beschreibung": "Wir suchen eine Erzieherin oder einen Erzieher für unsere Elementargruppe mit 20 Kindern. Du gestaltest den Alltag, begleitest die Kinder in ihrer Entwicklung und arbeitest eng mit den Eltern zusammen. Bezahlung nach TVöD, 30 Tage Urlaub, Fortbildungen und ein herzliches Team in Hamburg-Wandsbek erwarten dich." },
+      { "stellenangebotsTitel": "Pädagogische Fachkraft (m/w/d) für Krippe", "firma": "Elbkinder Vereinigung Hamburger Kitas GmbH", "referenznummer": "10000-2000000002-S", "externeUrl": null, "stellenlokationen": [{ "adresse": { "ort": "Hamburg", "plz": "22765" } }], "datumErsteVeroeffentlichung": "2026-10-28", "homeofficemoeglich": false }
+    ],
+    "P3|Koch": [
+      { "stellenangebotsTitel": "Koch / Köchin (m/w/d)", "firma": "Restaurant Spreeblick", "referenznummer": "10000-3000000001-S", "externeUrl": null, "stellenlokationen": [{ "adresse": { "ort": "Berlin", "plz": "10178" } }], "datumErsteVeroeffentlichung": "2026-11-02", "homeofficemoeglich": false }
+    ]
+  },
+  "google": {
+    "P1|Product Owner": [
+      { "job_id": "g-p1-1", "title": "Product Owner Plattform (m/w/d)", "company_name": "Beispiel Logistik", "location": "Hamburg", "via": "über StepStone", "description": "Plattform-Verantwortung im Logistikumfeld …", "detected_extensions": { "posted_at": "vor 2 Tagen" }, "apply_options": [{ "title": "Beispiel Logistik Karriere", "link": "https://karriere.beispiel-logistik.de/jobs/product-owner-plattform?utm_source=google" }, { "title": "StepStone", "link": "https://www.stepstone.de/stellenangebote--product-owner-1" }] },
+      { "job_id": "g-p1-2", "title": "Product Owner Data (m/w/d)", "company_name": "Nordlicht Energie GmbH", "location": "Hamburg, Deutschland", "via": "über LinkedIn", "description": "Du verantwortest datengetriebene Produkte für unsere Energiekunden, steuerst ein crossfunktionales Team, priorisierst Anforderungen und arbeitest eng mit Data Science zusammen. Remote-Anteil bis 60 Prozent, moderne Arbeitsumgebung in der Hafencity, Jobrad und Weiterbildungsbudget.", "detected_extensions": { "posted_at": "vor 5 Tagen", "salary": "70.000–85.000 € im Jahr" }, "apply_options": [{ "title": "LinkedIn", "link": "https://www.linkedin.com/jobs/view/1234" }] },
+      { "job_id": "g-p1-3", "title": "Werkstudent Product Owner", "company_name": "Startup Hafen", "location": "Hamburg", "via": "über Indeed", "description": "", "detected_extensions": { "posted_at": "vor 1 Tag" }, "apply_options": [] }
+    ],
+    "P2|Erzieherin": [
+      { "job_id": "g-p2-1", "title": "Erzieher/in (m/w/d)", "company_name": "Kita Sonnenschein", "location": "Hamburg", "via": "über StepStone", "description": "Elementargruppe, TVöD …", "detected_extensions": { "posted_at": "vor 4 Tagen" }, "apply_options": [{ "title": "StepStone", "link": "https://www.stepstone.de/stellenangebote--erzieher-99" }] },
+      { "job_id": "g-p2-2", "title": "Pädagogische Fachkraft (m/w/d) für Krippe - Altona", "company_name": "Elbkinder Vereinigung Hamburger Kitas", "location": "Hamburg", "via": "über Indeed", "description": "", "detected_extensions": { "posted_at": "vor 6 Tagen" }, "apply_options": [{ "title": "Indeed", "link": "https://de.indeed.com/viewjob?jk=abc" }] },
+      { "job_id": "g-p2-3", "title": "Erzieher*in (m/w/d) Ganztag", "company_name": "Fröbel Bildung und Erziehung gGmbH", "location": "Hamburg", "via": "über Fröbel Karriere", "description": "Ganztagsbetreuung an einer Grundschule in Hamburg-Eimsbüttel. Du planst Angebote am Nachmittag, begleitest Hausaufgaben und arbeitest mit Lehrkräften und Eltern zusammen. Unbefristete Stelle, Bezahlung angelehnt an TVöD, betriebliche Altersvorsorge.", "detected_extensions": { "posted_at": "vor 3 Tagen" }, "apply_options": [{ "title": "Fröbel Karriere", "link": "https://karriere.froebel-gruppe.de/stelle/4711" }] },
+      { "job_id": "g-p2-4", "title": "Sozialpädagoge (m/w/d) Jugendhilfe", "company_name": "Jugendhilfe Nord e.V.", "location": "Norderstedt", "via": "über Indeed", "description": "", "detected_extensions": { "posted_at": "vor 2 Wochen" }, "apply_options": [] },
+      { "job_id": "g-p2-5", "title": "Erzieher (m/w/d) – Zeitarbeit", "company_name": "Randstad Deutschland", "location": "Hamburg", "via": "über Randstad", "description": "", "detected_extensions": { "posted_at": "vor 1 Tag" }, "apply_options": [{ "title": "Randstad", "link": "https://www.randstad.de/stellenangebote/erzieher-1" }] }
+    ],
+    "P3|Koch": [
+      { "job_id": "g-p3-1", "title": "Koch (m/w/d)", "company_name": "Restaurant Spreeblick", "location": "Berlin", "via": "über Indeed", "description": "", "detected_extensions": { "posted_at": "vor 1 Tag" }, "apply_options": [] },
+      { "job_id": "g-p3-2", "title": "Jungkoch (m/w/d)", "company_name": "Hotel am Park", "location": "Potsdam", "via": "über Hotelcareer", "description": "", "detected_extensions": { "posted_at": "vor 8 Tagen" }, "apply_options": [{ "title": "Hotel am Park", "link": "https://hotel-am-park.example/jobs/jungkoch" }] }
+    ]
+  },
+  "adzuna": {
+    "P1|Product Owner": [
+      { "id": "a-1001", "title": "Product Owner Data (m/w/d)", "company": { "display_name": "Nordlicht Energie GmbH" }, "location": { "display_name": "Hamburg", "area": ["Deutschland", "Hamburg"] }, "description": "Du verantwortest datengetriebene Produkte für unsere Energiekunden, steuerst ein crossfunktionales Team, priorisierst Anforderungen und arbeitest eng mit Data Science zusammen …", "created": "2026-10-29T08:00:00Z", "redirect_url": "https://www.adzuna.de/land/ad/1001", "salary_min": 70000, "salary_max": 85000, "salary_is_predicted": "0" }
+    ],
+    "P2|Erzieherin": [
+      { "id": "a-2001", "title": "Erzieher (m/w/d)", "company": { "display_name": "Kita Sonnenschein gGmbH" }, "location": { "display_name": "Hamburg, Wandsbek" }, "description": "Wir suchen eine Erzieherin oder einen Erzieher …", "created": "2026-10-30T10:00:00Z", "redirect_url": "https://www.adzuna.de/land/ad/2001" },
+      { "id": "a-2002", "title": "Erzieher*in (m/w/d) Ganztag", "company": { "display_name": "Fröbel Bildung und Erziehung" }, "location": { "display_name": "Hamburg" }, "description": "Ganztagsbetreuung an einer Grundschule …", "created": "2026-10-31T10:00:00Z", "redirect_url": "https://www.adzuna.de/land/ad/2002", "salary_min": 3400, "salary_max": 3900, "salary_is_predicted": "1" },
+      { "id": "a-2003", "title": "Erzieherin für Kita", "company": { "display_name": "Kita Regenbogen e.V." }, "location": { "display_name": "Pinneberg, Kreis Pinneberg" }, "description": "Kleine Elterninitiative sucht Verstärkung …", "created": "2026-10-20T10:00:00Z", "redirect_url": "https://www.adzuna.de/land/ad/2003" }
+    ],
+    "P3|Koch": [
+      { "id": "a-3001", "title": "Koch (m/w/d)", "company": { "display_name": "Gasthaus Donau" }, "location": { "display_name": "Wien, Österreich" }, "description": "…", "created": "2026-11-01T10:00:00Z", "redirect_url": "https://www.adzuna.de/land/ad/3001" }
+    ]
+  }
+}
