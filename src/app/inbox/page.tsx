@@ -64,7 +64,9 @@ export default async function InboxPage() {
   // Aufrufe der persönlichen Links. Eigene Abfrage: Fehlt die Tabelle noch
   // (SQL nicht ausgeführt), bleibt die Inbox trotzdem heil.
   const verfolgteIds = ((verfolgtQuery.data ?? []) as unknown as Array<Record<string, unknown>>).map((row) => row.uuid as string);
-  const { data: besucheRoh } = verfolgteIds.length
+  // Bewerbungs-Tracking gibt es nur für dein Profil (deine Links). Weitere Profile dürfen diese Aufrufe nie sehen —
+  // sonst stünden bei einer gemeinsamen Stelle deine Besuchszahlen auf ihrer Karte.
+  const { data: besucheRoh } = eigenes && verfolgteIds.length
     ? await db.from("besuche").select("*").in("job_uuid", verfolgteIds).limit(2000)
     : { data: [] };
   const besuche = besucheJeStelle((besucheRoh ?? []) as Besuch[]);

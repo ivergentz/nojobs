@@ -42,7 +42,14 @@ export async function POST(request: Request) {
 
     if (body.schritt === "suchen") {
       // Ohne deine Lese-Sicht würden fremde Stellen in deiner Inbox landen — dann lieber nichts importieren.
-      if (leseQuelle() !== "jobs_sicht") return NextResponse.json({ ok: true, done: true, gespeichert: 0 });
+      // Kein stiller Erfolg: Die Suche wurde nicht ausgeführt (Server-Einstellung LESEN_AUS fehlt).
+      if (leseQuelle() !== "jobs_sicht") {
+        await logFehler(db, [{ quelle: "Startlauf", detail: profil, meldung: "Suche übersprungen: LESEN_AUS=matches ist nicht gesetzt." }]);
+        return NextResponse.json(
+          { error: "Die Suche ist auf dem Server gerade nicht freigeschaltet. Der Betreiber sieht den Hinweis im Log.", nichtAusgefuehrt: true },
+          { status: 503 }
+        );
+      }
       const { stats, fehler } = await importiereProfile(db, [person], { tage: TAGE, budget: 40_000, startedAt });
       if (fehler.length) {
         await logFehler(db, fehler.slice(0, 5).map((meldung) => ({ quelle: "Arbeitsagentur", detail: "Startlauf", meldung })));

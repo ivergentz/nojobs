@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorized } from "@/lib/auth";
+import { authorized, internesSecret } from "@/lib/auth";
 import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendTelegram } from "@/lib/notify";
@@ -57,7 +57,9 @@ export async function GET(request: Request) {
   const wer = ausloeser(request);
   await protokolliere(supabaseAdmin(), "nachtlauf", `gestartet (${wer}) …`, false);
 
-  const secret = process.env.IMPORT_SECRET;
+  // Secret als Bearer-Token statt ?secret= in der Adresse (landet sonst in Zugriffsprotokollen).
+  // Fällt auf CRON_SECRET zurück, falls IMPORT_SECRET fehlt — beide werden von den Schritten akzeptiert.
+  const secret = internesSecret();
   const basis = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;
   const startedAt = Date.now();
   const ergebnisse: Array<Record<string, unknown>> = [];
@@ -69,12 +71,10 @@ export async function GET(request: Request) {
     }
 
     const trenner = schritt.pfad.includes("?") ? "&" : "?";
-    const ziel =
-      `${basis}${schritt.pfad}${trenner}budget=${schritt.budget}` +
-      (secret ? `&secret=${encodeURIComponent(secret)}` : "");
+    const ziel = `${basis}${schritt.pfad}${trenner}budget=${schritt.budget}`;
 
     try {
-      const res = await fetch(ziel, { cache: "no-store" });
+      const res = await fetch(ziel, { cache: "no-store", headers: secret ? { authorization: `Bearer ${secret}` } : {} });
       const text = await res.text();
       let body: Record<string, unknown> = {};
       try {

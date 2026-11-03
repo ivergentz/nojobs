@@ -1,3 +1,4 @@
+import { authorized } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -101,8 +102,8 @@ function firstObject(text: string): Record<string, unknown> | null {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const secret = process.env.IMPORT_SECRET;
-  if (secret && url.searchParams.get("secret") !== secret) {
+  // Sicherheits-Härtung: nur mit nachweisbarem Secret (kein offener Zugang ohne Secret, kein Cron-Header-Trick).
+  if (!authorized(request)) {
     return NextResponse.json({ error: "nicht autorisiert" }, { status: 401 });
   }
 
