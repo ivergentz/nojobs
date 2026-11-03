@@ -236,18 +236,17 @@ export default function AdminClient() {
     arbeitnow: "Arbeitnow",
   };
 
-  const button = "rounded border px-4 py-2 text-sm disabled:opacity-40";
 
   return (
     <div className="mt-8">
       <label className="block text-sm">
-        <span className="text-muted">Secret</span>
+        <span className="field-label">Secret</span>
         <input
           type="password"
           value={secret}
           onChange={(event) => saveSecret(event.target.value)}
           placeholder="IMPORT_SECRET"
-          className="mt-2 w-full rounded border border-rule bg-transparent px-3 py-2 text-sm"
+          className="field"
         />
       </label>
       <p className="mt-2 text-xs text-muted">
@@ -259,8 +258,8 @@ export default function AdminClient() {
       )}
 
       {state && (
-        <section className="mt-10 border-t border-rule pt-8">
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+        <section className="card-pad mt-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: "in der Inbox", value: state.inbox },
               { label: "davon bewerben", value: state.mustApply },
@@ -270,9 +269,9 @@ export default function AdminClient() {
               { label: "Remote", value: state.remote },
               { label: "ungelabelt", value: state.ungelabelt },
             ].map((entry) => (
-              <div key={entry.label}>
-                <p className="tnum text-2xl font-semibold leading-none">{zahl(entry.value)}</p>
-                <p className="mt-1 text-xs text-muted">{entry.label}</p>
+              <div key={entry.label} className="rounded border border-rule bg-paper/60 px-3 py-2.5">
+                <p className="metric-label">{entry.label}</p>
+                <p className="metric-value">{zahl(entry.value)}</p>
               </div>
             ))}
           </div>
@@ -314,7 +313,7 @@ export default function AdminClient() {
           {state.ausfaelle24h > 0 && (
             <p className="mt-3 text-sm text-drop">
               {state.ausfaelle24h} Schnittstellen-Ausfälle in den letzten 24 Stunden —{" "}
-              <a href="/log" className="underline underline-offset-4">
+              <a href="/log" className="link">
                 Log ansehen
               </a>
             </p>
@@ -322,13 +321,13 @@ export default function AdminClient() {
         </section>
       )}
 
-      <section className="mt-10 border-t border-rule pt-8">
+      <section className="card-pad mt-5">
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={() => void importAlle()}
             disabled={Boolean(running)}
-            className={`${button} border-ink`}
+            className="btn-secondary"
           >
             1 · Import
           </button>
@@ -336,25 +335,26 @@ export default function AdminClient() {
             type="button"
             onClick={() => void evaluate("all", true)}
             disabled={Boolean(running)}
-            className={`${button} border-keep text-keep`}
+            className="btn-primary"
           >
             2 · Bewerten, letzte
           </button>
           <input
             value={days}
             onChange={(event) => setDays(event.target.value.replace(/\D/g, "") || "7")}
-            className="w-14 rounded border border-rule bg-transparent px-2 py-2 text-center text-sm"
+            className="field mt-0 w-14 px-2 text-center"
             aria-label="Tage"
           />
           <span className="text-sm text-muted">Tage</span>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <p className="mt-5 text-xs font-medium uppercase tracking-[0.08em] text-muted">Weitere Läufe und Tests</p>
+        <div className="mt-2 flex flex-wrap items-center gap-1">
           <button
             type="button"
             onClick={() => void daily()}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             Nachtlauf testen
           </button>
@@ -362,7 +362,7 @@ export default function AdminClient() {
             type="button"
             onClick={() => void evaluate("all", false)}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             alles bewerten
           </button>
@@ -370,7 +370,7 @@ export default function AdminClient() {
             type="button"
             onClick={() => void evaluate("labeled", false)}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             nur gelabelte
           </button>
@@ -378,7 +378,7 @@ export default function AdminClient() {
             type="button"
             onClick={() => void evaluate("labeled", false, true)}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             gelabelte neu bewerten
           </button>
@@ -386,7 +386,7 @@ export default function AdminClient() {
             type="button"
             onClick={() => void evaluate("all", false, true)}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             alles neu bewerten
           </button>
@@ -394,7 +394,7 @@ export default function AdminClient() {
             type="button"
             onClick={() => void notify("dry")}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             Telegram-Vorschau
           </button>
@@ -402,7 +402,7 @@ export default function AdminClient() {
             type="button"
             onClick={() => void notify("test")}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             Telegram-Test senden
           </button>
@@ -410,7 +410,7 @@ export default function AdminClient() {
             type="button"
             onClick={() => void notify("full")}
             disabled={Boolean(running)}
-            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-4 disabled:opacity-40"
+            className="btn-ghost"
           >
             Morgenlauf testen
           </button>
@@ -421,7 +421,7 @@ export default function AdminClient() {
               onClick={() => {
                 stop.current = true;
               }}
-              className="rounded border border-drop px-4 py-2 text-sm text-drop"
+              className="btn-danger"
             >
               Stopp
             </button>
@@ -437,7 +437,7 @@ export default function AdminClient() {
       </section>
 
       {log.length > 0 && (
-        <section className="mt-10 border-t border-rule pt-8">
+        <section className="card-pad mt-5">
           <h2 className="text-sm font-semibold">Protokoll</h2>
           <ul className="mt-4 space-y-1 font-mono text-xs">
             {log.map((entry, index) => (

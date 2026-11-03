@@ -161,24 +161,24 @@ export default async function KostenPage() {
   const cacheAnteil = eingabe > 0 ? summe(bew30, "cache_read_tokens") / eingabe : null;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="border-b border-rule pb-6">
-        <p className="text-sm text-muted">Career Inbox · Kosten</p>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">Was die Claude API kostet</h1>
-        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
+    <main className="page">
+      <header className="mb-2">
+        <p className="eyebrow">Kosten</p>
+        <h1 className="page-title mt-1.5">Was die Claude API kostet</h1>
+        <p className="page-lead">
           Jeder Aufruf wird mit Tokens und Betrag mitgeschrieben — pro Lauf, Zweck und Person. Die Beträge
           sind aus den Listenpreisen berechnet; maßgeblich ist die Abrechnung in der Claude Console.
         </p>
       </header>
 
       {error && (
-        <p className="mt-8 text-sm text-drop">
+        <p className="alert-error mt-6">
           Kosten nicht lesbar: {error.message}. Wurde <code>supabase/kosten.sql</code> im SQL Editor ausgeführt?
         </p>
       )}
 
       {!error && zeilen.length === 0 && (
-        <p className="mt-8 text-sm">
+        <p className="alert-info mt-6">
           Noch keine Kosten erfasst. Die erste Zeile entsteht beim nächsten Claude-Aufruf — spätestens im
           Morgenlauf.
         </p>
@@ -186,21 +186,21 @@ export default async function KostenPage() {
 
       {zeilen.length > 0 && (
         <>
-          <section className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded border border-rule bg-rule sm:grid-cols-4">
+          <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {kacheln.map((k) => (
-              <div key={k.label} className="bg-paper px-4 py-3">
-                <p className="text-xs text-muted">{k.label}</p>
-                <p className="tnum mt-1 text-lg font-semibold">{usd(k.wert)}</p>
+              <div key={k.label} className="metric">
+                <p className="metric-label">{k.label}</p>
+                <p className="metric-value text-xl">{usd(k.wert)}</p>
                 {k.hinweis && <p className="mt-0.5 text-[11px] leading-tight text-muted">{k.hinweis}</p>}
               </div>
             ))}
           </section>
 
-          <section className="mt-10">
-            <h2 className="text-sm font-semibold">Pro Lauf · letzte 14 Tage</h2>
+          <section className="card-pad mt-5">
+            <h2 className="section-title text-base">Pro Lauf · letzte 14 Tage</h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm">
-                <thead className="text-xs text-muted">
+                <thead className="text-xs text-muted [&_th]:bg-subtle/60 [&_th]:px-2">
                   <tr>
                     <th className="py-1.5 pr-3 font-normal">Tag</th>
                     <th className="py-1.5 pr-3 font-normal">Anlass</th>
@@ -231,10 +231,10 @@ export default async function KostenPage() {
             </div>
           </section>
 
-          <section className="mt-10">
-            <h2 className="text-sm font-semibold">Pro Zweck · 30 Tage</h2>
+          <section className="card-pad mt-5">
+            <h2 className="section-title text-base">Pro Zweck · 30 Tage</h2>
             <table className="mt-3 w-full text-left text-sm">
-              <thead className="text-xs text-muted">
+              <thead className="text-xs text-muted [&_th]:bg-subtle/60 [&_th]:px-2">
                 <tr>
                   <th className="py-1.5 pr-3 font-normal">Zweck</th>
                   <th className="py-1.5 pr-3 text-right font-normal">Aufrufe</th>
@@ -262,11 +262,11 @@ export default async function KostenPage() {
             </table>
           </section>
 
-          <section className="mt-10">
-            <h2 className="text-sm font-semibold">Pro Person · 30 Tage</h2>
+          <section className="card-pad mt-5">
+            <h2 className="section-title text-base">Pro Person · 30 Tage</h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm">
-                <thead className="text-xs text-muted">
+                <thead className="text-xs text-muted [&_th]:bg-subtle/60 [&_th]:px-2">
                   <tr>
                     <th className="py-1.5 pr-3 font-normal">Person</th>
                     <th className="py-1.5 pr-3 text-right font-normal">Stellen bewertet</th>

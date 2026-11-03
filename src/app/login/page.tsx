@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { loginAktiv, sicheresZiel, sitzungAusCookies } from "@/lib/sitzung";
 import LoginForm from "./LoginForm";
+import Icon from "@/components/ui/Icon";
+import { Hinweis } from "@/components/ui/Bausteine";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Anmelden · Career Inbox" };
@@ -19,15 +21,36 @@ export default async function LoginSeite({ searchParams }: { searchParams: Promi
   const fehler = wert("fehler");
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-20">
-      <p className="text-sm text-muted">Career Inbox</p>
-      <h1 className="mt-2 text-xl font-semibold tracking-tight">Anmelden</h1>
-      <p className="mt-3 text-sm leading-relaxed text-muted">
-        Gib deine E-Mail-Adresse ein. Du bekommst einen Link, mit dem du dich ohne Passwort anmeldest.
-      </p>
-      {wert("abgemeldet") && <p className="mt-6 text-sm">Du bist abgemeldet.</p>}
-      {fehler && MELDUNG[fehler] && <p className="mt-6 text-sm text-drop">{MELDUNG[fehler]}</p>}
-      <LoginForm weiter={weiter} />
+    <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand text-white">
+            <Icon name="briefcase" size={18} />
+          </span>
+          <span className="leading-tight">
+            <span className="block font-semibold tracking-tight">nojobs</span>
+            <span className="block text-xs text-muted">Dein Karriereassistent</span>
+          </span>
+        </div>
+        <div className="card-pad sm:p-7">
+          <h1 className="text-xl font-semibold tracking-tight">Anmelden</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Gib deine E-Mail-Adresse ein. Du bekommst einen Link, mit dem du dich ohne Passwort anmeldest.
+          </p>
+          {wert("abgemeldet") && (
+            <div className="mt-5">
+              <Hinweis ton="success">Du bist abgemeldet.</Hinweis>
+            </div>
+          )}
+          {fehler && MELDUNG[fehler] && (
+            <div className="mt-5">
+              <Hinweis ton="error">{MELDUNG[fehler]}</Hinweis>
+            </div>
+          )}
+          <LoginForm weiter={weiter} />
+        </div>
+        <p className="mt-6 text-center text-xs text-muted">Sucht täglich passende Stellen und bewertet sie für dich.</p>
+      </div>
     </main>
   );
 }

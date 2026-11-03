@@ -92,7 +92,7 @@ function Lernschleife() {
     <svg viewBox="0 0 720 300" role="img" aria-label="Deine Urteile fließen bei jedem Lauf als Beispiele in die Bewertung" className="w-full min-w-[640px]">
       <PfeilDefs />
       <Box x={260} y={8} w={200} titel="Bewertung" zeilen={["liest bei jedem Lauf", "Regeln + deine Beispiele"]} akzent />
-      <Box x={512} y={120} w={200} titel="Vorschlag" zeilen={["🔥 Bewerben, 👍 Anschauen", "oder Ignorieren + Grund"]} />
+      <Box x={512} y={120} w={200} titel="Vorschlag" zeilen={["Bewerben, Anschauen", "oder Ignorieren + Grund"]} />
       <Box x={260} y={228} w={200} titel="Dein Urteil" zeilen={["Label + Grund, Bewerbung,", "Ablegen, Absagegrund"]} />
       <Box x={8} y={120} w={200} titel="Deine Beispiele" zeilen={["die neuesten Urteile,", "häufigste Gründe als Muster"]} />
       <Pfeil d="M460 40H612V118" />
@@ -117,20 +117,20 @@ const SIGNALE: Array<{ was: string; wirkung: string }> = [
 
 export default function SoFunktioniertsPage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="border-b border-rule pb-8">
-        <p className="text-sm text-muted">Career Inbox · Anleitung</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">So funktioniert&apos;s</h1>
+    <main className="page">
+      <header className="mb-2">
+        <p className="eyebrow">Anleitung</p>
+        <h1 className="page-title mt-1.5">So funktioniert&apos;s</h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
           Die Career Inbox durchsucht jede Nacht die Jobbörsen, bewertet morgens jede neue Stelle für
           dich und zeigt dir nur, was passt. Je mehr du urteilst, desto genauer wird sie.
         </p>
       </header>
 
-      <section className="border-b border-rule py-10">
-        <h2 className="text-lg font-semibold tracking-tight">1. Dein Tag mit der Career Inbox</h2>
+      <section className="card-pad mt-5 overflow-x-auto">
+        <h2 className="section-title">1. Dein Tag mit der Career Inbox</h2>
         {/* Auf dem Handy seitlich scrollbar statt winzig */}
-        <div className="-mx-6 mt-6 overflow-x-auto px-6">
+        <div className="mt-6 overflow-x-auto">
           <Tagesablauf />
         </div>
         <ul className="mt-6 space-y-2 text-sm leading-relaxed">
@@ -140,12 +140,12 @@ export default function SoFunktioniertsPage() {
           </li>
           <li>
             <span className="font-semibold">Morgens</span> liest eine KI (Claude) jede neue Stelle und
-            ordnet sie ein: 🔥 Bewerben, 👍 Anschauen oder Ignorieren — mit kurzer Begründung, Vor- und
+            ordnet sie ein: Bewerben, Anschauen oder Ignorieren — mit kurzer Begründung, Vor- und
             Nachteilen. Ist etwas zum Bewerben dabei, kommt eine Telegram-Nachricht.
           </li>
           <li>
             <span className="font-semibold">Du</span> entscheidest in der{" "}
-            <Link href="/inbox" className="underline underline-offset-4">
+            <Link href="/inbox" className="link">
               Inbox
             </Link>
             : vormerken, bewerben, ablegen. Für jede Stelle erzeugt das Tool auf Wunsch Anschreiben und
@@ -154,14 +154,14 @@ export default function SoFunktioniertsPage() {
         </ul>
       </section>
 
-      <section className="border-b border-rule py-10">
-        <h2 className="text-lg font-semibold tracking-tight">2. Wie die Bewertung lernt</h2>
+      <section className="card-pad mt-5 overflow-x-auto">
+        <h2 className="section-title">2. Wie die Bewertung lernt</h2>
         <p className="mt-3 max-w-xl text-sm leading-relaxed">
           Das Modell wird nicht umtrainiert. Stattdessen bekommt es bei <em>jedem</em> Lauf deine neuesten
           Urteile als Beispiele mit — wie eine Einarbeitung, die jeden Morgen frisch ist. Was du heute
           labelst, wirkt ab dem nächsten Lauf.
         </p>
-        <div className="-mx-6 mt-6 overflow-x-auto px-6">
+        <div className="mt-6 overflow-x-auto">
           <Lernschleife />
         </div>
         <h3 className="mt-8 text-sm font-semibold">Was das Modell aus deinem Verhalten mitnimmt</h3>
@@ -181,12 +181,12 @@ export default function SoFunktioniertsPage() {
         </p>
       </section>
 
-      <section className="border-b border-rule py-10">
-        <h2 className="text-lg font-semibold tracking-tight">3. So hilfst du dem Tool am meisten</h2>
+      <section className="card-pad mt-5 overflow-x-auto">
+        <h2 className="section-title">3. So hilfst du dem Tool am meisten</h2>
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed">
           <li>
             <span className="font-semibold">Anfangs 30 Stellen labeln</span> unter{" "}
-            <Link href="/label" className="underline underline-offset-4">
+            <Link href="/label" className="link">
               Labeln
             </Link>{" "}
             — Bauchgefühl reicht. Tasten 1/2/3, danach optional einen Grund wählen.
@@ -206,11 +206,11 @@ export default function SoFunktioniertsPage() {
         </ol>
       </section>
 
-      <section className="py-10">
-        <h2 className="text-lg font-semibold tracking-tight">4. Gut zu wissen</h2>
+      <section className="card-pad mt-5">
+        <h2 className="section-title">4. Gut zu wissen</h2>
         <ul className="mt-4 space-y-2 text-sm leading-relaxed">
           <li>
-            <span className="font-semibold">Zwei Suchspuren:</span> 🤖 KI &amp; Automatisierung und ⬆️
+            <span className="font-semibold">Zwei Suchspuren:</span> KI &amp; Automatisierung und
             Career Upgrade (Senior-, Lead- und Head-of-Rollen). Der Filter über der Inbox trennt beide.
           </li>
           <li>

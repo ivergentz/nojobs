@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmptyState, Hinweis, PageHeader } from "@/components/ui/Bausteine";
 import { supabaseAdmin } from "@/lib/supabase";
 import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
 import { ladeEinstellungen, ladeProfilVoll } from "@/lib/profil";
@@ -19,14 +20,13 @@ export default async function ProfilSeite() {
   const slug = await profilAusCookies();
   if (istStandard(slug)) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12">
-        <p className="text-sm text-muted">Career Inbox · Mein Profil</p>
-        <p className="mt-4 max-w-lg text-sm leading-relaxed">
-          Dein Profil nutzt den Lebenslauf von deiner Website — hier ist nichts zu tun.
-        </p>
-        <Link href="/inbox" className="mt-6 inline-block text-sm underline underline-offset-4">
-          Zur Inbox
-        </Link>
+      <main className="page">
+        <EmptyState icon="user" titel="Mein Profil">
+          <p>Dein Profil nutzt den Lebenslauf von deiner Website — hier ist nichts zu tun.</p>
+          <Link href="/inbox" className="btn-secondary mt-4">
+            Zu meinen Jobs
+          </Link>
+        </EmptyState>
       </main>
     );
   }
@@ -61,16 +61,13 @@ export default async function ProfilSeite() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="border-b border-rule pb-6">
-        <p className="text-sm text-muted">Career Inbox · Mein Profil</p>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">{profil?.name ?? slug}</h1>
-        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
-          Lade deinen Lebenslauf hoch und beantworte ein paar Fragen. Daraus entsteht dein Suchprofil: wonach wir jede Nacht
-          suchen und wie wir neue Stellen für dich bewerten. Erfunden wird nichts — was fehlt, fragen wir nach.
-        </p>
-      </header>
-      {hinweis ? <p className="mt-8 text-sm text-drop">{hinweis}</p> : <LebenslaufClient initial={stand} suchprofil={suchprofil} />}
+    <main className="page">
+      <PageHeader
+        eyebrow="Mein Profil"
+        titel={profil?.name ?? slug}
+        lead="Hier sagst du nojobs, wer du bist und welche beruflichen Möglichkeiten du suchst: Lebenslauf hochladen, ein paar Fragen beantworten — daraus entsteht dein Suchprofil. Erfunden wird nichts; was fehlt, fragen wir nach."
+      />
+      {hinweis ? <Hinweis ton="error">{hinweis}</Hinweis> : <LebenslaufClient initial={stand} suchprofil={suchprofil} />}
     </main>
   );
 }

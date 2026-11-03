@@ -10,6 +10,8 @@ import type { Vorbereitung } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
 import { istStandard, NUR_EIGENES_PROFIL, profilAusCookies } from "@/lib/aktuelles-profil";
 import Link from "next/link";
+import Icon from "@/components/ui/Icon";
+import { EmptyState, Hinweis } from "@/components/ui/Bausteine";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +25,13 @@ export default async function ApplicationPage({
   // Schritt 2.2: Unterlagen gibt es vorerst nur für dein Profil.
   if (!istStandard(await profilAusCookies())) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12">
-        <p className="text-sm text-muted">Career Inbox · Unterlagen</p>
-        <p className="mt-4 max-w-lg text-sm leading-relaxed">{NUR_EIGENES_PROFIL}</p>
-        <Link href="/inbox" className="mt-6 inline-block text-sm underline underline-offset-4">
-          Zur Inbox
-        </Link>
+      <main className="page">
+        <EmptyState icon="file" titel="Unterlagen">
+          <p>{NUR_EIGENES_PROFIL}</p>
+          <Link href="/inbox" className="btn-secondary mt-4">
+            Zu meinen Jobs
+          </Link>
+        </EmptyState>
       </main>
     );
   }
@@ -61,10 +64,10 @@ export default async function ApplicationPage({
 
   if (error || !job) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
-        <p className="text-sm text-drop">
-          Stelle nicht gefunden{error ? `: ${error.message}` : "."}
-        </p>
+      <main className="page">
+        <Hinweis ton="error" titel="Stelle nicht gefunden">
+          {error ? error.message : "Die Stelle gibt es nicht (mehr)."}
+        </Hinweis>
       </main>
     );
   }
@@ -88,82 +91,87 @@ export default async function ApplicationPage({
     d ? new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
-      {frueher.length > 0 && (
-        <div className="mb-8 rounded border border-drop/40 bg-drop/5 px-4 py-3 text-sm text-drop">
-          <p className="font-semibold">
-            {frueher.some((f) => f.gleicheStelle)
-              ? "⚠️ Auf diese Stelle hast du dich schon beworben"
-              : "⚠️ Achtung – bereits eine Bewerbung bei diesem Unternehmen"}
-          </p>
-          <ul className="mt-1 space-y-0.5">
-            {frueher.map((f) => (
-              <li key={f.uuid}>
-                {f.title} — {f.status === "absage" ? "Absage" : f.status === "interview" ? "Interview" : "beworben"}
-                {f.datum ? ` am ${fmt(f.datum)}` : ""}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs">
-            Eine zweite Bewerbung kann trotzdem sinnvoll sein — dann im Anschreiben kurz darauf eingehen.
-          </p>
+    <main className="page">
+      <Link href="/inbox" className="link-quiet inline-flex items-center gap-1 text-sm no-underline">
+        <Icon name="chevronRight" size={14} className="rotate-180" /> Meine Jobs
+      </Link>
+
+      <header className="mt-4">
+        <p className="eyebrow">Bewerbung</p>
+        <h1 className="page-title mt-1.5">{(job.title_de as string) ?? (job.title as string)}</h1>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+          <span className="font-medium text-ink/80">{(job.employer_name as string) ?? "—"}</span>
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="mapPin" size={14} />
+            {[job.municipal, job.county].filter(Boolean).join(", ") || ((job.country as string) ?? "—")}
+          </span>
+          {job.application_due ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="calendar" size={14} /> Frist {String(job.application_due).slice(0, 10)}
+            </span>
+          ) : null}
         </div>
-      )}
-      <header className="border-b border-rule pb-6">
-        <p className="text-sm text-muted">Bewerbung</p>
-        <h1 className="mt-2 text-xl font-semibold leading-snug">
-          {(job.title_de as string) ?? (job.title as string)}
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          {(job.employer_name as string) ?? "—"} ·{" "}
-          {[job.municipal, job.county].filter(Boolean).join(", ") ||
-            ((job.country as string) ?? "—")}
-          {job.application_due ? ` · Frist ${String(job.application_due).slice(0, 10)}` : ""}
-        </p>
         {job.application_url && (
-          <p className="mt-3 text-sm">
-            <a
-              href={job.application_url as string}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-4"
-            >
-              Ausschreibung öffnen
-            </a>
-          </p>
+          <a href={job.application_url as string} target="_blank" rel="noopener noreferrer" className="btn-secondary mt-4">
+            Ausschreibung öffnen <Icon name="external" size={14} />
+          </a>
         )}
       </header>
 
-      <section className="mt-6 rounded border border-rule px-4 py-3 text-sm">
-        <p className="text-xs text-muted">Persönlicher Link — steht automatisch in Lebenslauf und Anschreiben</p>
-        {link ? (
-          <div className="mt-1">
-            <TrackingLink href={link.href} text={link.text} />
+      {frueher.length > 0 && (
+        <div className="mt-6">
+          <Hinweis
+            ton="warn"
+            titel={frueher.some((f) => f.gleicheStelle) ? "Auf diese Stelle hast du dich schon beworben" : "Achtung – bereits eine Bewerbung bei diesem Unternehmen"}
+          >
+            <ul className="space-y-0.5 text-muted">
+              {frueher.map((f) => (
+                <li key={f.uuid}>
+                  {f.title} — {f.status === "absage" ? "Absage" : f.status === "interview" ? "Interview" : "beworben"}
+                  {f.datum ? ` am ${fmt(f.datum)}` : ""}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-xs text-muted">Eine zweite Bewerbung kann trotzdem sinnvoll sein — dann im Anschreiben kurz darauf eingehen.</p>
+          </Hinweis>
+        </div>
+      )}
+
+      <section className="card-pad mt-6">
+        <div className="flex items-start gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+            <Icon name="activity" size={16} />
+          </span>
+          <div className="min-w-0 text-sm">
+            <p className="font-medium">Persönlicher Link</p>
+            <p className="text-xs text-muted">Steht automatisch in Lebenslauf und Anschreiben — so siehst du, ob die Bewerbung geöffnet wird.</p>
+            {link ? (
+              <div className="mt-2">
+                <TrackingLink href={link.href} text={link.text} />
+              </div>
+            ) : job.application_draft ? (
+              <p className="mt-2 text-drop">Kein Link — in Supabase einmal supabase/besuche.sql ausführen.</p>
+            ) : (
+              <p className="mt-2 text-muted">Entsteht mit dem ersten Entwurf.</p>
+            )}
+            {link && (
+              <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${besuche.length ? "bg-keep-soft font-medium text-keep" : "bg-subtle text-muted"}`}>
+                <Icon name="eye" size={13} />
+                {besuche.length === 0 ? "Noch nicht geöffnet." : `${besuche.length}× geöffnet · zuletzt ${zeit(besuche[0].created_at)}`}
+              </p>
+            )}
+            {besuche.length > 0 && (
+              <ul className="mt-2 space-y-0.5 text-xs text-muted">
+                {besuche.slice(0, 5).map((b) => (
+                  <li key={b.sitzung} className="tnum">
+                    {zeit(b.created_at)} · {b.geraet ?? "?"} · {b.seiten.join(", ")}
+                    {dauerText(b.sekunden) ? ` · ${dauerText(b.sekunden)}` : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        ) : job.application_draft ? (
-          <p className="mt-1 text-drop">
-            Kein Link — in Supabase einmal supabase/besuche.sql ausführen.
-          </p>
-        ) : (
-          <p className="mt-1 text-muted">Entsteht mit dem ersten Entwurf.</p>
-        )}
-        {link && (
-          <p className="mt-2 text-muted">
-            {besuche.length === 0
-              ? "Noch nicht geöffnet."
-              : `👀 ${besuche.length}× geöffnet · zuletzt ${zeit(besuche[0].created_at)}`}
-          </p>
-        )}
-        {besuche.length > 0 && (
-          <ul className="mt-1 space-y-0.5 text-xs text-muted">
-            {besuche.slice(0, 5).map((b) => (
-              <li key={b.sitzung}>
-                {zeit(b.created_at)} · {b.geraet ?? "?"} · {b.seiten.join(", ")}
-                {dauerText(b.sekunden) ? ` · ${dauerText(b.sekunden)}` : ""}
-              </li>
-            ))}
-          </ul>
-        )}
+        </div>
       </section>
 
       <ApplicationClient

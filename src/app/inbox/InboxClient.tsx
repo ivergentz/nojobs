@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import Icon from "@/components/ui/Icon";
+import { EmptyState } from "@/components/ui/Bausteine";
 import type { FruehereBewerbung } from "@/lib/firma";
 import type { BesuchsSumme } from "@/lib/tracking";
 
@@ -68,7 +70,7 @@ function AbsageGrund({ uuid, initial }: { uuid: string; initial: string | null }
   };
 
   return (
-    <div className="mt-4 rounded border border-rule px-3 py-2.5 text-sm">
+    <div className="mt-4 rounded border border-rule bg-subtle/50 px-3 py-3 text-sm">
       <label htmlFor={`absage-${uuid}`} className="text-xs text-muted">
         Hat die Firma einen Grund genannt? Optional — wird bei der Bewertung neuer Stellen beachtet.
       </label>
@@ -86,24 +88,24 @@ function AbsageGrund({ uuid, initial }: { uuid: string; initial: string | null }
           onBlur={() => void speichern()}
           maxLength={500}
           placeholder="z. B. „andere hatten Produktverantwortung für KI-Bots im Livebetrieb“"
-          className="w-full rounded border border-rule bg-paper px-2.5 py-1.5 outline-none focus:border-ink"
+          className="field mt-0"
         />
-        <button
-          type="button"
-          onClick={() => void speichern()}
-          disabled={text.trim() === gespeichert.trim()}
-          className="shrink-0 rounded border border-ink px-3 py-1.5 disabled:border-rule disabled:text-muted"
-        >
+        <button type="button" onClick={() => void speichern()} disabled={text.trim() === gespeichert.trim()} className="btn-secondary shrink-0">
           Speichern
         </button>
       </div>
-      {stand === "ok" && <p className="mt-1 text-xs text-keep">Gespeichert — fließt ab dem nächsten Bewertungslauf ein.</p>}
-      {stand && stand !== "ok" && stand !== "speichert" && <p className="mt-1 text-xs text-drop">{stand}</p>}
+      {stand === "speichert" && <p className="mt-1.5 text-xs text-muted">Wird gespeichert …</p>}
+      {stand === "ok" && (
+        <p className="mt-1.5 flex items-center gap-1 text-xs text-keep">
+          <Icon name="check" size={13} /> Gespeichert — fließt ab dem nächsten Bewertungslauf ein.
+        </p>
+      )}
+      {stand && stand !== "ok" && stand !== "speichert" && <p className="mt-1.5 text-xs text-drop">{stand}</p>}
     </div>
   );
 }
 
-const SPUR_TEXT: Record<string, string> = { ki: "🤖 KI", upgrade: "⬆️ Career Upgrade" };
+const SPUR_TEXT: Record<string, string> = { ki: "KI & Automation", upgrade: "Career Upgrade" };
 
 const STATUS_TEXT: Record<string, string> = {
   beworben: "beworben",
@@ -115,18 +117,21 @@ function Warnung({ frueher }: { frueher: FruehereBewerbung[] }) {
   if (!frueher.length) return null;
   const gleiche = frueher.find((f) => f.gleicheStelle);
   return (
-    <div className="mt-4 rounded border border-drop/40 bg-drop/5 px-3 py-2 text-sm text-drop">
-      <p className="font-semibold">
-        {gleiche ? "⚠️ Auf diese Stelle hast du dich schon beworben" : "⚠️ Achtung – bereits eine Bewerbung bei diesem Unternehmen"}
-      </p>
-      <ul className="mt-1 space-y-0.5">
-        {frueher.map((f) => (
-          <li key={f.uuid}>
-            {f.title} — {STATUS_TEXT[f.status] ?? f.status}
-            {f.datum ? ` am ${datum(f.datum)}` : ""}
-          </li>
-        ))}
-      </ul>
+    <div className="mt-4 flex gap-2.5 rounded border border-warn/25 bg-warn-soft px-3 py-2.5 text-sm">
+      <Icon name="alert" size={16} className="mt-0.5 text-warn" />
+      <div>
+        <p className="font-medium">
+          {gleiche ? "Auf diese Stelle hast du dich schon beworben" : "Achtung – bereits eine Bewerbung bei diesem Unternehmen"}
+        </p>
+        <ul className="mt-0.5 space-y-0.5 text-muted">
+          {frueher.map((f) => (
+            <li key={f.uuid}>
+              {f.title} — {STATUS_TEXT[f.status] ?? f.status}
+              {f.datum ? ` am ${datum(f.datum)}` : ""}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -254,8 +259,10 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
   const hatUpgrade = imReiter.some((job) => job.spur === "upgrade");
 
   return (
-    <div className="mt-6">
-      <div className="mb-4 flex items-center gap-3">
+    <div>
+      {/* Suche */}
+      <div className="relative">
+        <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           ref={sucheRef}
           type="search"
@@ -264,62 +271,64 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
           onKeyDown={(event) => {
             if (event.key === "Escape") setSuche("");
           }}
-          placeholder="Firma oder Stelle suchen … (Taste /)"
+          placeholder="Firma oder Stelle suchen …"
           aria-label="Bewerbungen durchsuchen"
-          className="w-full rounded border border-rule bg-paper px-3 py-2 text-sm outline-none focus:border-ink"
+          className="field mt-0 py-2.5 pl-9 pr-16"
         />
-        {sucht && (
-          <span className="tnum shrink-0 text-xs text-muted">
-            {imReiter.length} Treffer in allen Reitern
-          </span>
-        )}
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-rule bg-subtle px-1.5 text-2xs text-muted sm:block">
+          /
+        </kbd>
       </div>
+      {sucht && (
+        <p className="tnum mt-2 text-xs text-muted" aria-live="polite">
+          {imReiter.length} Treffer in allen Reitern
+        </p>
+      )}
 
-      <nav
-        aria-label="Status"
-        className="-mx-6 flex gap-1 overflow-x-auto border-b border-rule px-6 text-sm"
-      >
-        {REITER.map((r) => {
+      {/* Status: Neu → Bewerbungs-Workflow */}
+      <nav aria-label="Status" className="tabs mt-4">
+        {REITER.map((r, i) => {
           const aktiv = !sucht && r.key === reiter;
           const n = anzahl(r.key);
           return (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => {
-                setSuche("");
-                waehlen(r.key);
-              }}
-              aria-current={aktiv ? "page" : undefined}
-              className={`-mb-px shrink-0 border-b-2 px-3 py-2 ${
-                aktiv ? "border-ink font-semibold" : "border-transparent text-muted hover:text-ink"
-              }`}
-            >
-              {r.label}
-              <span className="tnum ml-1.5 text-xs text-muted">{n}</span>
-            </button>
+            <span key={r.key} className="flex shrink-0 items-center">
+              {i === 2 && <span aria-hidden className="mx-1 h-4 w-px bg-rule" />}
+              <button
+                type="button"
+                onClick={() => {
+                  setSuche("");
+                  waehlen(r.key);
+                }}
+                aria-current={aktiv ? "page" : undefined}
+                className={`tab ${aktiv ? "tab-active" : ""}`}
+              >
+                {r.label}
+                <span className={`tnum rounded-full px-1.5 text-2xs ${aktiv ? "bg-brand-soft text-brand-strong" : "text-muted"}`}>{n}</span>
+              </button>
+            </span>
           );
         })}
       </nav>
 
       {hatUpgrade && (
-        <div className="mt-4 flex flex-wrap gap-2 text-sm">
+        <div className="mt-3 flex flex-wrap gap-2 text-sm" role="group" aria-label="Suchrichtung">
           {([
-            ["alle", "Alle"],
-            ["ki", "🤖 KI & Automation"],
-            ["upgrade", "⬆️ Career Upgrade"],
-          ] as const).map(([key, label]) => (
+            ["alle", "Alle", null],
+            ["ki", "KI & Automation", "sparkles"],
+            ["upgrade", "Career Upgrade", "trendingUp"],
+          ] as const).map(([key, label, icon]) => (
             <button
               key={key}
               type="button"
               onClick={() => setSpurFilter(key)}
               aria-pressed={spurFilter === key}
-              className={`rounded-full border px-3 py-1 ${
-                spurFilter === key ? "border-ink bg-ink text-paper" : "border-rule text-muted hover:text-ink"
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 transition ${
+                spurFilter === key ? "border-brand bg-brand text-white" : "border-rule bg-surface text-muted hover:border-ink/25 hover:text-ink"
               }`}
             >
+              {icon && <Icon name={icon} size={14} />}
               {label}
-              <span className="tnum ml-1.5 text-xs opacity-70">
+              <span className="tnum text-xs opacity-75">
                 {key === "alle" ? imReiter.length : imReiter.filter((job) => (job.spur ?? "ki") === key).length}
               </span>
             </button>
@@ -327,149 +336,271 @@ export default function InboxClient({ jobs, mitUnterlagen = true }: { jobs: Inbo
         </div>
       )}
 
-      {failed && <p className="mt-4 text-sm text-drop">Nicht gespeichert: {failed}</p>}
-
-      {visible.length === 0 && (
-        <p className="mt-10 text-sm leading-relaxed">
-          {sucht
-            ? `Nichts gefunden für „${suche.trim()}“.`
-            : !mitUnterlagen && reiter === "neu"
-              ? "Nichts Neues. Neue Stellen kommen jeden Morgen — oder unter „Mein Profil“ jetzt nach neuen Stellen suchen."
-              : LEER[reiter]}
-        </p>
+      {failed && (
+        <div className="alert-error mt-4" role="alert">
+          <Icon name="circleX" size={18} className="mt-0.5 text-drop" />
+          <span>Nicht gespeichert: {failed}</span>
+        </div>
       )}
 
-      <ul>
+      {visible.length === 0 && (
+        <div className="mt-6">
+          <EmptyState icon={sucht ? "search" : "inbox"} titel={sucht ? `Nichts gefunden für „${suche.trim()}“.` : "Hier ist gerade nichts."}>
+            {sucht
+              ? "Gesucht wird in Firma, Titel und Ort — über alle Reiter."
+              : !mitUnterlagen && reiter === "neu"
+                ? "Nichts Neues. Neue Stellen kommen jeden Morgen — oder unter „Mein Profil“ jetzt nach neuen Stellen suchen."
+                : LEER[reiter]}
+          </EmptyState>
+        </div>
+      )}
+
+      <ul className="mt-5 space-y-4">
         {visible.map((job) => {
           const status = state[job.uuid] ?? job.status;
           const salary = salaryLine(job);
           const hot = job.fit === "must_apply";
           const seit = datum(job.published);
+          const bewerbung = ["beworben", "interview", "absage"].includes(status);
 
           return (
-            <li key={job.uuid} className="border-b border-rule py-8">
-              <div className="flex items-baseline justify-between gap-4 text-sm">
-                <span className={hot ? "font-semibold text-keep" : "text-muted"}>
-                  {hot ? "🔥 Bewerben" : "👍 Anschauen"}
-                  {job.confidence === "low" && (
-                    <span className="ml-2 font-normal text-muted">unsicher</span>
-                  )}
-                  {job.spur === "upgrade" && (
-                    <span className="ml-2 font-normal text-ink">· {SPUR_TEXT.upgrade}</span>
-                  )}
-                </span>
-                <span className="text-right text-xs text-muted">
-                  {sucht && (
-                    <span className="mr-2 rounded border border-ink px-1.5 py-0.5 text-ink">
-                      {REITER.find((r) => r.key === status)?.label ?? status}
+            <li key={job.uuid} className={`card overflow-hidden ${hot && status === "neu" ? "border-keep/30" : ""}`}>
+              <article className="p-4 sm:p-5">
+                {/* Ebene 1: Empfehlung, Titel, Firma, Gehalt */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {hot ? (
+                      <span className="badge-positive">
+                        <Icon name="flame" size={13} /> Bewerben
+                      </span>
+                    ) : (
+                      <span className="badge-neutral">
+                        <Icon name="eye" size={13} /> Anschauen
+                      </span>
+                    )}
+                    {job.confidence === "low" && <span className="badge-warn">unsicher</span>}
+                    {job.spur === "upgrade" && (
+                      <span className="badge-brand">
+                        <Icon name="trendingUp" size={13} /> {SPUR_TEXT.upgrade}
+                      </span>
+                    )}
+                    {sucht && <span className="badge-neutral border-ink/20 text-ink">{REITER.find((r) => r.key === status)?.label ?? status}</span>}
+                  </div>
+                  <span className="text-xs text-muted">
+                    {job.quelle}
+                    {seit ? <span className="tnum"> · seit {seit}</span> : null}
+                  </span>
+                </div>
+
+                <h2 className="mt-3 text-[1.0625rem] font-semibold leading-snug tracking-tight">{job.title}</h2>
+                <p className="mt-0.5 text-sm text-ink/80">{job.employer}</p>
+
+                {/* Ebene 2: Rahmenbedingungen */}
+                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Icon name="mapPin" size={14} />
+                    {job.place}
+                    {job.homeoffice ? ` · ${job.homeoffice}` : ""}
+                  </span>
+                  {job.due && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Icon name="calendar" size={14} /> Frist {job.due}
                     </span>
                   )}
-                  {job.quelle}
-                  {seit ? <span className="tnum"> · seit {seit}</span> : null}
-                </span>
-              </div>
-
-              <h2 className="mt-2 text-lg font-semibold leading-snug">{job.title}</h2>
-              <p className="mt-1 text-sm text-muted">
-                {job.employer} · {job.place}
-                {job.homeoffice ? ` · ${job.homeoffice}` : ""}
-                {job.due ? ` · Frist ${job.due}` : ""}
-              </p>
-              {salary && <p className="mt-1 text-sm text-keep">{salary}</p>}
-
-              {(status === "neu" || status === "interessant") && <Warnung frueher={job.frueher} />}
-
-              {status === "absage" && <AbsageGrund uuid={job.uuid} initial={job.absageNotiz} />}
-
-              {["beworben", "interview", "absage"].includes(status) && (
-                <p className={`mt-3 text-sm ${job.besuche ? "font-semibold text-keep" : "text-muted"}`}>
-                  {job.besuche
-                    ? `👀 Seite ${job.besuche.anzahl}× geöffnet · zuletzt ${datum(job.besuche.zuletzt)}${
-                        job.besuche.cv ? " · Lebenslauf angesehen" : ""
-                      }`
-                    : "Seite noch nicht geöffnet"}
-                </p>
-              )}
-
-              {job.summary && <p className="mt-4 text-sm leading-relaxed">{job.summary}</p>}
-
-              {(job.pros.length > 0 || job.cons.length > 0) && (
-                <div className="mt-4 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
-                  <ul className="space-y-1">
-                    {job.pros.map((entry, index) => (
-                      <li key={index} className="text-keep">
-                        + {entry}
-                      </li>
-                    ))}
-                  </ul>
-                  <ul className="space-y-1">
-                    {job.cons.map((entry, index) => (
-                      <li key={index} className="text-drop">
-                        − {entry}
-                      </li>
-                    ))}
-                  </ul>
+                  {salary && (
+                    <span className="inline-flex items-center gap-1.5 font-medium text-keep">
+                      <Icon name="euro" size={14} /> {salary}
+                    </span>
+                  )}
                 </div>
-              )}
 
-              <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
+                {(status === "neu" || status === "interessant") && <Warnung frueher={job.frueher} />}
+
+                {status === "absage" && <AbsageGrund uuid={job.uuid} initial={job.absageNotiz} />}
+
+                {bewerbung && (
+                  <p className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${job.besuche ? "bg-keep-soft font-medium text-keep" : "bg-subtle text-muted"}`}>
+                    <Icon name="eye" size={13} />
+                    {job.besuche
+                      ? `Seite ${job.besuche.anzahl}× geöffnet · zuletzt ${datum(job.besuche.zuletzt)}${job.besuche.cv ? " · Lebenslauf angesehen" : ""}`
+                      : "Seite noch nicht geöffnet"}
+                  </p>
+                )}
+
+                {/* Ebene 3: Warum passt die Stelle? */}
+                {job.summary && <p className="mt-3 text-sm leading-relaxed text-ink/90">{job.summary}</p>}
+
+                {(job.pros.length > 0 || job.cons.length > 0) && (
+                  <details className="disclosure mt-3" open={hot && status === "neu"}>
+                    <summary>
+                      <Icon name="chevronRight" size={14} className="chevron" />
+                      Was passt, was nicht
+                      <span className="font-normal text-muted">
+                        · {job.pros.length} + / {job.cons.length} −
+                      </span>
+                    </summary>
+                    <div className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                      <ul className="space-y-1.5" aria-label="Spricht dafür">
+                        {job.pros.map((entry, index) => (
+                          <li key={index} className="flex gap-2">
+                            <Icon name="plus" size={14} className="mt-[3px] text-keep" />
+                            <span>{entry}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <ul className="space-y-1.5" aria-label="Spricht dagegen">
+                        {job.cons.map((entry, index) => (
+                          <li key={index} className="flex gap-2 text-ink/80">
+                            <Icon name="minus" size={14} className="mt-[3px] text-drop" />
+                            <span>{entry}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
+                )}
+              </article>
+
+              {/* Ebene 4: Aktionen */}
+              <div className="flex flex-wrap items-center gap-2 border-t border-rule bg-subtle/40 px-4 py-3 sm:px-5">
                 {job.url && (
                   // Öffnet nur die Anzeige. Vorher setzte der Klick automatisch
                   // "beworben" — auch wenn man sich die Stelle nur ansehen wollte.
-                  <a
-                    href={job.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded border border-keep px-4 py-2 text-keep"
-                  >
+                  <a href={job.url} target="_blank" rel="noopener noreferrer" className={hot || !mitUnterlagen ? "btn-primary" : "btn-secondary"}>
                     Anzeige öffnen
+                    <Icon name="external" size={14} />
                   </a>
                 )}
                 {mitUnterlagen && (
-                <>
-                <a
-                  href={`/application/${encodeURIComponent(job.uuid)}`}
-                  className="rounded border border-ink px-4 py-2 text-sm"
-                >
-                  Unterlagen
-                </a>
-                {["beworben", "interview"].includes(status) && (
-                  <a
-                    href={`/application/${encodeURIComponent(job.uuid)}#vorbereitung`}
-                    className="rounded border border-rule px-4 py-2 text-sm"
-                  >
-                    Vorbereitung
-                  </a>
+                  <>
+                    <a href={`/application/${encodeURIComponent(job.uuid)}`} className="btn-secondary">
+                      <Icon name="file" size={15} />
+                      Unterlagen
+                    </a>
+                    {["beworben", "interview"].includes(status) && (
+                      <a href={`/application/${encodeURIComponent(job.uuid)}#vorbereitung`} className="btn-secondary">
+                        <Icon name="interview" size={15} />
+                        Vorbereitung
+                      </a>
+                    )}
+                  </>
                 )}
-                </>
-                )}
-                {STATUS.map((entry) => (
-                  <button
-                    key={entry.key}
-                    type="button"
-                    onClick={() => void setStatus(job.uuid, entry.key)}
-                    className={`rounded px-3 py-2 underline underline-offset-4 ${
-                      status === entry.key ? "font-semibold" : "text-muted"
-                    }`}
-                  >
-                    {entry.label}
-                  </button>
-                ))}
+                <span className="ml-auto">
+                  <StatusMenue status={status} onWahl={(key) => void setStatus(job.uuid, key)} />
+                </span>
               </div>
-
-              {status !== "neu" && (
-                <button
-                  type="button"
-                  onClick={() => void setStatus(job.uuid, "neu")}
-                  className="mt-3 text-xs text-muted underline underline-offset-4"
-                >
-                  zurück zu „Neu“
-                </button>
-              )}
             </li>
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+/** Nächster sinnvoller Schritt je Status — wird als eigener Knopf hervorgehoben. */
+const NAECHSTER: Record<string, string> = { neu: "interessant", interessant: "beworben", beworben: "interview" };
+
+/**
+ * Statussteuerung: der wichtigste nächste Schritt als Knopf, alle Status (inkl. „zurück zu Neu“)
+ * im Menü. Sendet genau dieselben Werte wie vorher.
+ */
+function StatusMenue({ status, onWahl }: { status: string; onWahl: (key: string) => void }) {
+  const [offen, setOffen] = useState(false);
+  const wurzel = useRef<HTMLDivElement>(null);
+  const menueId = useId();
+  const naechster = STATUS.find((s) => s.key === NAECHSTER[status]);
+  const aktuell = REITER.find((r) => r.key === status)?.label ?? status;
+
+  useEffect(() => {
+    if (!offen) return;
+    const zu = (e: MouseEvent) => {
+      if (wurzel.current && !wurzel.current.contains(e.target as Node)) setOffen(false);
+    };
+    const taste = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOffen(false);
+    };
+    document.addEventListener("mousedown", zu);
+    document.addEventListener("keydown", taste);
+    // Fokus auf den ersten Eintrag, damit das Menü per Tastatur bedienbar ist
+    wurzel.current?.querySelector<HTMLButtonElement>('[role="menuitemradio"]')?.focus();
+    return () => {
+      document.removeEventListener("mousedown", zu);
+      document.removeEventListener("keydown", taste);
+    };
+  }, [offen]);
+
+  const pfeile = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const eintraege = Array.from(wurzel.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
+    const i = eintraege.indexOf(document.activeElement as HTMLButtonElement);
+    eintraege[(i + (e.key === "ArrowDown" ? 1 : -1) + eintraege.length) % eintraege.length]?.focus();
+  };
+
+  const waehle = (key: string) => {
+    setOffen(false);
+    onWahl(key);
+  };
+
+  return (
+    <div ref={wurzel} className="relative flex items-center gap-2">
+      {naechster && (
+        <button type="button" onClick={() => onWahl(naechster.key)} className="btn-secondary">
+          {naechster.key === "interessant" ? <Icon name="bookmark" size={15} /> : naechster.key === "beworben" ? <Icon name="send" size={15} /> : <Icon name="interview" size={15} />}
+          {naechster.label}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => setOffen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={offen}
+        aria-controls={menueId}
+        className="btn-ghost border border-transparent"
+      >
+        <span className="text-muted">Status:</span> <span className="font-medium text-ink">{aktuell}</span>
+        <Icon name="chevronDown" size={14} />
+      </button>
+      {offen && (
+        <div
+          id={menueId}
+          role="menu"
+          aria-label="Status ändern"
+          onKeyDown={pfeile}
+          className="absolute bottom-full right-0 z-20 mb-1 w-52 rounded-lg border border-rule bg-surface p-1 shadow-raised sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1"
+        >
+          {STATUS.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              role="menuitemradio"
+              aria-checked={status === entry.key}
+              onClick={() => waehle(entry.key)}
+              className={`flex w-full items-center justify-between rounded px-2.5 py-2 text-left text-sm transition hover:bg-subtle focus:bg-subtle focus:outline-none ${
+                status === entry.key ? "font-medium text-brand-strong" : "text-ink"
+              }`}
+            >
+              {entry.label}
+              {status === entry.key && <Icon name="check" size={14} className="text-brand" />}
+            </button>
+          ))}
+          {status !== "neu" && (
+            <>
+              <div className="my-1 h-px bg-rule" />
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={false}
+                onClick={() => waehle("neu")}
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-muted transition hover:bg-subtle hover:text-ink focus:bg-subtle focus:outline-none"
+              >
+                <Icon name="undo" size={14} />
+                zurück zu „Neu“
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

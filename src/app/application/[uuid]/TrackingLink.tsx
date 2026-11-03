@@ -15,9 +15,9 @@ export default function TrackingLink({ href, text }: { href: string; text: strin
     }
   };
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <code className="select-all font-mono text-sm">{text}</code>
-      <button type="button" onClick={() => void kopieren()} className="text-xs text-muted underline underline-offset-4">
+    <span className="inline-flex max-w-full flex-wrap items-center gap-2">
+      <code className="select-all break-all rounded border border-rule bg-subtle px-2 py-1 font-mono text-[0.8125rem]">{text}</code>
+      <button type="button" onClick={() => void kopieren()} className="btn-ghost btn-sm">
         {kopiert ? "kopiert" : "kopieren"}
       </button>
     </span>

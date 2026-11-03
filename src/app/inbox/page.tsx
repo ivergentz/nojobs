@@ -6,6 +6,7 @@ import { besucheJeStelle, type Besuch } from "@/lib/tracking";
 import { lesen } from "@/lib/lesen";
 import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
 import { ladeProfilVoll } from "@/lib/profil";
+import { Hinweis, PageHeader } from "@/components/ui/Bausteine";
 
 export const dynamic = "force-dynamic";
 
@@ -120,23 +121,37 @@ export default async function InboxPage() {
   const fremdesProfil = eigenes ? null : await ladeProfilVoll(db, profil);
   const kopf = fremdesProfil?.suchort.ort ? `${fremdesProfil.suchort.ort} · ${fremdesProfil.suchort.umkreis} km Umkreis` : eigenes ? "Hamburg & Remote" : "Inbox";
 
+  const empfohlen = jobs.filter((job) => job.status === "neu" && job.fit === "must_apply").length;
+
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="border-b border-rule pb-8">
-        <p className="text-sm text-muted">Career Inbox · {kopf}</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          {neu === 1 ? "1 neue Stelle" : `${neu} neue Stellen`}
-        </h1>
+    <main className="page">
+      <PageHeader
+        eyebrow={`Meine Jobs · ${kopf}`}
+        titel={neu === 1 ? "1 neue Stelle" : `${neu} neue Stellen`}
+        lead={
+          neu > 0
+            ? empfohlen > 0
+              ? `${empfohlen === 1 ? "Eine passt" : `${empfohlen} passen`} besonders gut zu deinen Zielen — sie stehen oben. Der Rest ist einen zweiten Blick wert.`
+              : "Gefunden und vorsortiert — jede Stelle mit einer kurzen Einschätzung, was passt und was nicht."
+            : "Hier landen jeden Morgen die Stellen, die zu deinen Zielen passen."
+        }
+      >
         {inbox.error && (
-          <p className="mt-4 text-sm text-drop">Fehler: {inbox.error.message}</p>
+          <div className="mt-4">
+            <Hinweis ton="error" titel="Stellen konnten nicht geladen werden">
+              {inbox.error.message}
+            </Hinweis>
+          </div>
         )}
         {eigenes && (unbewertet.count ?? 0) > 0 && (
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-            {unbewertet.count} Stellen sind noch nicht bewertet und fehlen hier. Bewertet wird
-            jeden Morgen automatisch — oder sofort über die Steuerung.
-          </p>
+          <div className="mt-4">
+            <Hinweis ton="info">
+              {unbewertet.count} Stellen sind noch nicht bewertet und fehlen hier. Bewertet wird jeden Morgen automatisch — oder sofort über
+              die Steuerung.
+            </Hinweis>
+          </div>
         )}
-      </header>
+      </PageHeader>
 
       <InboxClient jobs={jobs} mitUnterlagen={eigenes} />
     </main>

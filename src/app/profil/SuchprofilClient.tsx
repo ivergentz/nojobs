@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import Fortschritt from "@/components/Fortschritt";
+import Icon from "@/components/ui/Icon";
+import { Schritt } from "./LebenslaufClient";
 
 /**
  * Schritt 2.6 · Fragebogen → Vorschlag → Suchprofil bestätigen.
@@ -57,7 +59,7 @@ const leer = (ort: string): Antworten => ({
   englisch: "etwas",
 });
 
-const feld = "mt-1 w-full rounded border border-rule bg-transparent px-3 py-2";
+const feld = "field";
 
 function Auswahl<T extends string>({
   name,
@@ -71,9 +73,9 @@ function Auswahl<T extends string>({
   setze: (w: T) => void;
 }) {
   return (
-    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+    <div className="mt-2 flex flex-wrap gap-2">
       {optionen.map(([w, text]) => (
-        <label key={w} className="inline-flex items-center gap-1.5">
+        <label key={w} className="choice">
           <input type="radio" name={name} checked={wert === w} onChange={() => setze(w)} />
           {text}
         </label>
@@ -187,17 +189,20 @@ export default function SuchprofilClient({
 
   return (
     <>
-      <section>
-        <h2 className="font-semibold">Was suchst du?</h2>
-        <p className="mt-1 text-muted">Der Lebenslauf zeigt, was du gemacht hast — hier geht es darum, was als Nächstes kommen soll. Dauert 3–5 Minuten.</p>
+      <section className="card-pad">
+        <div className="flex items-start gap-3">
+          <Schritt nr={2} fertig={Boolean(vorschlag)} />
+          <div className="min-w-0 flex-1">
+        <h2 className="section-title">Was suchst du?</h2>
+        <p className="section-lead">Der Lebenslauf zeigt, was du gemacht hast — hier geht es darum, was als Nächstes kommen soll. Dauert 3–5 Minuten.</p>
 
-        <div className="mt-4 space-y-5">
+        <div className="mt-5 space-y-6">
           <fieldset>
-            <legend className="font-semibold">Richtung</legend>
+            <legend className="field-label">Richtung</legend>
             {angebot.length > 0 && (
-              <div className="mt-1 space-y-1">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {angebot.map((r) => (
-                  <label key={r} className="flex items-center gap-2">
+                  <label key={r} className="choice flex w-full sm:w-auto">
                     <input type="checkbox" checked={a.richtungen.includes(r)} onChange={() => umschalten("richtungen", r)} />
                     {r}
                   </label>
@@ -213,13 +218,13 @@ export default function SuchprofilClient({
           </fieldset>
 
           <label className="block">
-            <span className="font-semibold">Was soll anders werden als im letzten Job?</span>
-            <span className="block text-muted">Die wichtigste Frage — Gehalt, Verantwortung, Arbeitszeit, Team, Sinn, Ruhe …</span>
+            <span className="field-label">Was soll anders werden als im letzten Job?</span>
+            <span className="field-hint">Die wichtigste Frage — Gehalt, Verantwortung, Arbeitszeit, Team, Sinn, Ruhe …</span>
             <textarea className={`${feld} min-h-20`} value={a.anders} onChange={(e) => setze("anders", e.target.value)} />
           </label>
 
           <fieldset>
-            <legend className="font-semibold">Ebene</legend>
+            <legend className="field-label">Ebene</legend>
             <Auswahl
               name="ebene"
               wert={a.ebene}
@@ -229,7 +234,7 @@ export default function SuchprofilClient({
           </fieldset>
 
           <fieldset>
-            <legend className="font-semibold">Wo?</legend>
+            <legend className="field-label">Wo?</legend>
             <div className="mt-1 flex flex-wrap gap-3">
               <input className={`${feld} mt-0 max-w-56`} placeholder="Ort oder PLZ" value={a.ort} onChange={(e) => setze("ort", e.target.value)} />
               <select className={`${feld} mt-0 w-auto`} value={a.umkreis} onChange={(e) => setze("umkreis", Number(e.target.value))}>
@@ -240,9 +245,9 @@ export default function SuchprofilClient({
                 ))}
               </select>
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <div className="mt-3 flex flex-wrap gap-2">
               {([["vor-ort", "Vor Ort"], ["hybrid", "Hybrid"], ["remote", "Remote"]] as const).map(([w, text]) => (
-                <label key={w} className="inline-flex items-center gap-1.5">
+                <label key={w} className="choice">
                   <input type="checkbox" checked={a.arbeitsort.includes(w)} onChange={() => umschalten("arbeitsort", w)} />
                   {text}
                 </label>
@@ -258,7 +263,7 @@ export default function SuchprofilClient({
           </fieldset>
 
           <fieldset>
-            <legend className="font-semibold">Umfang</legend>
+            <legend className="field-label">Umfang</legend>
             <Auswahl
               name="umfang"
               wert={a.umfang}
@@ -271,7 +276,7 @@ export default function SuchprofilClient({
           </fieldset>
 
           <fieldset>
-            <legend className="font-semibold">
+            <legend className="field-label">
               Gehalt <span className="font-normal text-muted">(optional, Untergrenze brutto)</span>
             </legend>
             <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -286,10 +291,10 @@ export default function SuchprofilClient({
           </fieldset>
 
           <fieldset>
-            <legend className="font-semibold">No-Gos</legend>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            <legend className="field-label">No-Gos</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
               {NOGOS.map((n) => (
-                <label key={n.key} className="inline-flex items-center gap-1.5">
+                <label key={n.key} className="choice">
                   <input type="checkbox" checked={a.nogos.includes(n.key)} onChange={() => umschalten("nogos", n.key)} />
                   {n.label}
                 </label>
@@ -299,7 +304,7 @@ export default function SuchprofilClient({
           </fieldset>
 
           <fieldset>
-            <legend className="font-semibold">Englisch im Job</legend>
+            <legend className="field-label">Englisch im Job</legend>
             <Auswahl
               name="englisch"
               wert={a.englisch}
@@ -313,7 +318,7 @@ export default function SuchprofilClient({
           type="button"
           onClick={() => void senden("vorschlag")}
           disabled={busy !== null || laeuft}
-          className="mt-6 rounded border border-ink px-4 py-2 disabled:opacity-40"
+          className={`mt-6 ${vorschlag ? "btn-secondary" : "btn-primary"}`}
         >
           {vorschlag ? "Neuen Vorschlag erstellen" : "Suchprofil vorschlagen"}
         </button>
@@ -328,23 +333,28 @@ export default function SuchprofilClient({
           ]}
           hinweis="Seite bitte offen lassen — das dauert etwa 20 Sekunden."
         />
-        {fehler && busy === null && !vorschlag && <p className="mt-3 text-drop">{fehler}</p>}
+        {fehler && busy === null && !vorschlag && <p className="alert-error mt-3">{fehler}</p>}
+          </div>
+        </div>
       </section>
 
       {vorschlag && (
-        <section>
-          <h2 className="font-semibold">Dein Suchprofil</h2>
-          <p className="mt-1 text-muted">
+        <section className="card-pad">
+          <div className="flex items-start gap-3">
+          <Schritt nr={3} fertig={Boolean(bestaetigt)} />
+          <div className="min-w-0 flex-1">
+          <h2 className="section-title">Dein Suchprofil</h2>
+          <p className="section-lead">
             Danach suchen und bewerten wir jede Nacht. Lies es durch, ändere, was nicht stimmt, und übernimm es.
           </p>
           <div className="mt-4 space-y-4">
             <label className="block">
-              <span className="font-semibold">Suchbegriffe</span>
-              <span className="block text-muted">Mit Komma getrennt. Kurze Wörter finden mehr: „Erzieher“ findet auch „Erzieherin“.</span>
+              <span className="field-label">Suchbegriffe</span>
+              <span className="field-hint">Mit Komma getrennt. Kurze Wörter finden mehr: „Erzieher“ findet auch „Erzieherin“.</span>
               <textarea className={`${feld} min-h-16`} value={begriffe} onChange={(e) => setBegriffe(e.target.value)} />
             </label>
             <div>
-              <span className="font-semibold">Ort und Umkreis</span>
+              <span className="field-label">Ort und Umkreis</span>
               <div className="mt-1 flex flex-wrap gap-3">
                 <input className={`${feld} mt-0 max-w-56`} value={vorschlag.ort} onChange={(e) => setzeV("ort", e.target.value)} />
                 <select className={`${feld} mt-0 w-auto`} value={vorschlag.umkreis} onChange={(e) => setzeV("umkreis", Number(e.target.value))}>
@@ -357,13 +367,13 @@ export default function SuchprofilClient({
               </div>
             </div>
             <label className="block">
-              <span className="font-semibold">Profiltext</span>
-              <span className="block text-muted">So beschreiben wir dich gegenüber der Bewertung.</span>
+              <span className="field-label">Profiltext</span>
+              <span className="field-hint">So beschreiben wir dich gegenüber der Bewertung.</span>
               <textarea className={`${feld} min-h-56 font-mono text-xs leading-relaxed`} value={vorschlag.profiltext} onChange={(e) => setzeV("profiltext", e.target.value)} />
             </label>
             <label className="block">
-              <span className="font-semibold">Bewertungsregeln</span>
-              <span className="block text-muted">Wann eine Stelle „Bewerben“, „Anschauen“ oder „Ignorieren“ ist.</span>
+              <span className="field-label">Bewertungsregeln</span>
+              <span className="field-hint">Wann eine Stelle „Bewerben“, „Anschauen“ oder „Ignorieren“ ist.</span>
               <textarea className={`${feld} min-h-48 font-mono text-xs leading-relaxed`} value={vorschlag.kriterien} onChange={(e) => setzeV("kriterien", e.target.value)} />
             </label>
           </div>
@@ -371,31 +381,36 @@ export default function SuchprofilClient({
             type="button"
             onClick={() => void senden("bestaetigen")}
             disabled={busy !== null || laeuft}
-            className="mt-4 rounded bg-ink px-4 py-2 text-paper disabled:opacity-40"
+            className="btn-primary mt-5"
           >
             {bestaetigt ? "Änderungen übernehmen" : "Suchprofil übernehmen"}
           </button>
-          {fehler && busy === null && <p className="mt-3 text-drop">{fehler}</p>}
+          {fehler && busy === null && <p className="alert-error mt-3">{fehler}</p>}
           {bestaetigt && (
-            <div className="mt-4 rounded border border-rule p-4">
-              <p className="font-semibold">✓ Übernommen am {datum(bestaetigt)}</p>
+            <div className="mt-4 rounded-lg border border-keep/25 bg-keep-soft/60 p-4">
+              <p className="flex items-center gap-1.5 font-medium text-keep">
+                <Icon name="circleCheck" size={16} /> Übernommen am {datum(bestaetigt)}
+              </p>
               {lauf && <StartlaufAnzeige lauf={lauf} />}
               {!laeuft && (
                 <p className="mt-2 text-muted">
                   Ab jetzt sucht der Nachtlauf jeden Morgen mit diesen Begriffen und bewertet neue Stellen danach. Unter{" "}
-                  <Link href="/label" className="underline underline-offset-4">
-                    Labeln
+                  <Link href="/label" className="link">
+                    Stellen beurteilen
                   </Link>{" "}
                   20–30 Stellen beurteilen — daraus lernt die Bewertung, was dir wirklich wichtig ist.
                 </p>
               )}
               {!lauf && (
-                <button type="button" onClick={() => void startlauf()} className="mt-3 text-sm underline underline-offset-4">
+                <button type="button" onClick={() => void startlauf()} className="btn-secondary mt-3">
+                  <Icon name="refresh" size={15} />
                   Jetzt nach neuen Stellen suchen
                 </button>
               )}
             </div>
           )}
+          </div>
+          </div>
         </section>
       )}
     </>
@@ -412,15 +427,17 @@ function StartlaufAnzeige({ lauf }: { lauf: Startlauf }) {
     lauf.phase === "suchen"
       ? `Stellen der letzten 14 Tage werden gesucht …${lauf.gefunden ? ` ${lauf.gefunden} neue gefunden` : ""}`
       : lauf.phase === "bewerten"
-        ? `${lauf.bewertet} Stellen bewertet${lauf.offen ? `, ${lauf.offen} offen` : ""} …`
+        ? lauf.bewertet === 0 && lauf.offen === 0
+          ? "Stellen werden bewertet …"
+          : `${lauf.bewertet} Stellen bewertet${lauf.offen ? `, ${lauf.offen} offen` : ""} …`
         : lauf.fehler
           ? null
           : `Fertig: ${lauf.gefunden} neue Stellen gefunden, ${lauf.bewertet} bewertet.`;
   return (
     <div className="mt-3" aria-live="polite">
       {lauf.phase !== "fertig" && (
-        <div className="h-1.5 w-full overflow-hidden rounded bg-rule/60">
-          <div className="h-full bg-keep transition-all duration-700" style={{ width: `${Math.round(anteil * 100)}%` }} />
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface">
+          <div className="h-full rounded-full bg-brand transition-all duration-700" style={{ width: `${Math.round(anteil * 100)}%` }} />
         </div>
       )}
       {text && <p className="mt-2">{text}</p>}
@@ -431,7 +448,7 @@ function StartlaufAnzeige({ lauf }: { lauf: Startlauf }) {
         </p>
       )}
       {lauf.phase === "fertig" && !lauf.fehler && (
-        <Link href="/inbox" className="mt-2 inline-block rounded border border-keep px-4 py-2 text-keep">
+        <Link href="/inbox" className="btn-primary mt-3">
           Zur Inbox
         </Link>
       )}
