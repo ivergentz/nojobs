@@ -4,6 +4,7 @@ import { istStandard, profilAusRequest } from "@/lib/aktuelles-profil";
 import { ladeEinstellungen, speichereEinstellungen } from "@/lib/profil";
 import { botName, codeGueltig, findeStart, neuerCode, sendeAn, verbindungAus } from "@/lib/telegram-profil";
 import { basisUrl } from "@/lib/sitzung";
+import { qrSvg } from "@/lib/qr";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,16 @@ export async function POST(request: Request) {
       const code = neuerCode();
       const gesichert = await speichereEinstellungen(db, profil, { telegram_code: code });
       if (!gesichert.ok) return fehler(gesichert.fehler, 500);
-      return NextResponse.json({ link: `https://t.me/${await botName()}?start=${code.code}`, gueltigBis: code.exp });
+      const bot = await botName();
+      const link = `https://t.me/${bot}?start=${code.code}`;
+      return NextResponse.json({
+        link,
+        // Ohne installierte App: Telegram Web öffnet denselben Start-Befehl im Browser
+        web: `https://web.telegram.org/k/#?tgaddr=${encodeURIComponent(`tg://resolve?domain=${bot}&start=${code.code}`)}`,
+        // Am Computer: mit der Handykamera abscannen
+        qr: qrSvg(link),
+        gueltigBis: code.exp,
+      });
     }
 
     if (body.aktion === "pruefen") {

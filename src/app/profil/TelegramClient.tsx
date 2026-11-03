@@ -9,7 +9,7 @@ type Stand = { verbunden: boolean; name: string | null; seit: string | null };
 /** Phase 3 · „Mit Telegram verbinden“ — Link zum Bot, dann so lange nachfragen, bis „Start“ getippt wurde. */
 export default function TelegramClient({ initial }: { initial: Stand }) {
   const [stand, setStand] = useState<Stand>(initial);
-  const [link, setLink] = useState<string | null>(null);
+  const [link, setLink] = useState<{ app: string; web: string; qr: string } | null>(null);
   const [wartet, setWartet] = useState(false);
   const [busy, setBusy] = useState(false);
   const [meldung, setMeldung] = useState<{ text: string; fehler?: boolean } | null>(null);
@@ -32,17 +32,20 @@ export default function TelegramClient({ initial }: { initial: Stand }) {
   const verbinden = async () => {
     setBusy(true);
     setMeldung(null);
-    // Fenster sofort im Klick öffnen (sonst blockieren Browser das Pop-up), Adresse danach setzen.
-    const fenster = window.open("", "_blank");
+    // Handy: Telegram direkt öffnen (Fenster sofort im Klick, sonst blockiert der Browser).
+    // Computer: QR-Code zeigen — dort ist die App oft nicht installiert.
+    const handy = window.matchMedia("(pointer: coarse)").matches;
+    const fenster = handy ? window.open("", "_blank") : null;
     try {
       const body = await api("start");
-      setLink(body.link);
+      setLink({ app: body.link, web: body.web, qr: body.qr });
       if (fenster) fenster.location.href = body.link;
       setWartet(true);
-      const ende = Date.now() + 5 * 60_000;
+      const ende = Date.now() + 15 * 60_000;
       takt.current = setInterval(async () => {
         if (Date.now() > ende) {
           stoppen();
+          setLink(null);
           setMeldung({ text: "Noch keine Bestätigung angekommen. Einfach noch einmal verbinden.", fehler: true });
           return;
         }
@@ -55,6 +58,7 @@ export default function TelegramClient({ initial }: { initial: Stand }) {
             setMeldung({ text: "Verbunden — in Telegram kam gerade eine Bestätigung." });
           } else if (r.abgelaufen) {
             stoppen();
+            setLink(null);
             setMeldung({ text: "Der Code ist abgelaufen. Bitte noch einmal verbinden.", fehler: true });
           }
         } catch (err) {
@@ -116,19 +120,31 @@ export default function TelegramClient({ initial }: { initial: Stand }) {
               <button type="button" onClick={() => void verbinden()} disabled={busy || wartet} className="btn-primary">
                 <Icon name="send" size={15} /> Mit Telegram verbinden
               </button>
-              {wartet && (
-                <div className="alert-info mt-3" role="status" aria-live="polite">
-                  <Icon name="loader" size={18} className="mt-0.5 animate-spin text-brand" />
-                  <div>
-                    <p className="font-medium">Telegram hat sich geöffnet — dort unten auf „Start“ tippen.</p>
-                    <p className="mt-0.5 text-muted">
-                      Diese Seite merkt es automatisch. Nichts passiert?{" "}
-                      {link && (
-                        <a href={link} target="_blank" rel="noopener noreferrer" className="link">
-                          Link noch einmal öffnen
+              {wartet && link && (
+                <div className="mt-4 rounded-lg border border-brand/20 bg-brand-soft/50 p-4" role="status" aria-live="polite">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <div
+                      className="mx-auto shrink-0 overflow-hidden rounded-lg border border-rule bg-white p-1 sm:mx-0 [&>svg]:h-40 [&>svg]:w-40"
+                      dangerouslySetInnerHTML={{ __html: link.qr }}
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium">Mit dem Handy abscannen</p>
+                      <p className="mt-0.5 text-muted">
+                        Kamera aufs Bild halten, Telegram öffnet sich — dort unten auf <span className="font-medium text-ink">„Start“</span> tippen.
+                      </p>
+                      <p className="mt-3 text-muted">Oder direkt hier:</p>
+                      <div className="mt-1.5 flex flex-wrap gap-2">
+                        <a href={link.app} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm">
+                          In der Telegram-App öffnen
                         </a>
-                      )}
-                    </p>
+                        <a href={link.web} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm">
+                          Telegram Web (Browser)
+                        </a>
+                      </div>
+                      <p className="mt-3 flex items-center gap-1.5 text-xs text-muted">
+                        <Icon name="loader" size={13} className="animate-spin" /> Wartet auf „Start“ — diese Seite merkt es automatisch.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
