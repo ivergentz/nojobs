@@ -180,11 +180,20 @@ Danach optional 2–4 Zeilen "Hinweise:" mit Dingen, die die Bewertung beachten 
 WICHTIG: Was die Anzeige nicht sagt (Träger, Tarif, Befristung, Gehalt, genaue Stunden, Stadtteil), ist NIE eine Bedingung für must_apply und NIE ein Grund für worth_reading — das gehört höchstens als offener Punkt in die cons. Eine Stelle, die die Kernkriterien erfüllt und keine erkennbare Einschränkung hat, ist must_apply.
 Konkret für diese Person, kurz, in der dritten Person ("die Person"). Höchstens 250 Wörter. Kein Wort zu Ausgabeformat, summary, pros oder cons.`;
 
+/** Kontaktdaten (E-Mail, Telefon, Profile) braucht der Vorschlag nicht — gehen nicht an Claude. */
+export function ohneKontakt(lebenslauf: unknown): unknown {
+  if (!lebenslauf || typeof lebenslauf !== "object") return lebenslauf;
+  const l = lebenslauf as { person?: Record<string, unknown> };
+  if (!l.person) return lebenslauf;
+  const { name, ort } = l.person;
+  return { ...l, person: { name, ort } };
+}
+
 export async function erstelleVorschlag(
   eingabe: { name: string; lebenslauf: unknown; antworten: Antworten },
   kosten?: Omit<KostenKontext, "zweck">
 ): Promise<Vorschlag> {
-  const cv = eingabe.lebenslauf ? JSON.stringify(eingabe.lebenslauf).slice(0, 20_000) : "(kein Lebenslauf hochgeladen)";
+  const cv = eingabe.lebenslauf ? JSON.stringify(ohneKontakt(eingabe.lebenslauf)).slice(0, 20_000) : "(kein Lebenslauf hochgeladen)";
   const roh = await callClaudeJson<{ suchbegriffe?: unknown; profiltext?: unknown; kriterien?: unknown }>({
     model: process.env.DRAFT_MODEL || DEFAULT_MODEL,
     system: ANWEISUNG,

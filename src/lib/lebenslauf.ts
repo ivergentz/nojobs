@@ -21,8 +21,11 @@ export type Station = { zeitraum: string; titel: string; arbeitgeber: string; or
 export type Richtung = { titel: string; begruendung: string; suchbegriffe: string[] };
 export type Pruefpunkt = { stufe: "rot" | "gelb" | "hinweis"; punkt: string; vorschlag: string };
 
+/** Phase 4: Kontaktdaten und Zeile unter dem Namen — für die Unterlagen. Ältere Einträge haben sie nicht. */
+export type Person = { name: string; ort: string; titel?: string; email?: string; telefon?: string; linkedin?: string; xing?: string };
+
 export type Lebenslauf = {
-  person: { name: string; ort: string };
+  person: Person;
   kurzprofil: string;
   stationen: Station[];
   ausbildung: Array<{ zeitraum: string; abschluss: string; einrichtung: string }>;
@@ -35,7 +38,18 @@ export type Lebenslauf = {
 const SCHEMA = {
   type: "object",
   properties: {
-    person: { type: "object", properties: { name: { type: "string" }, ort: { type: "string" } }, required: ["name", "ort"] },
+    person: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        ort: { type: "string" },
+        email: { type: "string" },
+        telefon: { type: "string" },
+        linkedin: { type: "string" },
+        xing: { type: "string" },
+      },
+      required: ["name", "ort"],
+    },
     kurzprofil: { type: "string" },
     stationen: {
       type: "array",
@@ -96,7 +110,7 @@ const REGELN = `Du liest einen Lebenslauf und gibst ihn als strukturiertes JSON 
 
 GRUNDREGEL: Nichts erfinden. Was nicht im Dokument steht, bleibt leer ("") oder fehlt in der Liste. Keine geschätzten Daten, keine ergänzten Arbeitgeber.
 
-person: Name und Wohnort, wie im Dokument.
+person: Name und Wohnort, wie im Dokument. Dazu E-Mail, Telefon, LinkedIn- und Xing-Adresse, NUR wenn sie im Dokument stehen.
 kurzprofil: 2–3 Sätze, was die Person beruflich ausmacht — nüchtern, aus dem Dokument abgeleitet.
 stationen: Berufsstationen, neueste zuerst. zeitraum im Format "MM/JJJJ – MM/JJJJ" bzw. "– heute", soweit erkennbar. stichpunkte: die Aufgaben und Erfolge aus dem Dokument, je höchstens 20 Wörter.
 ausbildung: Schule, Ausbildung, Studium, Weiterbildungen mit Abschluss.
@@ -121,9 +135,30 @@ ANREDE: In begruendung, punkt und vorschlag die Person immer mit „du“ anspre
 const text = (v: unknown, max = 400) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const liste = <T>(v: unknown, max: number): T[] => (Array.isArray(v) ? (v as T[]).slice(0, max) : []);
 
+/** Profil-Adresse ohne https:// und www. — so steht sie im Dokument. Nur die erwartete Domain. */
+export function profilAdresse(v: unknown, domain: "linkedin.com" | "xing.com"): string {
+  const roh = text(v, 200).replace(/^https?:\/\//i, "").replace(/^(www\.|de\.)/i, "").replace(/\/+$/, "");
+  if (!roh) return "";
+  return roh.toLowerCase().startsWith(`${domain}/`) && /^[\w.\-\/%äöüÄÖÜ]+$/.test(roh) ? roh : "";
+}
+
+export function bereinigePerson(p: Partial<Person> | undefined): Person {
+  const email = text(p?.email, 120);
+  const telefon = text(p?.telefon, 40);
+  return {
+    name: text(p?.name, 120),
+    ort: text(p?.ort, 120),
+    titel: text(p?.titel, 120),
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "",
+    telefon: /^[+\d][\d\s/()\-]{4,}$/.test(telefon) ? telefon : "",
+    linkedin: profilAdresse(p?.linkedin, "linkedin.com"),
+    xing: profilAdresse(p?.xing, "xing.com"),
+  };
+}
+
 export function bereinige(roh: Partial<Lebenslauf>): Lebenslauf {
   return {
-    person: { name: text(roh.person?.name, 120), ort: text(roh.person?.ort, 120) },
+    person: bereinigePerson(roh.person),
     kurzprofil: text(roh.kurzprofil, 800),
     stationen: liste<Station>(roh.stationen, 20).map((s) => ({
       zeitraum: text(s?.zeitraum, 60),

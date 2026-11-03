@@ -109,6 +109,18 @@ export async function PATCH(request: Request) {
 
     // Gleiche Bereinigung wie beim Auslesen — Längen und Listen begrenzt, nur bekannte Felder.
     const { richtungen: _r, pruefung: _p, ...lebenslauf } = bereinige(body.lebenslauf as never);
+    // Kontaktfelder: lieber nachfragen als still verwerfen.
+    const roh = ((body.lebenslauf as { person?: Record<string, unknown> }).person ?? {}) as Record<string, unknown>;
+    const FALSCH: Record<string, string> = {
+      email: "Die E-Mail-Adresse sieht nicht vollständig aus.",
+      telefon: "Die Telefonnummer bitte nur mit Ziffern, Leerzeichen, + / ( ) -.",
+      linkedin: "Bitte die LinkedIn-Adresse in der Form linkedin.com/in/dein-name angeben.",
+      xing: "Bitte die Xing-Adresse in der Form xing.com/profile/Dein_Name angeben.",
+    };
+    for (const feld of Object.keys(FALSCH) as Array<keyof typeof FALSCH>) {
+      const eingabe = typeof roh[feld] === "string" ? (roh[feld] as string).trim() : "";
+      if (eingabe && !(lebenslauf.person as Record<string, unknown>)[feld]) return NextResponse.json({ error: FALSCH[feld] }, { status: 400 });
+    }
     const erledigt = new Set(Array.isArray(body.erledigt) ? body.erledigt.filter((i): i is number => Number.isInteger(i)) : []);
     const pruefung = (Array.isArray(alt.pruefung) ? alt.pruefung : []).map((p: Record<string, unknown>, i: number) => ({ ...p, erledigt: erledigt.has(i) }));
     const jetzt = new Date().toISOString();

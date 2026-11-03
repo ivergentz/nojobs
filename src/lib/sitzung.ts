@@ -125,7 +125,7 @@ export const cookieOptionen = (maxAgeSek: number) => ({
 /** Seiten, die weitere Personen sehen dürfen. Alles andere (Steuerung, Kosten, Log, Statistik …) nur du. */
 export const SEITEN_NUTZER = ["/inbox", "/label", "/eval", "/profil", "/so-funktionierts"];
 /** API-Routen, die weitere Personen nutzen dürfen (mit ihrer Sitzung, immer nur für ihr Profil). */
-export const API_NUTZER = ["/api/label", "/api/status", "/api/lebenslauf", "/api/suchprofil", "/api/startlauf", "/api/telegram", "/api/foto", "/api/abmelden"];
+export const API_NUTZER = ["/api/label", "/api/status", "/api/lebenslauf", "/api/suchprofil", "/api/startlauf", "/api/telegram", "/api/foto", "/api/layout", "/api/abmelden"];
 /** Ohne Anmeldung erreichbar. */
 export const OEFFENTLICH = ["/login", "/api/login", "/api/anmelden", "/api/abmelden", "/api/visit"];
 

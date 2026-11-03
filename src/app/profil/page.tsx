@@ -11,6 +11,8 @@ import Avatar from "@/components/ui/Avatar";
 import { fotoAus, fotoUrl } from "@/lib/foto";
 import { verbindungAus } from "@/lib/telegram-profil";
 import { kriterienAus } from "@/lib/suchprofil";
+import LayoutClient from "./LayoutClient";
+import { layoutWahlAus } from "@/lib/unterlagen";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mein Profil · Career Inbox" };
@@ -90,6 +92,16 @@ export default async function ProfilSeite() {
                 name: telegram?.name ?? null,
                 seit: telegram?.verbunden_at ?? null,
               }}
+            />
+          ) : null}
+          {/* Phase 4.2: Layout der Unterlagen — sobald ein Lebenslauf ausgelesen ist */}
+          {stand?.status === "ausgelesen" ? (
+            <LayoutClient
+              initial={(() => {
+                const w = layoutWahlAus(einstellungen);
+                return { layout: w.layout, akzent: w.akzentId, mitFoto: w.o.mitFoto };
+              })()}
+              hatFoto={Boolean(fotoAus(einstellungen))}
             />
           ) : null}
         </>

@@ -7,7 +7,7 @@ type Station = { zeitraum: string; titel: string; arbeitgeber: string; ort: stri
 type Ausbildung = { zeitraum: string; abschluss: string; einrichtung: string };
 type Sprache = { sprache: string; niveau: string };
 export type CvDaten = {
-  person: { name: string; ort: string };
+  person: { name: string; ort: string; titel?: string; email?: string; telefon?: string; linkedin?: string; xing?: string };
   kurzprofil: string;
   stationen: Station[];
   ausbildung: Ausbildung[];
@@ -40,6 +40,7 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: {
     setDirty(true);
     setMeldung(null);
   };
+  const person = (neu: Partial<CvDaten["person"]>) => aendern({ person: { ...cv.person, ...neu } });
   const station = (i: number, neu: Partial<Station>) => aendern({ stationen: cv.stationen.map((s, j) => (j === i ? { ...s, ...neu } : s)) });
   const ausbildung = (i: number, neu: Partial<Ausbildung>) => aendern({ ausbildung: cv.ausbildung.map((a, j) => (j === i ? { ...a, ...neu } : a)) });
   const sprache = (i: number, neu: Partial<Sprache>) => aendern({ sprachen: cv.sprachen.map((s, j) => (j === i ? { ...s, ...neu } : s)) });
@@ -123,15 +124,24 @@ export default function LebenslaufEditor({ initial, pruefung: pruefungStart }: {
       <section className="card-pad space-y-4">
         <h2 className="section-title">Person und Kurzprofil</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="field-label">Name</span>
-            <input className="field" value={cv.person.name} onChange={(e) => aendern({ person: { ...cv.person, name: e.target.value } })} />
-          </label>
-          <label className="block">
-            <span className="field-label">Wohnort</span>
-            <input className="field" value={cv.person.ort} onChange={(e) => aendern({ person: { ...cv.person, ort: e.target.value } })} />
-          </label>
+          <Feld label="Name" wert={cv.person.name} setze={(v) => person({ name: v })} />
+          <Feld label="Wohnort" wert={cv.person.ort} setze={(v) => person({ ort: v })} />
+          <Feld
+            label="Zeile unter dem Namen"
+            hinweis="Steht in Lebenslauf und Anschreiben, z. B. deine Berufsbezeichnung."
+            platzhalter={cv.stationen[0]?.titel || "z. B. Erzieherin"}
+            wert={cv.person.titel ?? ""}
+            setze={(v) => person({ titel: v })}
+            breit
+          />
         </div>
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="field-label mb-1">Kontakt für deine Unterlagen</legend>
+          <Feld label="E-Mail" typ="email" wert={cv.person.email ?? ""} setze={(v) => person({ email: v })} />
+          <Feld label="Telefon" typ="tel" platzhalter="z. B. 0170 1234567" wert={cv.person.telefon ?? ""} setze={(v) => person({ telefon: v })} />
+          <Feld label="LinkedIn (optional)" platzhalter="linkedin.com/in/dein-name" wert={cv.person.linkedin ?? ""} setze={(v) => person({ linkedin: v })} />
+          <Feld label="Xing (optional)" platzhalter="xing.com/profile/Dein_Name" wert={cv.person.xing ?? ""} setze={(v) => person({ xing: v })} />
+        </fieldset>
         <label className="block">
           <span className="field-label">Kurzprofil</span>
           <span className="field-hint">2–3 Sätze, was dich beruflich ausmacht.</span>
@@ -285,5 +295,15 @@ function Zeilenaktionen({ nach_oben, nach_unten, entfernen, was }: { nach_oben?:
         <Icon name="x" size={14} /> {was} entfernen
       </button>
     </div>
+  );
+}
+
+function Feld({ label, wert, setze, hinweis, platzhalter, typ = "text", breit }: { label: string; wert: string; setze: (v: string) => void; hinweis?: string; platzhalter?: string; typ?: string; breit?: boolean }) {
+  return (
+    <label className={`block ${breit ? "sm:col-span-2" : ""}`}>
+      <span className="field-label">{label}</span>
+      {hinweis && <span className="field-hint">{hinweis}</span>}
+      <input className="field" type={typ} placeholder={platzhalter} value={wert} onChange={(e) => setze(e.target.value)} />
+    </label>
   );
 }

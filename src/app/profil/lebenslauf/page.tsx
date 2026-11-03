@@ -43,7 +43,15 @@ export default async function LebenslaufBearbeiten() {
     else if (data?.status === "ausgelesen" && data.lebenslauf) {
       const l = data.lebenslauf as Partial<CvDaten>;
       cv = {
-        person: { name: l.person?.name ?? "", ort: l.person?.ort ?? "" },
+        person: {
+          name: l.person?.name ?? "",
+          ort: l.person?.ort ?? "",
+          titel: l.person?.titel ?? "",
+          email: l.person?.email ?? "",
+          telefon: l.person?.telefon ?? "",
+          linkedin: l.person?.linkedin ?? "",
+          xing: l.person?.xing ?? "",
+        },
         kurzprofil: l.kurzprofil ?? "",
         stationen: l.stationen ?? [],
         ausbildung: l.ausbildung ?? [],
