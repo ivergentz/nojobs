@@ -124,6 +124,20 @@ export default async function InboxPage() {
 
   const empfohlen = jobs.filter((job) => job.status === "neu" && job.fit === "must_apply").length;
 
+  // Weitere Profile: Stand der Suche aus vorhandenen Daten (letzte Bewertung). Dein Profil: unverändert.
+  let zuletzt: string | null = null;
+  if (!eigenes) {
+    const { data: letzte } = await lesen(db, profil)
+      .select("evaluated_at")
+      .not("evaluated_at", "is", null)
+      .order("evaluated_at", { ascending: false })
+      .limit(1);
+    zuletzt = ((letzte ?? []) as Array<{ evaluated_at?: string | null }>)[0]?.evaluated_at ?? null;
+  }
+  const suchprofilDa = Boolean(fremdesProfil && fremdesProfil.suchbegriffe.length > 0);
+  const wann = (iso: string) =>
+    new Date(iso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
+
   return (
     <main className="page">
       <PageHeader
@@ -140,9 +154,18 @@ export default async function InboxPage() {
         {inbox.error && (
           <div className="mt-4">
             <Hinweis ton="error" titel="Stellen konnten nicht geladen werden">
-              {inbox.error.message}
+              {eigenes ? inbox.error.message : "Bitte die Seite in ein paar Minuten neu laden. Bleibt der Fehler, kurz Bescheid geben."}
             </Hinweis>
           </div>
+        )}
+        {!eigenes && suchprofilDa && (
+          <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-subtle px-3 py-1 text-xs text-muted">
+            <span className="inline-flex items-center gap-1.5 font-medium text-keep">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-keep" /> Suche aktiv
+            </span>
+            <span>· sucht jede Nacht, bewertet morgens</span>
+            {zuletzt && <span>· zuletzt aktualisiert am {wann(zuletzt)} Uhr</span>}
+          </p>
         )}
         {eigenes && (unbewertet.count ?? 0) > 0 && (
           <div className="mt-4">
@@ -154,7 +177,12 @@ export default async function InboxPage() {
         )}
       </PageHeader>
 
-      <InboxClient jobs={jobs} mitUnterlagen suchHinweis={!eigenes} ablageGruende={{ passtNicht: gruendeFuer(profil).ignore, passtAber: GRUENDE_ABLAGE_PASST }} />
+      <InboxClient
+        jobs={jobs}
+        mitUnterlagen
+        suchHinweis={!eigenes}
+        lage={eigenes ? undefined : { suchprofil: suchprofilDa, zuletzt }}
+        ablageGruende={{ passtNicht: gruendeFuer(profil).ignore, passtAber: GRUENDE_ABLAGE_PASST }} />
     </main>
   );
 }

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Icon, { type IconName } from "./Icon";
 
 export type NavPunkt = { href: string; label: string; icon: IconName };
-export type NavGruppe = { titel?: string; punkte: NavPunkt[]; nachrangig?: boolean };
+export type NavGruppe = { titel?: string; punkte: NavPunkt[]; nachrangig?: boolean; /** kurze Erklärung unter den Punkten */ beschreibung?: string };
 
 /**
  * App-Rahmen: Seitenleiste auf dem Desktop, kompakte Kopfzeile mit Menü auf dem Handy.
@@ -67,6 +67,7 @@ export default function AppShell({
               );
             })}
           </ul>
+          {g.beschreibung && <p className="mt-1.5 px-2.5 text-2xs leading-snug text-muted">{g.beschreibung}</p>}
         </div>
       ))}
     </nav>

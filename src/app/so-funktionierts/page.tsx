@@ -124,30 +124,6 @@ function schritte(eigenes: boolean): Array<{ phase: string; dauer: string; schri
           tun: ["„Jetzt nach neuen Stellen suchen“ klicken", "warten, bis alle Stellen bewertet sind — der Balken zeigt den Fortschritt"],
         },
         {
-          nr: 6,
-          icon: "label",
-          titel: "Stellen beurteilen",
-          wo: { text: "Stellen beurteilen", href: "/label" },
-          text: "Du siehst Stellen ohne die Einschätzung von nojobs und sagst ehrlich, ob du dich bewerben würdest. Aus diesen Urteilen lernt nojobs, wie du entscheidest. Bauchgefühl reicht.",
-          tun: ["anfangs etwa 30 Stellen, danach ab und zu 10–15 pro Woche", "bei „Anschauen“ und „Ignorieren“ kurz den Grund antippen — das hilft am meisten"],
-          bild: (
-            <>
-              <Chip ton="keep">
-                Bewerben <Taste>1</Taste>
-              </Chip>
-              <Chip>
-                Anschauen <Taste>2</Taste>
-              </Chip>
-              <Chip ton="drop">
-                Ignorieren <Taste>3</Taste>
-              </Chip>
-              <Pfeil />
-              <Chip>Gehalt zu niedrig</Chip>
-              <Chip>Fahrtweg zu weit</Chip>
-            </>
-          ),
-        },
-        {
           nr: 7,
           icon: "send",
           titel: "Telegram verbinden",
@@ -222,6 +198,30 @@ function schritte(eigenes: boolean): Array<{ phase: string; dauer: string; schri
       phase: "Ab und zu",
       dauer: "alle 1–2 Wochen",
       schritte: [
+        {
+          nr: 6,
+          icon: "label",
+          titel: "Stellen beurteilen (freiwillig)",
+          wo: { text: "Stellen beurteilen", href: "/label" },
+          text: "Kein Muss: Du siehst Stellen ohne die Einschätzung von nojobs und sagst ehrlich, ob du dich bewerben würdest. Daraus lernt nojobs schneller, wie du entscheidest. Bauchgefühl reicht.",
+          tun: ["wann immer du Lust hast — schon 10–15 Stellen helfen", "bei „Anschauen“ und „Ignorieren“ kurz den Grund antippen — das hilft am meisten"],
+          bild: (
+            <>
+              <Chip ton="keep">
+                Bewerben <Taste>1</Taste>
+              </Chip>
+              <Chip>
+                Anschauen <Taste>2</Taste>
+              </Chip>
+              <Chip ton="drop">
+                Ignorieren <Taste>3</Taste>
+              </Chip>
+              <Pfeil />
+              <Chip>Gehalt zu niedrig</Chip>
+              <Chip>Fahrtweg zu weit</Chip>
+            </>
+          ),
+        },
         {
           nr: 12,
           icon: "chart",
@@ -472,8 +472,8 @@ export default async function SoFunktioniertsPage() {
         </h2>
         <ul className="mt-3 space-y-2 text-sm leading-relaxed">
           <li>
-            <span className="font-semibold">Am Anfang liegt nojobs öfter daneben.</span> Nach den ersten 20–30 Urteilen wird es deutlich
-            genauer. „Nicht vorgeschlagen“ heißt nicht „unpassend“ — ab und zu selbst schauen lohnt sich.
+            <span className="font-semibold">nojobs lernt mit.</span> Was du vormerkst, ablegst und wo du dich bewirbst, fließt in die nächsten
+            Vorschläge ein. „Nicht vorgeschlagen“ heißt nicht „unpassend“ — ab und zu selbst bei den Jobbörsen schauen lohnt sich.
           </li>
           <li>
             <span className="font-semibold">Deine Daten:</span> Lebenslauf und Foto liegen in einem privaten, nicht öffentlichen Speicher.

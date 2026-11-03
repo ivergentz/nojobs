@@ -46,12 +46,15 @@ export default function LabelClient({
   alreadyDone,
   gruendeIgnore = GRUENDE_IGNORE,
   gruendeAnschauen = GRUENDE_ANSCHAUEN,
+  fuerNutzer = false,
 }: {
   jobs: LabelJob[];
   alreadyDone: number;
   /** Schritt 2.6: weitere Profile bekommen allgemeine Begründungen. Ohne Angabe: deine. */
   gruendeIgnore?: Grund[];
   gruendeAnschauen?: Grund[];
+  /** Weitere Profile: Texte ohne Technik */
+  fuerNutzer?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const [history, setHistory] = useState<string[]>([]);
@@ -204,8 +207,9 @@ export default function LabelClient({
     return (
       <div className="mt-8">
         <EmptyState icon="circleCheck" titel="Durch.">
-          {alreadyDone + history.length} Urteile liegen jetzt in der Datenbank. Damit lässt sich das Prompt gegen echte Daten prüfen statt
-          gegen eine Vermutung.
+          {fuerNutzer
+            ? `Danke — ${alreadyDone + history.length} Stellen beurteilt. Deine Urteile fließen ab dem nächsten Morgen in die Vorschläge ein.`
+            : `${alreadyDone + history.length} Urteile liegen jetzt in der Datenbank. Damit lässt sich das Prompt gegen echte Daten prüfen statt gegen eine Vermutung.`}
         </EmptyState>
       </div>
     );

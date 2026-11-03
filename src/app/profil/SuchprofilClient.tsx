@@ -91,10 +91,13 @@ export default function SuchprofilClient({
   richtungen,
   ortAusLebenslauf,
   initial,
+  onStand,
 }: {
   richtungen: string[];
   ortAusLebenslauf: string;
   initial: SuchprofilStand;
+  /** Meldet einen neuen Stand (Vorschlag, Übernahme) an die Profilübersicht. */
+  onStand?: (s: { vorschlag: Vorschlag | null; bestaetigt_at: string | null; antworten: boolean }) => void;
 }) {
   const [a, setA] = useState<Antworten>(initial.antworten ?? leer(ortAusLebenslauf));
   const [vorschlag, setVorschlag] = useState<Vorschlag | null>(initial.vorschlag);
@@ -104,6 +107,8 @@ export default function SuchprofilClient({
   const [fehler, setFehler] = useState<string | null>(null);
   // Schritt 2.8: Startlauf nach dem Übernehmen
   const [lauf, setLauf] = useState<Startlauf | null>(null);
+  // Fragebogen: offen beim ersten Mal, danach als Zusammenfassung (Antworten bleiben im Formular erhalten)
+  const [fragebogenOffen, setFragebogenOffen] = useState(!initial.vorschlag);
 
   const startlauf = async () => {
     const stand: Startlauf = { phase: "suchen", gefunden: 0, bewertet: 0, offen: 0, fehler: null };
@@ -175,6 +180,8 @@ export default function SuchprofilClient({
       setVorschlag(body.vorschlag);
       setBegriffe((body.vorschlag?.suchbegriffe ?? []).join(", "));
       setBestaetigt(aktion === "bestaetigen" ? body.bestaetigt_at : null);
+      onStand?.({ vorschlag: body.vorschlag ?? null, bestaetigt_at: aktion === "bestaetigen" ? body.bestaetigt_at : null, antworten: true });
+      if (aktion === "vorschlag") setFragebogenOffen(false);
       if (aktion === "bestaetigen") {
         setBusy(null);
         await startlauf();
@@ -193,10 +200,21 @@ export default function SuchprofilClient({
         <div className="flex items-start gap-3">
           <Schritt nr={2} fertig={Boolean(vorschlag)} />
           <div className="min-w-0 flex-1">
-        <h2 className="section-title">Was suchst du?</h2>
-        <p className="section-lead">Der Lebenslauf zeigt, was du gemacht hast — hier geht es darum, was als Nächstes kommen soll. Dauert 3–5 Minuten.</p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h2 className="section-title">{fragebogenOffen ? "Was suchst du?" : "Deine Jobwünsche"}</h2>
+          {!fragebogenOffen && (
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setFragebogenOffen(true)} disabled={busy !== null || laeuft}>
+              Wünsche ändern
+            </button>
+          )}
+        </div>
+        {fragebogenOffen ? (
+          <p className="section-lead">Der Lebenslauf zeigt, was du gemacht hast — hier geht es darum, was als Nächstes kommen soll. Dauert 3–5 Minuten.</p>
+        ) : (
+          <WuenscheZusammenfassung a={initial.antworten || a.richtungen.length || a.eigeneRichtung ? a : null} vorschlag={vorschlag} />
+        )}
 
-        <div className="mt-5 space-y-6">
+        <div className={`mt-5 space-y-6 ${fragebogenOffen ? "" : "hidden"}`}>
           <fieldset>
             <legend className="field-label">Richtung</legend>
             {angebot.length > 0 && (
@@ -314,14 +332,18 @@ export default function SuchprofilClient({
           </fieldset>
         </div>
 
-        <button
-          type="button"
-          onClick={() => void senden("vorschlag")}
-          disabled={busy !== null || laeuft}
-          className={`mt-6 ${vorschlag ? "btn-secondary" : "btn-primary"}`}
-        >
-          {vorschlag ? "Neuen Vorschlag erstellen" : "Suchprofil vorschlagen"}
-        </button>
+        {fragebogenOffen && (
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button type="button" onClick={() => void senden("vorschlag")} disabled={busy !== null || laeuft} className={vorschlag ? "btn-secondary" : "btn-primary"}>
+              {vorschlag ? "Neuen Vorschlag erstellen" : "Suchprofil vorschlagen"}
+            </button>
+            {vorschlag && (
+              <button type="button" className="btn-ghost" onClick={() => setFragebogenOffen(false)} disabled={busy !== null}>
+                Abbrechen
+              </button>
+            )}
+          </div>
+        )}
         <Fortschritt
           aktiv={busy === "vorschlag"}
           dauer={25}
@@ -345,14 +367,23 @@ export default function SuchprofilClient({
           <div className="min-w-0 flex-1">
           <h2 className="section-title">Dein Suchprofil</h2>
           <p className="section-lead">
-            Danach suchen und bewerten wir jede Nacht. Lies es durch, ändere, was nicht stimmt, und übernimm es.
+            Danach sucht nojobs jede Nacht. Prüfe, wonach und wo gesucht wird — und übernimm es.
           </p>
           <div className="mt-4 space-y-4">
-            <label className="block">
-              <span className="field-label">Suchbegriffe</span>
-              <span className="field-hint">Mit Komma getrennt. Kurze Wörter finden mehr: „Erzieher“ findet auch „Erzieherin“.</span>
-              <textarea className={`${feld} min-h-16`} value={begriffe} onChange={(e) => setBegriffe(e.target.value)} />
-            </label>
+            <div>
+              <span className="field-label">Gesucht wird nach</span>
+              <p className="mt-1.5 flex flex-wrap gap-1.5">
+                {begriffe
+                  .split(/[,;\n]+/)
+                  .map((b) => b.trim())
+                  .filter(Boolean)
+                  .map((b) => (
+                    <span key={b} className="badge-neutral font-normal">
+                      {b}
+                    </span>
+                  ))}
+              </p>
+            </div>
             <div>
               <span className="field-label">Ort und Umkreis</span>
               <div className="mt-1 flex flex-wrap gap-3">
@@ -366,16 +397,30 @@ export default function SuchprofilClient({
                 </select>
               </div>
             </div>
-            <label className="block">
-              <span className="field-label">Profiltext</span>
-              <span className="field-hint">So beschreiben wir dich gegenüber der Bewertung.</span>
-              <textarea className={`${feld} min-h-56 font-mono text-xs leading-relaxed`} value={vorschlag.profiltext} onChange={(e) => setzeV("profiltext", e.target.value)} />
-            </label>
-            <label className="block">
-              <span className="field-label">Bewertungsregeln</span>
-              <span className="field-hint">Wann eine Stelle „Bewerben“, „Anschauen“ oder „Ignorieren“ ist.</span>
-              <textarea className={`${feld} min-h-48 font-mono text-xs leading-relaxed`} value={vorschlag.kriterien} onChange={(e) => setzeV("kriterien", e.target.value)} />
-            </label>
+            <details className="disclosure rounded-lg border border-rule bg-paper/50 p-3">
+              <summary>
+                <Icon name="chevronRight" size={14} className="chevron" />
+                Erweiterte Einstellungen
+                <span className="font-normal text-muted">· Suchbegriffe, Profiltext, Bewertungsregeln</span>
+              </summary>
+              <div className="mt-3 space-y-4">
+                <label className="block">
+                  <span className="field-label">Suchbegriffe</span>
+                  <span className="field-hint">Mit Komma getrennt. Kurze Wörter finden mehr: „Erzieher“ findet auch „Erzieherin“.</span>
+                  <textarea className={`${feld} min-h-16`} value={begriffe} onChange={(e) => setBegriffe(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className="field-label">Profiltext</span>
+                  <span className="field-hint">So beschreibt nojobs dich, wenn es Stellen einschätzt.</span>
+                  <textarea className={`${feld} min-h-56 font-mono text-xs leading-relaxed`} value={vorschlag.profiltext} onChange={(e) => setzeV("profiltext", e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className="field-label">Bewertungsregeln</span>
+                  <span className="field-hint">Wann eine Stelle „Bewerben“, „Anschauen“ oder „Ignorieren“ ist.</span>
+                  <textarea className={`${feld} min-h-48 font-mono text-xs leading-relaxed`} value={vorschlag.kriterien} onChange={(e) => setzeV("kriterien", e.target.value)} />
+                </label>
+              </div>
+            </details>
           </div>
           <button
             type="button"
@@ -394,11 +439,15 @@ export default function SuchprofilClient({
               {lauf && <StartlaufAnzeige lauf={lauf} />}
               {!laeuft && (
                 <p className="mt-2 text-muted">
-                  Ab jetzt sucht der Nachtlauf jeden Morgen mit diesen Begriffen und bewertet neue Stellen danach. Unter{" "}
+                  Ab jetzt sucht nojobs jede Nacht mit diesem Profil, neue passende Stellen erscheinen morgens unter{" "}
+                  <Link href="/inbox" className="link">
+                    Meine Jobs
+                  </Link>
+                  . Freiwillig: Unter{" "}
                   <Link href="/label" className="link">
                     Stellen beurteilen
                   </Link>{" "}
-                  20–30 Stellen beurteilen — daraus lernt die Bewertung, was dir wirklich wichtig ist.
+                  ein paar Stellen einschätzen — so werden die Vorschläge schneller treffsicher.
                 </p>
               )}
               {!lauf && (
@@ -414,6 +463,44 @@ export default function SuchprofilClient({
         </section>
       )}
     </>
+  );
+}
+
+const EBENE: Record<string, string> = { gleich: "Gleiche Stufe", hoch: "Ein Schritt hoch", zurueck: "Auch ein Schritt zurück okay", egal: "Ebene egal" };
+const ARBEITSORT: Record<string, string> = { "vor-ort": "vor Ort", hybrid: "hybrid", remote: "remote" };
+const UMFANG: Record<string, string> = { vollzeit: "Vollzeit", teilzeit: "Teilzeit", beides: "Voll- oder Teilzeit" };
+
+/** Lesbare Zusammenfassung der Antworten — nur was ausgefüllt ist. */
+function WuenscheZusammenfassung({ a, vorschlag }: { a: Antworten | null; vorschlag: Vorschlag | null }) {
+  if (!a) {
+    return (
+      <p className="mt-2 text-muted">
+        {vorschlag ? `Suche in ${vorschlag.ort || "deiner Region"} (${vorschlag.umkreis} km). ` : ""}Mit „Wünsche ändern“ beantwortest du ein paar Fragen, und nojobs
+        schlägt das Suchprofil neu vor.
+      </p>
+    );
+  }
+  const richtung = [...a.richtungen, a.eigeneRichtung.trim()].filter(Boolean).join(", ");
+  const zeilen: Array<[string, string]> = [
+    ["Richtung", richtung],
+    ["Ebene", EBENE[a.ebene] ?? ""],
+    ["Wo", [a.ort && `${a.ort} · ${a.umkreis} km`, a.arbeitsort.map((x) => ARBEITSORT[x]).join(", ")].filter(Boolean).join(" · ")],
+    ["Umfang", [UMFANG[a.umfang], a.umfang !== "vollzeit" && a.stunden ? `${a.stunden} Std.` : ""].filter(Boolean).join(", ")],
+    ["Gehalt", a.gehalt ? `ab ${a.gehalt} € ${a.gehaltEinheit === "jahr" ? "im Jahr" : "im Monat"}` : ""],
+    ["No-Gos", [...a.nogos.map((k) => NOGOS.find((n) => n.key === k)?.label ?? k), a.nogosText.trim()].filter(Boolean).join(", ")],
+    ["Anders werden soll", a.anders.trim()],
+  ];
+  return (
+    <dl className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-[9rem_1fr]">
+      {zeilen
+        .filter(([, w]) => w)
+        .map(([k, w]) => (
+          <div key={k} className="contents">
+            <dt className="text-muted">{k}</dt>
+            <dd className="min-w-0">{w}</dd>
+          </div>
+        ))}
+    </dl>
   );
 }
 

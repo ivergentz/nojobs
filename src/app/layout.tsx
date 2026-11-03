@@ -51,10 +51,19 @@ function gruppenAdmin(mitProfil: boolean): NavGruppe[] {
   ];
 }
 
+/**
+ * Weitere Personen: zwei Hauptbereiche, „Stellen beurteilen“ als freiwillige Ergänzung.
+ * Kalibrierung ist eine reine Betreiberfunktion und erscheint hier nie (auch die Route ist gesperrt).
+ * Hilfe steht unten bei Profil und Abmelden.
+ */
 const GRUPPEN_NUTZER: NavGruppe[] = [
   { punkte: [JOBS, PROFIL] },
-  { titel: "Trefferqualität", punkte: [LABELN, KALIBRIERUNG].filter((p) => SEITEN_NUTZER.includes(p.href)) },
-  { punkte: [HILFE], nachrangig: true },
+  {
+    titel: "Treffer verbessern",
+    punkte: [LABELN].filter((p) => SEITEN_NUTZER.includes(p.href)),
+    nachrangig: true,
+    beschreibung: "Freiwillig: Ein paar Stellen einschätzen — so werden deine Vorschläge schneller treffsicher.",
+  },
 ];
 
 /** Name und Foto der angemeldeten Person (nur weitere Profile). */
@@ -109,6 +118,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         gruppen={GRUPPEN_NUTZER}
         unten={
           <div className="space-y-1">
+            <a href="/so-funktionierts" className="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm text-muted transition hover:bg-subtle hover:text-ink">
+              <Icon name="help" size={17} />
+              Hilfe
+            </a>
             <a href="/profil" className="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm transition hover:bg-subtle">
               <Avatar name={ich.name} src={ich.foto} groesse={28} />
               <span className="min-w-0 truncate font-medium">{ich.name}</span>

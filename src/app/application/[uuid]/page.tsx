@@ -6,6 +6,7 @@ import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { dauerText, ensureRef, trackingLink, type Besuch } from "@/lib/tracking";
 import TrackingLink from "./TrackingLink";
 import BeworbenKnopf from "./BeworbenKnopf";
+import BewerbungsAblauf from "./BewerbungsAblauf";
 import VorbereitungClient from "./VorbereitungClient";
 import type { Vorbereitung } from "@/lib/vorbereitung";
 import { lesen } from "@/lib/lesen";
@@ -123,6 +124,8 @@ export default async function ApplicationPage({
           </p>
         )}
       </header>
+
+      <BewerbungsAblauf entwurf={Boolean(job.application_draft)} beworben={schonBeworben} />
 
       {frueher.length > 0 && (
         <div className="mt-6">

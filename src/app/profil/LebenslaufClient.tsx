@@ -74,7 +74,13 @@ export default function LebenslaufClient({
   const braucht = einwilligung !== undefined && !zustimmung;
   const [stand, setStand] = useState<CvStand | null>(initial);
   const ausgelesen = stand?.status === "ausgelesen";
-  const bestaetigt = Boolean(suchprofil.bestaetigt_at);
+  // Stand des Suchprofils live aus dem Suchprofil-Bereich (Übernehmen ohne Neuladen)
+  const [sp, setSp] = useState<{ vorschlag: SuchprofilStand["vorschlag"]; bestaetigt_at: string | null; antworten: boolean }>({
+    vorschlag: suchprofil.vorschlag,
+    bestaetigt_at: suchprofil.bestaetigt_at,
+    antworten: Boolean(suchprofil.antworten),
+  });
+  const bestaetigt = Boolean(sp.bestaetigt_at);
   // Startet beim ersten offenen Schritt
   const [reiter, waehlen] = useReiter(REITER_KEYS, initial?.status !== "ausgelesen" ? "lebenslauf" : bestaetigt ? "lebenslauf" : "suchprofil");
   const idBasis = useReiterId();
@@ -148,8 +154,35 @@ export default function LebenslaufClient({
   ) : null;
 
   const panel = "flex flex-col gap-6 [&>*]:!mt-0";
+  const zuReiter = (key: string) => {
+    waehlen(key);
+    document.getElementById(`${idBasis}-tab-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const eingerichtet = ausgelesen && bestaetigt;
+
   return (
     <div className="text-sm">
+      {eingerichtet ? (
+        <ProfilUebersicht
+          lebenslauf={{ bearbeitet, offen: offenePunkte, datei: stand?.datei_name ?? null }}
+          suchprofil={sp.vorschlag}
+          bestaetigtAt={sp.bestaetigt_at}
+          unterlagen={unterlagen?.initial ?? null}
+          telegram={telegramVerbunden}
+          zuReiter={zuReiter}
+        />
+      ) : (
+        <Einrichtung
+          schritte={[
+            { titel: "Lebenslauf hochladen", fertig: ausgelesen, reiter: "lebenslauf" },
+            { titel: "Lebenslauf prüfen und bearbeiten", fertig: Boolean(bearbeitet) || (ausgelesen && offenePunkte === 0), reiter: "lebenslauf", link: ausgelesen ? "/profil/lebenslauf" : undefined, empfohlen: true },
+            { titel: "Berufliche Wünsche festlegen", fertig: sp.antworten || Boolean(sp.vorschlag), reiter: "suchprofil" },
+            { titel: "Suchprofil bestätigen", fertig: bestaetigt, reiter: "suchprofil" },
+          ]}
+          zuReiter={zuReiter}
+        />
+      )}
+
       <ReiterLeiste
         label="Bereiche von Mein Profil"
         idBasis={idBasis}
@@ -365,6 +398,7 @@ export default function LebenslaufClient({
         richtungen={(stand?.richtungen ?? []).map((r) => r.titel)}
         ortAusLebenslauf={stand?.lebenslauf?.person?.ort ?? ""}
         initial={suchprofil}
+        onStand={(neu) => setSp(neu)}
       />
 
           </div>
@@ -387,6 +421,154 @@ export default function LebenslaufClient({
         </ReiterInhalt>
       </div>
     </div>
+  );
+}
+
+type EinrichtungsSchritt = { titel: string; fertig: boolean; reiter: string; link?: string; empfohlen?: boolean };
+
+/** Profil noch nicht fertig: geführte Einrichtung — Orientierung, keine Sperre. */
+function Einrichtung({ schritte, zuReiter }: { schritte: EinrichtungsSchritt[]; zuReiter: (key: string) => void }) {
+  // Nächster Schritt: der erste offene Pflichtschritt; „prüfen“ ist empfohlen, hält aber nicht auf
+  const naechster = schritte.findIndex((s) => !s.fertig && !s.empfohlen);
+  const erledigt = schritte.filter((s) => s.fertig).length;
+  const n = naechster >= 0 ? schritte[naechster] : null;
+  return (
+    <section className="card-pad mb-5" aria-labelledby="einrichtung-titel">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="einrichtung-titel" className="section-title">
+          Dein Profil einrichten
+        </h2>
+        <span className="tnum text-xs text-muted">
+          {erledigt} von {schritte.length} erledigt
+        </span>
+      </div>
+      <p className="section-lead">Danach findet nojobs jede Nacht passende Stellen für dich.</p>
+      <ol className="mt-4 grid gap-2 sm:grid-cols-4">
+        {schritte.map((s, i) => {
+          const aktuell = i === naechster;
+          return (
+            <li
+              key={s.titel}
+              className={`flex items-start gap-2.5 rounded-lg border p-3 ${aktuell ? "border-brand bg-brand-soft/40" : s.fertig ? "border-keep/25 bg-keep-soft/30" : "border-rule"}`}
+              aria-current={aktuell ? "step" : undefined}
+            >
+              <span
+                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${
+                  s.fertig ? "bg-keep text-white" : aktuell ? "bg-brand text-white" : "bg-subtle text-muted"
+                }`}
+              >
+                {s.fertig ? <Icon name="check" size={13} /> : i + 1}
+              </span>
+              <span className="min-w-0">
+                <span className={`block leading-snug ${aktuell ? "font-semibold" : s.fertig ? "text-ink/80" : "text-muted"}`}>{s.titel}</span>
+                <span className="text-2xs text-muted">{s.fertig ? "erledigt" : aktuell ? "jetzt" : s.empfohlen ? "empfohlen" : "offen"}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {n && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {n.link ? (
+            <Link href={n.link} className="btn-primary">
+              {n.titel} <Icon name="chevronRight" size={14} />
+            </Link>
+          ) : (
+            <button type="button" className="btn-primary" onClick={() => zuReiter(n.reiter)}>
+              {n.titel} <Icon name="chevronRight" size={14} />
+            </button>
+          )}
+          {schritte[1] && !schritte[1].fertig && schritte[0].fertig && schritte[1].link && (
+            <Link href={schritte[1].link} className="btn-secondary">
+              Lebenslauf prüfen
+            </Link>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+const LAYOUT_NAME: Record<string, string> = { editorial: "Editorial", klassisch: "Klassisch", seitenleiste: "Seitenleiste", zeitleiste: "Zeitleiste", minimal: "Minimal (ATS)" };
+const FARB_NAME: Record<string, string> = { petrol: "Petrol", bordeaux: "Bordeaux", nachtblau: "Nachtblau", wald: "Wald", graphit: "Graphit" };
+
+/** Profil eingerichtet: Übersicht in vier Karten — alles aus vorhandenen Daten. */
+function ProfilUebersicht({
+  lebenslauf,
+  suchprofil,
+  bestaetigtAt,
+  unterlagen,
+  telegram,
+  zuReiter,
+}: {
+  lebenslauf: { bearbeitet: string | null; offen: number; datei: string | null };
+  suchprofil: SuchprofilStand["vorschlag"];
+  bestaetigtAt: string | null;
+  unterlagen: LayoutStand | null;
+  telegram: boolean;
+  zuReiter: (key: string) => void;
+}) {
+  const tag = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("de-DE") : null);
+  const Karte = ({ titel, icon, reiter, children, link }: { titel: string; icon: "file" | "search" | "sparkles" | "send"; reiter: string; children: ReactNode; link?: string }) => (
+    <li className="card-pad flex flex-col">
+      <p className="flex items-center gap-2 font-semibold">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-soft text-brand-strong">
+          <Icon name={icon} size={14} />
+        </span>
+        {titel}
+      </p>
+      <div className="mt-2 flex-1 text-muted">{children}</div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {link && (
+          <Link href={link} className="btn-secondary btn-sm">
+            Bearbeiten
+          </Link>
+        )}
+        <button type="button" className={link ? "btn-ghost btn-sm" : "btn-secondary btn-sm"} onClick={() => zuReiter(reiter)}>
+          {link ? "Details" : "Bearbeiten"}
+        </button>
+      </div>
+    </li>
+  );
+  return (
+    <ul className="mb-5 grid gap-3 sm:grid-cols-2" aria-label="Dein Profil auf einen Blick">
+      <Karte titel="Mein Lebenslauf" icon="file" reiter="lebenslauf" link="/profil/lebenslauf">
+        <p>{lebenslauf.datei ? `Hochgeladen: ${lebenslauf.datei}` : "Hochgeladen"}</p>
+        <p>{lebenslauf.bearbeitet ? `Zuletzt bearbeitet am ${tag(lebenslauf.bearbeitet)}` : "Noch nicht bearbeitet"}</p>
+        {lebenslauf.offen > 0 && <p className="text-warn">{lebenslauf.offen} Verbesserungsvorschläge offen</p>}
+      </Karte>
+      <Karte titel="Meine Jobwünsche" icon="search" reiter="suchprofil">
+        {suchprofil?.suchbegriffe?.length ? (
+          <p className="flex flex-wrap gap-1">
+            {suchprofil.suchbegriffe.slice(0, 6).map((b) => (
+              <span key={b} className="badge-neutral font-normal">
+                {b}
+              </span>
+            ))}
+            {suchprofil.suchbegriffe.length > 6 && <span className="text-xs">+{suchprofil.suchbegriffe.length - 6}</span>}
+          </p>
+        ) : null}
+        {suchprofil?.ort && (
+          <p className="mt-1">
+            {suchprofil.ort} · {suchprofil.umkreis} km Umkreis
+          </p>
+        )}
+        {bestaetigtAt && <p className="text-keep">Aktiv seit {tag(bestaetigtAt)}</p>}
+      </Karte>
+      <Karte titel="Meine Unterlagen" icon="sparkles" reiter="unterlagen">
+        {unterlagen ? (
+          <p>
+            Layout {LAYOUT_NAME[unterlagen.layout] ?? unterlagen.layout} · {FARB_NAME[unterlagen.akzent] ?? unterlagen.akzent} ·{" "}
+            {unterlagen.layout === "minimal" ? "ohne Foto" : unterlagen.mitFoto ? "mit Foto" : "ohne Foto"}
+          </p>
+        ) : (
+          <p>Noch nicht gewählt</p>
+        )}
+      </Karte>
+      <Karte titel="Benachrichtigungen" icon="send" reiter="benachrichtigung">
+        <p>{telegram ? "Telegram verbunden — neue Treffer kommen morgens aufs Handy." : "Telegram nicht verbunden."}</p>
+      </Karte>
+    </ul>
   );
 }
 

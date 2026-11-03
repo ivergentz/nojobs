@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Fortschritt from "@/components/Fortschritt";
 import PdfKnopf from "@/components/PdfKnopf";
 import Icon from "@/components/ui/Icon";
@@ -35,6 +35,16 @@ export default function ProfilUnterlagenClient({
   const [busy, setBusy] = useState<"erstellen" | "speichern" | null>(null);
   const [dirty, setDirty] = useState(false);
   const [meldung, setMeldung] = useState<{ text: string; fehler?: boolean } | null>(null);
+  // Ungespeicherte Änderungen: vor dem Verlassen der Seite nachfragen (Browser-Dialog)
+  useEffect(() => {
+    if (!dirty) return;
+    const warnen = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnen);
+    return () => window.removeEventListener("beforeunload", warnen);
+  }, [dirty]);
 
   const api = async (aktion: "erstellen" | "speichern", entwurf?: ProfilEntwurf) => {
     setBusy(aktion);

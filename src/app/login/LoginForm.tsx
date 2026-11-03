@@ -55,10 +55,10 @@ export default function LoginForm({ weiter }: { weiter: string }) {
         </p>
       )}
 
-      <div className="mt-8 border-t border-rule pt-4">
+      <div className="mt-8 border-t border-rule/60 pt-3 text-right">
         {!notzugang ? (
-          <button type="button" onClick={() => setNotzugang(true)} className="link-quiet text-xs">
-            Notzugang für den Admin
+          <button type="button" onClick={() => setNotzugang(true)} className="link-quiet text-2xs text-muted/70">
+            Betreiber-Zugang
           </button>
         ) : (
           <form
@@ -68,7 +68,7 @@ export default function LoginForm({ weiter }: { weiter: string }) {
             }}
           >
             <label className="block">
-              <span className="field-hint mt-0">Schlüssel aus der Steuerung (IMPORT_SECRET)</span>
+              <span className="field-hint mt-0 text-left">Nur für den Betreiber: Zugangsschlüssel</span>
               <input type="password" autoComplete="current-password" className={feld} value={schluessel} onChange={(e) => setSchluessel(e.target.value)} />
             </label>
             <button type="submit" disabled={busy || !schluessel} className="btn-secondary mt-2">

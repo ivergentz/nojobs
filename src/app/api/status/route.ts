@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       const { error } = await schreibeFelder(db, profil, body.uuid, { absage_notiz: notiz });
       if (error) {
         return NextResponse.json(
-          { error: `Grund nicht gespeichert — wurde supabase/absage-notiz.sql ausgeführt? (${error.message})` },
+          { error: istStandard(profil) ? `Grund nicht gespeichert — wurde supabase/absage-notiz.sql ausgeführt? (${error.message})` : "Der Grund konnte gerade nicht gespeichert werden." },
           { status: 500 }
         );
       }

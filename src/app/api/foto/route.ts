@@ -59,7 +59,10 @@ export async function POST(request: Request) {
     const endung = typ === "image/png" ? "png" : typ === "image/webp" ? "webp" : "jpg";
     const pfad = `${profil}/foto-${Date.now()}.${endung}`;
     const { error: speicherFehler } = await db.storage.from(FOTO_BUCKET).upload(pfad, inhalt, { contentType: typ, upsert: true });
-    if (speicherFehler) return fehler(`Speichern fehlgeschlagen — wurde supabase/fotos.sql ausgeführt? (${speicherFehler.message})`, 500);
+    if (speicherFehler) {
+      console.error("foto speichern", speicherFehler.message);
+      return fehler("Das Foto konnte gerade nicht gespeichert werden. Bitte später noch einmal versuchen.", 500);
+    }
     const foto = { pfad, typ, aktualisiert: new Date().toISOString() };
     const gesichert = await speichereEinstellungen(db, profil, { foto });
     if (!gesichert.ok) return fehler(gesichert.fehler, 500);

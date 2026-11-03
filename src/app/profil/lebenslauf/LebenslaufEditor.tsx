@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
 import { ReiterInhalt, ReiterLeiste, useReiter, useReiterId } from "@/components/ui/Reiter";
 import { zuordnen, type Bereich } from "@/lib/pruefung-zuordnen";
@@ -54,6 +54,16 @@ export default function LebenslaufEditor({ initial, pruefung, foto }: { initial:
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [meldung, setMeldung] = useState<{ text: string; fehler?: boolean } | null>(null);
+  // Ungespeicherte Änderungen: vor dem Verlassen der Seite nachfragen (Browser-Dialog)
+  useEffect(() => {
+    if (!dirty) return;
+    const warnen = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnen);
+    return () => window.removeEventListener("beforeunload", warnen);
+  }, [dirty]);
 
   // Prüfpunkte einmal zuordnen — gegen den Stand beim Laden, an die Schlüssel der Einträge gebunden.
   const orte = useMemo(

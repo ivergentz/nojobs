@@ -70,7 +70,8 @@ export async function POST(request: Request) {
     const pfad = `${profil}/${Date.now()}-${sicherName}`;
     const { error: speicherFehler } = await db.storage.from(BUCKET).upload(pfad, inhalt, { contentType: typ, upsert: true });
     if (speicherFehler) {
-      return NextResponse.json({ error: `Speichern fehlgeschlagen — wurde supabase/lebenslauf.sql ausgeführt? (${speicherFehler.message})` }, { status: 500 });
+      console.error("lebenslauf speichern", speicherFehler.message);
+      return NextResponse.json({ error: "Die Datei konnte gerade nicht gespeichert werden. Bitte später noch einmal versuchen." }, { status: 500 });
     }
     const basis = {
       profile_id: id,

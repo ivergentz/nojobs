@@ -11,6 +11,7 @@ import { EmptyState, Hinweis } from "@/components/ui/Bausteine";
 import BeworbenKnopf from "./BeworbenKnopf";
 import ProfilUnterlagenClient from "./ProfilUnterlagenClient";
 import VorbereitungClient from "./VorbereitungClient";
+import BewerbungsAblauf from "./BewerbungsAblauf";
 
 /** Phase 4.3 · Unterlagen-Seite für weitere Profile (eigene Daten aus jobs_profil / profile_cv). */
 export async function ProfilUnterlagen({ profil, uuid, von, schonBeworben }: { profil: string; uuid: string; von: string | null; schonBeworben: boolean }) {
@@ -79,6 +80,7 @@ export async function ProfilUnterlagen({ profil, uuid, von, schonBeworben }: { p
 
       {lebenslauf ? (
         <>
+          <BewerbungsAblauf entwurf={Boolean(entwurf)} beworben={beworben} />
           <ProfilUnterlagenClient
             uuid={job.uuid as string}
             initial={entwurf}

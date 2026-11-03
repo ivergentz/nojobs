@@ -5,7 +5,7 @@ import Icon from "@/components/ui/Icon";
 import { Hinweis } from "@/components/ui/Bausteine";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Anmelden · Career Inbox" };
+export const metadata = { title: "Anmelden · nojobs" };
 
 const MELDUNG: Record<string, string> = {
   abgelaufen: "Der Link ist abgelaufen oder ungültig. Fordere einfach einen neuen an.",

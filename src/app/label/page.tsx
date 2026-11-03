@@ -84,7 +84,11 @@ export default async function LabelPage() {
       <PageHeader
         eyebrow="Stellen beurteilen"
         titel="Würdest du dich hierauf bewerben?"
-        lead="Kein KI-Vorschlag, absichtlich. Erst dein Urteil, dann das Prompt — sonst richtet sich deine Messlatte nach dem Modell statt umgekehrt. Zügig entscheiden, Bauchgefühl reicht."
+        lead={
+          leseProfil
+            ? "Freiwillig: Sag ehrlich, ob du dich bewerben würdest — ohne die Einschätzung von nojobs zu sehen. So lernt nojobs, wie du entscheidest. Bauchgefühl reicht."
+            : "Kein KI-Vorschlag, absichtlich. Erst dein Urteil, dann das Prompt — sonst richtet sich deine Messlatte nach dem Modell statt umgekehrt. Zügig entscheiden, Bauchgefühl reicht."
+        }
       />
 
       {error && (
@@ -109,6 +113,7 @@ export default async function LabelPage() {
           alreadyDone={doneCount ?? 0}
           gruendeIgnore={gruendeFuer(leseProfil).ignore}
           gruendeAnschauen={gruendeFuer(leseProfil).anschauen}
+          fuerNutzer
         />
       ) : (
         <LabelClient jobs={jobs} alreadyDone={doneCount ?? 0} />

@@ -1,3 +1,4 @@
+import { sitzungAusCookies } from "@/lib/sitzung";
 import Link from "next/link";
 import { EmptyState, Hinweis, PageHeader } from "@/components/ui/Bausteine";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -63,7 +64,8 @@ export default async function ProfilSeite() {
   let hinweis: string | null = null;
   if (id) {
     const { data, error } = await db.from("profile_cv").select("*").eq("profile_id", id).maybeSingle();
-    if (error) hinweis = "Noch nicht eingerichtet — supabase/lebenslauf.sql im SQL Editor ausführen.";
+    // Technischer Hinweis nur für dich (Admin); weitere Personen bekommen eine verständliche Meldung.
+    if (error) hinweis = (await sitzungAusCookies())?.r === "nutzer" ? "Dieser Bereich ist gerade nicht verfügbar. Bitte später noch einmal versuchen — bleibt es so, kurz Bescheid geben." : "Noch nicht eingerichtet — supabase/lebenslauf.sql im SQL Editor ausführen.";
     else stand = (data as CvStand | null) ?? null;
   }
 

@@ -160,6 +160,22 @@ const REITER: Array<{ key: string; label: string }> = [
   { key: "abgelegt", label: "Abgelegt" },
 ];
 
+/** Reiter in zwei Bereichen — gleiche Status, nur gruppiert dargestellt. */
+const REITER_GRUPPEN = [
+  { titel: "Jobs entdecken", keys: ["neu", "interessant"] },
+  { titel: "Meine Bewerbungen", keys: ["beworben", "interview", "absage", "abgelegt"] },
+];
+
+/** Leermeldungen für weitere Profile — ohne Verweis auf die Steuerung. */
+const LEER_NUTZER: Record<string, string> = {
+  neu: "Gerade keine neuen Stellen. nojobs sucht jede Nacht und bewertet morgens — neue Treffer erscheinen dann hier.",
+  interessant: "Noch nichts vorgemerkt. Interessante Stellen unter „Neu“ mit „Vormerken“ für später sichern.",
+  beworben: "Noch keine Bewerbung eingetragen. Nach dem Absenden einer Bewerbung den Status auf „Beworben“ setzen.",
+  interview: "Noch keine Interviews.",
+  absage: "Keine Absagen eingetragen.",
+  abgelegt: "Nichts abgelegt.",
+};
+
 const LEER: Record<string, string> = {
   neu: "Nichts Neues. Die Steuerung zeigt, ob Import und Bewertung gelaufen sind.",
   interessant: "Noch nichts vorgemerkt.",
@@ -189,11 +205,14 @@ export default function InboxClient({
   mitUnterlagen = true,
   suchHinweis = !mitUnterlagen,
   ablageGruende,
+  lage,
 }: {
   jobs: InboxJob[];
   mitUnterlagen?: boolean;
   /** Leere Liste „Neu“: auf die Suche unter „Mein Profil“ hinweisen (weitere Profile). */
   suchHinweis?: boolean;
+  /** Weitere Profile: Stand der Suche — nur vorhandene Daten. */
+  lage?: { suchprofil: boolean; zuletzt: string | null };
   ablageGruende?: AblageGruende;
 }) {
   const [state, setState] = useState<Record<string, string>>({});
@@ -220,8 +239,14 @@ export default function InboxClient({
 
   // Gewählten Reiter in der Adresse merken (#beworben), damit Neuladen ihn behält.
   useEffect(() => {
-    const hash = window.location.hash.replace("#", "");
-    if (REITER.some((r) => r.key === hash)) setReiter(hash);
+    const ausAdresse = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (REITER.some((r) => r.key === hash)) setReiter(hash);
+      else if (!hash) setReiter("neu");
+    };
+    ausAdresse();
+    window.addEventListener("hashchange", ausAdresse);
+    return () => window.removeEventListener("hashchange", ausAdresse);
   }, []);
   const waehlen = (key: string) => {
     setReiter(key);
@@ -253,6 +278,13 @@ export default function InboxClient({
       }
     } catch (error) {
       setFailed(error instanceof Error ? error.message : String(error));
+      // Auch bei Netzwerkfehlern: nichts anzeigen, was nicht gespeichert ist.
+      setState((prev) => {
+        const next = { ...prev };
+        if (previous === undefined) delete next[uuid];
+        else next[uuid] = previous;
+        return next;
+      });
     }
   };
 
@@ -298,34 +330,44 @@ export default function InboxClient({
         </kbd>
       </div>
       {sucht && (
-        <p className="tnum mt-2 text-xs text-muted" aria-live="polite">
-          {imReiter.length} Treffer in allen Reitern
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand/25 bg-brand-soft/50 px-3 py-2 text-sm" role="status" aria-live="polite">
+          <span>
+            <span className="font-medium">Suche in allen Bereichen:</span>{" "}
+            <span className="tnum">{imReiter.length}</span> {imReiter.length === 1 ? "Treffer" : "Treffer"} für „{suche.trim()}“ — Neu, Vorgemerkt und alle Bewerbungen.
+          </span>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => setSuche("")}>
+            <Icon name="x" size={14} /> Suche beenden
+          </button>
+        </div>
       )}
 
-      {/* Status: Neu → Bewerbungs-Workflow */}
-      <nav aria-label="Status" className="tabs mt-4">
-        {REITER.map((r, i) => {
-          const aktiv = !sucht && r.key === reiter;
-          const n = anzahl(r.key);
-          return (
-            <span key={r.key} className="flex shrink-0 items-center">
-              {i === 2 && <span aria-hidden className="mx-1 h-4 w-px bg-rule" />}
-              <button
-                type="button"
-                onClick={() => {
-                  setSuche("");
-                  waehlen(r.key);
-                }}
-                aria-current={aktiv ? "page" : undefined}
-                className={`tab ${aktiv ? "tab-active" : ""}`}
-              >
-                {r.label}
-                <span className={`tnum rounded-full px-1.5 text-2xs ${aktiv ? "bg-brand-soft text-brand-strong" : "text-muted"}`}>{n}</span>
-              </button>
-            </span>
-          );
-        })}
+      {/* Status: zwei Bereiche — Jobs entdecken und Meine Bewerbungen */}
+      <nav aria-label="Status" className={`tabs mt-4 flex-wrap gap-y-1 ${sucht ? "opacity-60" : ""}`}>
+        {REITER_GRUPPEN.map((g, gi) => (
+          <div key={g.titel} role="group" aria-label={g.titel} className={`flex w-full flex-wrap items-center gap-1 ${gi > 0 ? "border-t border-rule/60 pt-1" : ""}`}>
+                        <span className="w-full px-1.5 pt-1 text-2xs font-medium uppercase tracking-[0.08em] text-muted/80 sm:w-40 sm:shrink-0 sm:whitespace-nowrap sm:pt-0">{g.titel}</span>
+            {g.keys.map((key) => {
+              const r = REITER.find((x) => x.key === key)!;
+              const aktiv = !sucht && r.key === reiter;
+              const n = anzahl(r.key);
+              return (
+                <button
+                  key={r.key}
+                  type="button"
+                  onClick={() => {
+                    setSuche("");
+                    waehlen(r.key);
+                  }}
+                  aria-current={aktiv ? "page" : undefined}
+                  className={`tab ${aktiv ? "tab-active" : ""}`}
+                >
+                  {r.label}
+                  <span className={`tnum rounded-full px-1.5 text-2xs ${aktiv ? "bg-brand-soft text-brand-strong" : "text-muted"}`}>{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {hatUpgrade && (
@@ -363,13 +405,29 @@ export default function InboxClient({
 
       {visible.length === 0 && (
         <div className="mt-6">
-          <EmptyState icon={sucht ? "search" : "inbox"} titel={sucht ? `Nichts gefunden für „${suche.trim()}“.` : "Hier ist gerade nichts."}>
-            {sucht
-              ? "Gesucht wird in Firma, Titel und Ort — über alle Reiter."
-              : suchHinweis && reiter === "neu"
-                ? "Nichts Neues. Neue Stellen kommen jeden Morgen — oder unter „Mein Profil“ jetzt nach neuen Stellen suchen."
-                : LEER[reiter]}
-          </EmptyState>
+          {!sucht && lage && !lage.suchprofil ? (
+            <EmptyState icon="search" titel="Noch kein Suchprofil eingerichtet">
+              <p>Sobald du unter „Mein Profil“ festgelegt hast, was du suchst, findet nojobs passende Stellen für dich.</p>
+              <a href="/profil" className="btn-primary mt-4">
+                Profil einrichten
+              </a>
+            </EmptyState>
+          ) : !sucht && lage && jobs.length === 0 ? (
+            <EmptyState icon="inbox" titel="Dein Suchprofil steht — die ersten Stellen kommen">
+              <p>nojobs sucht jede Nacht und bewertet morgens. Du kannst die erste Suche auch sofort starten.</p>
+              <a href="/profil#suchprofil" className="btn-secondary mt-4">
+                Jetzt nach Stellen suchen
+              </a>
+            </EmptyState>
+          ) : (
+            <EmptyState icon={sucht ? "search" : "inbox"} titel={sucht ? `Nichts gefunden für „${suche.trim()}“.` : "Hier ist gerade nichts."}>
+              {sucht
+                ? "Gesucht wird in Firma, Titel und Ort — in allen Bereichen."
+                : suchHinweis
+                  ? LEER_NUTZER[reiter]
+                  : LEER[reiter]}
+            </EmptyState>
+          )}
         </div>
       )}
 

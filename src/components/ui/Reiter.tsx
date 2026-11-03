@@ -12,8 +12,14 @@ export type ReiterEintrag = { key: string; label: string; fertig?: boolean; zahl
 export function useReiter(keys: string[], standard: string) {
   const [aktiv, setAktiv] = useState(standard);
   useEffect(() => {
-    const hash = window.location.hash.replace("#", "");
-    if (keys.includes(hash)) setAktiv(hash);
+    const ausAdresse = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (keys.includes(hash)) setAktiv(hash);
+    };
+    ausAdresse();
+    // Links auf dieselbe Seite (#suchprofil), von Hand geänderte Adresse, Zurück/Vor über Hash-Einträge
+    window.addEventListener("hashchange", ausAdresse);
+    return () => window.removeEventListener("hashchange", ausAdresse);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const waehlen = (key: string) => {
     setAktiv(key);
