@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { linkMail, sendeMail } from "@/lib/mail";
+import { WILLKOMMEN_PDF_BASE64, WILLKOMMEN_PDF_NAME } from "@/lib/willkommen-pdf";
 import { ladeProfilVoll } from "@/lib/profil";
 import { adminEmail, basisUrl, neuerLink, sitzungAusHeader } from "@/lib/sitzung";
 
@@ -45,9 +46,11 @@ export async function POST(request: Request) {
         "du bist zur Career Inbox eingeladen. Lade deinen Lebenslauf hoch, beantworte ein paar Fragen — danach suchen und bewerten wir jeden Tag passende Stellen für dich.",
       knopf: "Loslegen",
       link,
-      fuss: `Der Link gilt ${GUELTIG_TAGE} Tage. Später meldest du dich einfach mit deiner E-Mail-Adresse an — ohne Passwort.`,
+      fuss: `Der Link gilt ${GUELTIG_TAGE} Tage. Später meldest du dich einfach mit deiner E-Mail-Adresse an — ohne Passwort. Im Anhang findest du eine Kurzanleitung für den Start.`,
     });
-    await sendeMail({ email: p.email, name: p.name }, "Deine Einladung zur Career Inbox", html, text);
+    await sendeMail({ email: p.email, name: p.name }, "Deine Einladung zur Career Inbox", html, text, [
+      { name: WILLKOMMEN_PDF_NAME, inhaltBase64: WILLKOMMEN_PDF_BASE64 },
+    ]);
     return NextResponse.json({ ok: true, an: p.email });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 502 });
