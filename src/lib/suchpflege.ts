@@ -88,7 +88,7 @@ export type Zeile = {
 };
 
 export type Leistung = {
-  art: Art | "info";
+  art: Art | "adzuna" | "info";
   begriff: string;
   stellen: number;
   bewertet: number;
@@ -114,6 +114,7 @@ export function zuordnen(z: Zeile, profil: { slug: string; rolle: "admin" | "nut
     return b ? { art: "profil", begriff: b } : null;
   }
   if (z.source === "google") return { art: z.suche ? "google" : "info", begriff: z.suche ?? "Google (vor der Aufzeichnung)" };
+  if (z.source === "adzuna") return { art: "adzuna", begriff: z.suche ?? "Adzuna" };
   if (z.source === "ba") {
     const begriff = mt.includes(":") ? mt.slice(mt.indexOf(":") + 1) : "";
     return begriff ? { art: "ba", begriff } : null;

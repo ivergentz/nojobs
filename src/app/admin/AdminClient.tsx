@@ -234,6 +234,7 @@ export default function AdminClient() {
     ats: "Karriereseiten",
     google: "Google Jobs",
     arbeitnow: "Arbeitnow",
+    adzuna: "Adzuna",
   };
 
 
@@ -298,7 +299,7 @@ export default function AdminClient() {
 
           <p className="mt-6 text-xs text-muted">Bewertungsmodell: {state.modell}</p>
           <ul className="mt-2 space-y-1 text-xs text-muted">
-            {["ats", "google", "arbeitnow", "de"].map((id) => {
+            {["ats", "google", "arbeitnow", "adzuna", "de"].map((id) => {
               const cursor = state.cursors.find((entry) => entry.id === id);
               const anzahl = state.quellen?.[id === "de" ? "ba" : id] ?? 0;
               return (
