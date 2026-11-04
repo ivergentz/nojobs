@@ -3,7 +3,9 @@ import { authorized } from "@/lib/auth";
 import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
 import { fetchBaDetail, searchBaAll, type BaHit } from "@/lib/ba";
-import { filterDe, gehaltDe, normalizeDe, SUCHBEGRIFFE } from "@/lib/normalize-de";
+import { filterDe, gehaltDe, normalizeDe } from "@/lib/normalize-de";
+import { aktiveBaBegriffe, ladePflege } from "@/lib/suchpflege";
+import { STANDARD_SLUG } from "@/lib/profil";
 import type { JobRow } from "@/lib/normalize";
 
 export const dynamic = "force-dynamic";
@@ -69,9 +71,11 @@ export async function GET(request: Request) {
     const kandidaten = new Map<string, { hit: BaHit; matched: string }>();
     const dropped = new Map<string, Record<string, unknown>>();
 
-    for (let i = 0; i < SUCHBEGRIFFE.length; i += SEARCH_CONCURRENCY) {
+    // Suchpflege: ohne bestätigte Änderung genau SUCHBEGRIFFE aus dem Code.
+    const begriffe = aktiveBaBegriffe(await ladePflege(db, STANDARD_SLUG));
+    for (let i = 0; i < begriffe.length; i += SEARCH_CONCURRENCY) {
       await Promise.all(
-        SUCHBEGRIFFE.slice(i, i + SEARCH_CONCURRENCY).map(async (begriff) => {
+        begriffe.slice(i, i + SEARCH_CONCURRENCY).map(async (begriff) => {
           try {
             const { hits, gesamt, abgeschnitten: cut } = await searchBaAll({ was: begriff, tage });
             stats.begriffe += 1;
