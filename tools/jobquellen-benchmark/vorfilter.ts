@@ -1,5 +1,5 @@
 import type { BenchJob, BenchProfil, Relevanz } from "./typen";
-import { normTitel, stadt } from "./duplikate";
+import { normTitel, orte, stadt } from "./duplikate";
 
 /**
  * Kostenloser, regelbasierter Vorfilter — ohne KI. Im Zweifel „unklar“, nie vorschnell „unpassend“.
@@ -23,7 +23,8 @@ export const TITEL_AUSSCHLUSS = [
 ];
 
 const AUSLAND = /\b(österreich|austria|schweiz|switzerland|suisse|niederlande|netherlands|polen|poland|frankreich|france|spanien|spain|united kingdom|london|usa|united states|wien|zürich|zurich|amsterdam)\b/i;
-const PERSONALDIENSTLEISTER = /\b(zeitarbeit|personaldienst|personalservice|personal ?leasing|arbeitnehmerüberlassung|randstad|adecco|manpower|hays|persona service|dis ag|orizon|tempton|jobactive|piening|amadeus fire|gi group|start people|timepartner)\b/i;
+// Nur eindeutige Muster und bekannte Namen — im Zweifel nicht ausschließen.
+const PERSONALDIENSTLEISTER = /(zeitarbeit|personaldienst|personalservice|personal ?leasing|arbeitnehmerüberlassung|\bpersonal gmbh|\bpersonalmanagement|\brandstad\b|\badecco\b|\bmanpower|\bhays\b|persona service|\bdis ag\b|\borizon\b|\btempton\b|\bjobactive\b|\bpiening\b|amadeus fire|\bgi group\b|start people|\btimepartner\b)/i;
 const FUELL = new Set(["und", "oder", "der", "die", "das", "für", "fur", "im", "in", "mit", "von", "zur", "zum", "m", "w", "d"]);
 
 const woerter = (s: string) => normTitel(s).split(" ").filter((w) => w.length > 1 && !FUELL.has(w));
@@ -37,7 +38,7 @@ export function ortBefund(job: BenchJob, profil: BenchProfil): OrtBefund {
   // Die BA hat im Umkreis gesucht (bzw. für dich: produktiver Ortsfilter angewendet) — gilt als passend.
   if (job.source === "ba") return "passt";
   const ziel = stadt(profil.ort ?? "");
-  if (ziel && stadt(ort).includes(ziel)) return "passt";
+  if (ziel && [...orte(ort)].some((o) => o === ziel || o.startsWith(`${ziel}-`) || o.startsWith(`${ziel} `))) return "passt";
   return "nicht-pruefbar";
 }
 
