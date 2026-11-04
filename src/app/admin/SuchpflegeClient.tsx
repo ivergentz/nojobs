@@ -6,7 +6,7 @@ import type { PflegeStand } from "@/lib/suchpflege-laden";
 import type { Vorschlag } from "@/lib/suchpflege";
 
 const nf = new Intl.NumberFormat("de-DE");
-const ART_NAME: Record<string, string> = { ba: "Arbeitsagentur", google: "Google Jobs", profil: "Suchbegriff", info: "ohne Begriff" };
+const ART_NAME: Record<string, string> = { ba: "Arbeitsagentur", google: "Google Jobs", adzuna: "Adzuna", profil: "Suchbegriff", info: "ohne Begriff" };
 const key = (v: Pick<Vorschlag, "art" | "aktion" | "begriff">) => `${v.art}:${v.aktion}:${v.begriff}`;
 const datum = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : null);
 

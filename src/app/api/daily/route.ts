@@ -27,6 +27,8 @@ const SCHRITTE: Array<{ name: string; pfad: string; budget: number; optional?: b
   { name: "Google Jobs & Arbeitnow", pfad: "/api/import-sammel", budget: 10_000 },
   { name: "Arbeitsagentur", pfad: "/api/import-de", budget: 14_000 },
   { name: "Aufräumen", pfad: "/api/cleanup", budget: 3_000 },
+  // Adzuna (kostenlos, höchstens 5 Suchen je Profil): dein Profil und weitere Profile. Ohne Schlüssel passiert nichts.
+  { name: "Adzuna", pfad: "/api/import-adzuna", budget: 8_000, optional: true },
   // Schritt 2.7: Stellen für weitere Profile — nach allem, was du brauchst.
   { name: "Weitere Profile", pfad: "/api/import-profile", budget: 12_000, optional: true },
 ];

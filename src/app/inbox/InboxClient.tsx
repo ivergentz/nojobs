@@ -463,7 +463,14 @@ export default function InboxClient({
                     {sucht && <span className="badge-neutral border-ink/20 text-ink">{REITER.find((r) => r.key === status)?.label ?? status}</span>}
                   </div>
                   <span className="text-xs text-muted">
-                    {job.quelle}
+                    {job.quelle === "Adzuna" ? (
+                      // Adzuna-Bedingung: Stellen mit Hinweis und Link auf Adzuna zeigen
+                      <a href="https://www.adzuna.de" target="_blank" rel="noopener noreferrer" className="underline decoration-rule underline-offset-2 hover:text-ink">
+                        Jobs by Adzuna
+                      </a>
+                    ) : (
+                      job.quelle
+                    )}
                     {seit ? <span className="tnum"> · seit {seit}</span> : null}
                   </span>
                 </div>

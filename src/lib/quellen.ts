@@ -8,11 +8,12 @@
  *   google    — Google Jobs über SerpApi (enthält StepStone, LinkedIn, Indeed …)
  *   arbeitnow — Arbeitnow-Jobbörse (Deutschland, offene API)
  */
-export const AKTIVE_QUELLEN = ["ba", "ats", "google", "arbeitnow"];
+export const AKTIVE_QUELLEN = ["ba", "ats", "google", "arbeitnow", "adzuna"];
 
 export const QUELLEN_NAME: Record<string, string> = {
   ba: "Arbeitsagentur",
   ats: "Karriereseite",
   google: "Google Jobs",
   arbeitnow: "Arbeitnow",
+  adzuna: "Adzuna",
 };
