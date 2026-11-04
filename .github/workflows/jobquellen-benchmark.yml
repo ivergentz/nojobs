@@ -26,6 +26,9 @@ on:
       adzuna_max:
         description: "Adzuna-Aufrufe insgesamt (höchstens 60)"
         default: "30"
+      serpapi_tag:
+        description: "Tag, an dem dein SerpApi-Kontingent neu startet (1–28, steht im SerpApi-Dashboard; leer = Monatsende)"
+        default: ""
 
 permissions:
   contents: read
@@ -54,6 +57,7 @@ jobs:
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
           BENCH_GOOGLE_MAX: ${{ inputs.google_max }}
           BENCH_ADZUNA_MAX: ${{ inputs.adzuna_max }}
+          BENCH_SERPAPI_TAG: ${{ inputs.serpapi_tag }}
           BENCH_AUSGABE: ${{ runner.temp }}/benchmark
         run: |
           if [ "${{ inputs.modus }}" = "live" ]; then

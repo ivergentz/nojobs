@@ -15,7 +15,7 @@ export type Lauf = {
   messwerte: Messwerte;
   annahmen: Annahmen;
   hochrechnung: Zeile[];
-  konfig: Record<string, number>;
+  konfig: Record<string, number | null>;
 };
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);

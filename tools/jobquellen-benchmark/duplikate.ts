@@ -8,7 +8,7 @@ import type { BenchJob, DuplikatStufe, Quelle } from "./typen";
  *                   · gleiche BA-Referenznummer in beiden Links
  *                   · gleiche Arbeitgeber-Domain + gleicher normalisierter Titel
  *                   · gleicher normalisierter Arbeitgeber + gleicher normalisierter Titel + passender Ort
- *   wahrscheinlich  Arbeitgeber sehr ähnlich (≥ 0,8) und Titel ähnlich (≥ 0,75) und Ort passt
+ *   wahrscheinlich  Arbeitgeber sehr ähnlich (≥ 0,8; auch „CHECK24“ ↔ „CHECK24 InsurTech“) und Titel ähnlich (≥ 0,75) und Ort passt
  *                   · Arbeitgeber sehr ähnlich, Ort passt, ein Titel steckt ganz im anderen (+ max. 1 Wort,
  *                     z. B. „Koch“ ↔ „Koch / Köchin“; Risiko: „Product Owner“ ↔ „Senior Product Owner“)
  *                   · Arbeitgeber sehr ähnlich und Beschreibungen deutlich gleich (≥ 0,5)
@@ -121,12 +121,44 @@ export function textAehnlichkeit(a: string | null, b: string | null): number | n
   return schnitt / Math.min(x.size, y.size);
 }
 
-function ortPasst(a: BenchJob, b: BenchJob): boolean {
-  const x = stadt(a.location);
-  const y = stadt(b.location);
-  if (!x || !y) return true; // fehlt einer: kein Gegenbeweis
-  if (x === y || x.includes(y) || y.includes(x)) return true;
+/**
+ * Alle Ortsnamen einer Angabe: „Hammerbrook, Hamburg“ → hammerbrook, hamburg ·
+ * „Hamburg-Altstadt, Hamburg“ → hamburg-altstadt, hamburg · „22880 Wedel“ → wedel.
+ */
+export function orte(ort: string): Set<string> {
+  const teile = (ort ?? "")
+    .toLowerCase()
+    .replace(/\b\d{5}\b/g, " ")
+    .replace(/\((kreis|landkreis)\)|\bkreis\b|\blandkreis\b/g, " ")
+    .split(/[,(/)]/)
+    .map((t) => t.replace(/\s+/g, " ").trim())
+    .filter((t) => t && !/^(deutschland|germany)$/.test(t));
+  const s = new Set<string>();
+  for (const t of teile) {
+    s.add(t);
+    const vorne = t.split(/[-\s]/)[0];
+    if (vorne.length >= 4) s.add(vorne);
+  }
+  return s;
+}
+
+export function ortPasst(a: BenchJob, b: BenchJob): boolean {
+  const x = orte(a.location);
+  const y = orte(b.location);
+  if (!x.size || !y.size) return true; // fehlt einer: kein Gegenbeweis
+  for (const o of x) if (y.has(o)) return true;
   return Boolean(a.remote || b.remote);
+}
+
+/**
+ * Arbeitgeber-Ähnlichkeit: Wortüberschneidung — und „Jungheinrich“ ↔ „Jungheinrich Profishop“,
+ * „CHECK24“ ↔ „CHECK24 InsurTech“ (alle Wörter des kürzeren Namens am Anfang des längeren) zählt als sehr ähnlich (0,85).
+ */
+export function firmenAehnlichkeit(fa: string, fb: string): number {
+  const j = jaccard(fa, fb);
+  const [k, l] = fa.length <= fb.length ? [fa, fb] : [fb, fa];
+  if (k.length >= 4 && (l === k || l.startsWith(`${k} `))) return Math.max(j, 0.85);
+  return j;
 }
 
 export function vergleiche(a: BenchJob, b: BenchJob): DuplikatStufe {
@@ -143,7 +175,7 @@ export function vergleiche(a: BenchJob, b: BenchJob): DuplikatStufe {
   if (da && da === arbeitgeberDomain(b.url) && ta && ta === tb) return "sicher";
 
   if (!fa || !fb) return "verschieden"; // ohne Arbeitgeber nie zusammenführen
-  const firma = fa === fb ? 1 : jaccard(fa, fb);
+  const firma = fa === fb ? 1 : firmenAehnlichkeit(fa, fb);
   const titel = jaccard(ta, tb);
   const ort = ortPasst(a, b);
 

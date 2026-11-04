@@ -3,6 +3,7 @@
  *
  *   npx tsx tools/jobquellen-benchmark/run.ts --fixtures   Testlauf mit künstlichen Daten (keine Netzwerkaufrufe)
  *   npx tsx tools/jobquellen-benchmark/run.ts              echter Lauf (Schlüssel aus Umgebungsvariablen)
+ *   npx tsx tools/jobquellen-benchmark/run.ts --auswerten ergebnis.json   gespeicherten Lauf neu auswerten (offline)
  *
  * Ohne Terminal: GitHub → Actions → „Jobquellen-Benchmark“ → Run workflow.
  *
@@ -22,22 +23,56 @@ import type { Abruf, BenchJob, BenchProfil, QuellenStatus } from "./typen";
 
 const HIER = dirname(fileURLToPath(import.meta.url));
 
-/** Rest-Tage im Monat (inkl. heute) — so viele Nachtläufe braucht der produktive Google-Import noch. */
-export function restTage(jetzt = new Date()): number {
+/**
+ * Tage bis zum Neustart des SerpApi-Kontingents (inkl. heute) — so viele Nachtläufe braucht der produktive Import noch.
+ * SerpApi rechnet ab dem Abschlusstag des Plans, nicht ab Monatsanfang. Ist der Tag bekannt (BENCH_SERPAPI_TAG,
+ * steht im SerpApi-Dashboard), wird bis dahin gerechnet; sonst vorsichtig bis Monatsende.
+ */
+export function restTage(jetzt = new Date(), neustartTag: number | null = null): number {
+  const heute = jetzt.getUTCDate();
+  if (neustartTag && neustartTag >= 1 && neustartTag <= 28) {
+    if (neustartTag > heute) return neustartTag - heute;
+    const ende = new Date(Date.UTC(jetzt.getUTCFullYear(), jetzt.getUTCMonth() + 1, 0)).getUTCDate();
+    return ende - heute + neustartTag;
+  }
   const ende = new Date(Date.UTC(jetzt.getUTCFullYear(), jetzt.getUTCMonth() + 1, 0)).getUTCDate();
-  return ende - jetzt.getUTCDate() + 1;
+  return ende - heute + 1;
 }
 
 /** Wie viele Google-Suchen darf der Benchmark verbrauchen, ohne dem produktiven Import das Kontingent zu nehmen? */
-export function googleErlaubt(uebrig: number, geplant: number, produktionProTag: number, jetzt = new Date()): number {
-  const reserve = produktionProTag * restTage(jetzt);
+export function googleErlaubt(uebrig: number, geplant: number, produktionProTag: number, jetzt = new Date(), neustartTag: number | null = null): number {
+  const reserve = produktionProTag * restTage(jetzt, neustartTag);
   return Math.max(0, Math.min(geplant, uebrig - reserve));
 }
 
 type FixtureDaten = { profile: unknown[]; ba: Record<string, any[]>; google: Record<string, any[]>; adzuna: Record<string, any[]> };
 
+/**
+ * Nachauswertung: rechnet einen gespeicherten Lauf (ergebnis.json) mit den aktuellen Regeln neu —
+ * ohne einen einzigen API-Aufruf. So lassen sich Regeländerungen an echten Daten prüfen.
+ */
+function nachauswertung(pfad: string, ausgabe: string) {
+  const alt = JSON.parse(readFileSync(pfad, "utf8")) as Lauf & { jobs: BenchJob[] };
+  const jetzt = Date.parse(alt.gestartet);
+  const streng = alt.profile.map((p) => berechne(p, alt.jobs, alt.abrufe, "streng", jetzt));
+  const weit = alt.profile.map((p) => berechne(p, alt.jobs, alt.abrufe, "weit", jetzt));
+  const m = messwerte(streng);
+  const lauf: Lauf = { ...alt, streng, weit, messwerte: m, hochrechnung: [3, 10, 25].map((n) => hochrechnen(n, m, alt.annahmen)) };
+  delete (lauf as Partial<Lauf & { jobs: unknown }>).jobs;
+  writeFileSync(join(ausgabe, "bericht.html"), berichtHtml(lauf));
+  writeFileSync(join(ausgabe, "ergebnis.json"), JSON.stringify({ ...lauf, jobs: alt.jobs }, null, 1));
+  console.log(`Nachauswertung von ${alt.gestartet}: ${alt.jobs.length} Anzeigen → ${join(ausgabe, "bericht.html")}`);
+}
+
 async function main() {
   const start = Date.now();
+  const nach = process.argv.indexOf("--auswerten");
+  if (nach > 0 && process.argv[nach + 1]) {
+    const ziel = process.env.BENCH_AUSGABE || join(HIER, "ergebnis");
+    mkdirSync(ziel, { recursive: true });
+    nachauswertung(process.argv[nach + 1], ziel);
+    return;
+  }
   const fixtures = process.argv.includes("--fixtures");
   const k = ladeKonfig();
   const ausgabe = process.env.BENCH_AUSGABE || join(HIER, "ergebnis");
@@ -106,9 +141,9 @@ async function main() {
     }
     if (konto) {
       const geplant = gJe * profile.length;
-      const erlaubt = googleErlaubt(konto.uebrig, geplant, k.googleProduktionProTag);
-      const reserve = k.googleProduktionProTag * restTage();
-      const kontoText = `Plan ${konto.plan}${konto.proMonat ? ` (${konto.proMonat}/Monat)` : ""} · vorher ${konto.uebrig} übrig · Reserve für den Nachtlauf bis Monatsende: ${reserve}`;
+      const erlaubt = googleErlaubt(konto.uebrig, geplant, k.googleProduktionProTag, new Date(), k.serpapiNeustartTag);
+      const reserve = k.googleProduktionProTag * restTage(new Date(), k.serpapiNeustartTag);
+      const kontoText = `Plan ${konto.plan}${konto.proMonat ? ` (${konto.proMonat}/Monat)` : ""} · vorher ${konto.uebrig} übrig · Reserve für den Nachtlauf bis ${k.serpapiNeustartTag ? `zum Neustart am ${k.serpapiNeustartTag}.` : "Monatsende"}: ${reserve}`;
       if (erlaubt <= 0) {
         status.push({ quelle: "google", getestet: false, grund: "Restkontingent reicht nicht neben der Reserve für den produktiven Import — keine Suche ausgeführt", kontingent: kontoText });
       } else {
