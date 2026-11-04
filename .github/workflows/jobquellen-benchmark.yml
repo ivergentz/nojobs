@@ -1,0 +1,70 @@
+# Jobquellen-Benchmark (BA · Google Jobs · Adzuna) — nur manuell, nie automatisch.
+# Start: GitHub → Actions → „Jobquellen-Benchmark“ → Run workflow.
+# Ergebnis: im Lauf unten unter „Artifacts“ → jobquellen-benchmark (bericht.html + ergebnis.json).
+#
+# Liest nur (Profile, Kostenprotokoll). Schreibt nichts in die Datenbank, ruft keine KI auf,
+# verschickt nichts, berührt weder Vercel noch den produktiven Import.
+#
+# Benötigte Repository-Secrets (Settings → Secrets and variables → Actions):
+#   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   Profile lesen (nur SELECT)
+#   SERPAPI_KEY                                           Google Jobs (optional — sonst „nicht getestet“)
+#   ADZUNA_APP_ID, ADZUNA_APP_KEY                         Adzuna (optional — sonst „Zugang fehlt“)
+
+name: Jobquellen-Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      modus:
+        description: "live = echte Abfragen · fixtures = Probelauf mit Testdaten (kostet nichts)"
+        type: choice
+        options: [fixtures, live]
+        default: fixtures
+      google_max:
+        description: "SerpApi-Suchen insgesamt (höchstens 30)"
+        default: "30"
+      adzuna_max:
+        description: "Adzuna-Aufrufe insgesamt (höchstens 60)"
+        default: "30"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobquellen-benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Benchmark ausführen
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          BENCH_GOOGLE_MAX: ${{ inputs.google_max }}
+          BENCH_ADZUNA_MAX: ${{ inputs.adzuna_max }}
+          BENCH_AUSGABE: ${{ runner.temp }}/benchmark
+        run: |
+          if [ "${{ inputs.modus }}" = "live" ]; then
+            npx --yes tsx@4.23.12 tools/jobquellen-benchmark/run.ts
+          else
+            npx --yes tsx@4.23.12 tools/jobquellen-benchmark/run.ts --fixtures
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jobquellen-benchmark
+          path: ${{ runner.temp }}/benchmark/
+          retention-days: 14
+          if-no-files-found: warn
