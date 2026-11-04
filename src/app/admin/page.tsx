@@ -2,6 +2,8 @@ import AdminClient from "./AdminClient";
 import ProfileUebersicht from "./ProfileUebersicht";
 import AbgleichUebersicht from "./AbgleichUebersicht";
 import AufbewahrungUebersicht from "./AufbewahrungUebersicht";
+import Suchpflege from "./Suchpflege";
+import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,9 @@ export default function AdminPage() {
       </header>
 
       <AdminClient />
+      <Suspense fallback={<p className="card-pad mt-5 text-sm text-muted">Suchpflege wird geladen …</p>}>
+        <Suchpflege />
+      </Suspense>
       <ProfileUebersicht />
       <AbgleichUebersicht />
       <AufbewahrungUebersicht />

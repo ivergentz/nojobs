@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
 import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
-import { arbeitnow, googleJobs, GOOGLE_SUCHEN, type SammelJob } from "@/lib/sources/aggregatoren";
+import { arbeitnow, googleJobs, type SammelJob } from "@/lib/sources/aggregatoren";
+import { aktiveGoogleSuchen, ladePflege } from "@/lib/suchpflege";
+import { STANDARD_SLUG } from "@/lib/profil";
 import { dublettenKey, ortVerdict, titelVerdict } from "@/lib/sources/text";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +50,7 @@ export async function GET(request: Request) {
     const googleFaellig = googleAn && (url.searchParams.get("force") === "1" || Date.now() - letzterGoogleLauf > 20 * 3600e3);
 
     // ---- Abrufen ----
-    const gesammelt: Array<{ quelle: "google" | "arbeitnow"; job: SammelJob }> = [];
+    const gesammelt: Array<{ quelle: "google" | "arbeitnow"; job: SammelJob; suche?: string }> = [];
 
     const aufgaben: Array<Promise<void>> = [
       arbeitnow()
@@ -64,13 +66,15 @@ export async function GET(request: Request) {
     ];
 
     if (googleFaellig) {
-      for (const suche of GOOGLE_SUCHEN) {
+      // Suchpflege: ohne bestätigte Änderung genau GOOGLE_SUCHEN aus dem Code.
+      const googleSuchen = aktiveGoogleSuchen(await ladePflege(db, STANDARD_SLUG));
+      for (const suche of googleSuchen) {
         aufgaben.push(
           googleJobs(suche)
             .then((jobs) => {
               stats.googleSuchen += 1;
               stats.google += jobs.length;
-              jobs.forEach((job) => gesammelt.push({ quelle: "google", job }));
+              jobs.forEach((job) => gesammelt.push({ quelle: "google", job, suche: suche.q }));
             })
             .catch((error) => {
               const meldung = error instanceof Error ? error.message : String(error);
@@ -98,7 +102,7 @@ export async function GET(request: Request) {
 
     // ---- Filtern und speichern ----
     const rows: Record<string, unknown>[] = [];
-    for (const { quelle, job } of gesammelt) {
+    for (const { quelle, job, suche } of gesammelt) {
       const titel = titelVerdict(job.title);
       if (!titel.keep) {
         gruende[titel.reason.split(":")[0]] = (gruende[titel.reason.split(":")[0]] ?? 0) + 1;
@@ -144,7 +148,8 @@ export async function GET(request: Request) {
         occupation_level2: null,
         categories: null,
         match_term: `${ort.art}:${quelle}`,
-        raw: { via: job.via },
+        // suche: über welche Google-Suche die Stelle kam — für die Suchpflege
+        raw: suche ? { via: job.via, suche } : { via: job.via },
         imported_at: new Date().toISOString(),
       });
     }
