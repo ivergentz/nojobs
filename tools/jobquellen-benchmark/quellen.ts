@@ -29,7 +29,7 @@ export function baZuBench(hit: BaHit, profil: BenchProfil, begriff: string, besc
   const gehalt =
     typeof hit.gehaltsspanneVon === "number" || typeof hit.gehaltsspanneBis === "number"
       ? `${hit.gehaltsspanneVon ?? "?"}–${hit.gehaltsspanneBis ?? "?"}`
-      : text(hit.verguetungsangabe) || null;
+      : /\d/.test(text(hit.verguetungsangabe)) ? text(hit.verguetungsangabe) : null; // „KEINE_ANGABEN“, „JAHRESGEHALT“ … sind keine Angabe
   return {
     source: "ba",
     source_id: String(hit.referenznummer ?? ""),
