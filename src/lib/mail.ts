@@ -7,7 +7,9 @@ export function mailEingerichtet(): boolean {
   return Boolean(process.env.BREVO_API_KEY && process.env.LOGIN_ABSENDER);
 }
 
-export async function sendeMail(an: { email: string; name?: string }, betreff: string, html: string, text: string): Promise<void> {
+export type Anhang = { name: string; inhaltBase64: string };
+
+export async function sendeMail(an: { email: string; name?: string }, betreff: string, html: string, text: string, anhaenge: Anhang[] = []): Promise<void> {
   if (!mailEingerichtet()) throw new Error("E-Mail-Versand nicht eingerichtet: BREVO_API_KEY und LOGIN_ABSENDER in Vercel setzen.");
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -18,6 +20,7 @@ export async function sendeMail(an: { email: string; name?: string }, betreff: s
       subject: betreff,
       htmlContent: html,
       textContent: text,
+      ...(anhaenge.length ? { attachment: anhaenge.map((a) => ({ name: a.name, content: a.inhaltBase64 })) } : {}),
     }),
     signal: AbortSignal.timeout(15_000),
   });
