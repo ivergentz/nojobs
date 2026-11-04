@@ -31,6 +31,7 @@ export const maxDuration = 300;
  * wegzuignorieren. Die Antwort sagt immer, warum nichts kam.
  */
 export async function GET(request: Request) {
+  const beginn = Date.now();
   const url = new URL(request.url);
   if (!authorized(request)) {
     return NextResponse.json({ error: "nicht autorisiert" }, { status: 401 });
@@ -51,7 +52,8 @@ export async function GET(request: Request) {
     let bewertung: Awaited<ReturnType<typeof runEvaluation>> | { fehler: string } | null = null;
     if (!url.searchParams.get("skipEval")) {
       try {
-        bewertung = await runEvaluation(db, { budgetMs: 18_000, anlass: "morgenlauf" });
+        // Erst alles bewerten, dann senden: bis zu 90 s / 150 Stellen. Die Nachricht darf dafür später kommen.
+        bewertung = await runEvaluation(db, { budgetMs: 90_000, limit: 150, anlass: "morgenlauf" });
         if (bewertung.failed > 0) {
           await logFehler(db, [
             {
@@ -75,9 +77,11 @@ export async function GET(request: Request) {
             const { profile } = await ladeProfile(db);
             for (const p of profile) {
               if (p.rolle === "admin" || p.aktiv === false || !p.profiltext) continue;
-              if (Date.now() - start > 200_000) break;
+              // Gesamtlaufzeit (inkl. deiner Bewertung) unter maxDuration 300 s halten
+              const rest = 270_000 - (Date.now() - beginn);
+              if (Date.now() - start > 200_000 || rest < 10_000) break;
               try {
-                const r = await runEvaluation(db, { budgetMs: 45_000, anlass: "morgenlauf", profil: p.slug });
+                const r = await runEvaluation(db, { budgetMs: Math.min(45_000, rest - 5_000), anlass: "morgenlauf", profil: p.slug });
                 if (r.failed > 0) {
                   await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: `Morgenlauf · ${p.name}`, meldung: r.fehlerbeispiele[0] ?? "unbekannt" }]);
                 }
