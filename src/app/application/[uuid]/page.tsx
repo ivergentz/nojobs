@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { erkenneSprache } from "@/lib/sprache";
 import ApplicationClient from "./ApplicationClient";
+import HinzugefuegtHinweis from "./HinzugefuegtHinweis";
 import FragenClient from "./FragenClient";
 import { CV_BASE, loadCv } from "@/lib/cv-source";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
@@ -45,7 +46,7 @@ export default async function ApplicationPage({
 
   const { data: job, error } = await lesen(db)
     .select(
-      "uuid,source,title,title_de,employer_name,municipal,county,country,application_url,application_due,application_draft,eval_summary,description"
+      "uuid,source,title,title_de,employer_name,municipal,county,country,application_url,application_due,application_draft,eval_summary,eval_fit,label,description"
     )
     .eq("uuid", uuid)
     .maybeSingle();
@@ -128,6 +129,10 @@ export default async function ApplicationPage({
 
       <BewerbungsAblauf entwurf={Boolean(job.application_draft)} beworben={schonBeworben} />
 
+      {job.source === "manuell" && (
+        <HinzugefuegtHinweis uuid={job.uuid as string} fit={(job.eval_fit as string | null) ?? null} summary={(job.eval_summary as string | null) ?? null} label={(job.label as string | null) ?? null} />
+      )}
+
       {frueher.length > 0 && (
         <div className="mt-6">
           <Hinweis
@@ -184,6 +189,7 @@ export default async function ApplicationPage({
         </div>
       </section>
 
+      <div id="unterlagen" className="scroll-mt-4" />
       <ApplicationClient
         uuid={job.uuid as string}
         draft={(job.application_draft as any) ?? null}

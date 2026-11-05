@@ -45,6 +45,8 @@ export async function runEvaluation(
     anlass?: string;
     /** Schritt 2.2: anderes Profil als deins. Weggelassen/"iver" = alles wie bisher. */
     profil?: string;
+    /** Genau diese Stellen bewerten (z. B. „Stelle hinzufügen“) — ohne Datums-, Titel- und Erledigt-Filter. */
+    uuids?: string[];
   }
 ): Promise<EvaluationRun> {
   const startedAt = Date.now();
@@ -61,12 +63,14 @@ export async function runEvaluation(
     .limit(options.limit ?? 60);
 
   if (options.scope === "labeled") query = query.not("label", "is", null);
-  if (options.neuVor) {
+  if (options.uuids?.length) {
+    query = query.in("uuid", options.uuids);
+  } else if (options.neuVor) {
     query = query.or(`evaluated_at.is.null,evaluated_at.lt.${options.neuVor}`);
   } else if (!options.force) {
     query = query.is("evaluated_at", null);
   }
-  if (options.days) {
+  if (options.days && !options.uuids?.length) {
     const from = new Date(Date.now() - options.days * 24 * 60 * 60 * 1000);
     query = query.gte("published", from.toISOString());
   }
@@ -341,7 +345,7 @@ async function ladeBeispiele(
 async function runProfilEvaluation(
   db: SupabaseClient,
   slug: string,
-  options: { budgetMs: number; force?: boolean; days?: number | null; limit?: number; anlass?: string },
+  options: { budgetMs: number; force?: boolean; days?: number | null; limit?: number; anlass?: string; uuids?: string[] },
   startedAt: number,
   sammler: Sammler
 ): Promise<EvaluationRun & { hinweis?: string }> {
@@ -357,6 +361,10 @@ async function runProfilEvaluation(
   const titelFilter = kandidatenFilter(profil.suchbegriffe, slug);
   const tage = options.days ?? 14;
   const kandidaten = (spalten: string, zaehlen = false) => {
+    if (options.uuids?.length) {
+      // Bestimmte Stellen (z. B. selbst hinzugefügt): ohne Titel-, Datums- und Erledigt-Filter
+      return lesen(db, slug).select(spalten, zaehlen ? { count: "exact", head: true } : undefined).eq("status", "ACTIVE").in("uuid", options.uuids);
+    }
     let q = lesen(db, slug)
       .select(spalten, zaehlen ? { count: "exact", head: true } : undefined)
       .eq("status", "ACTIVE")
