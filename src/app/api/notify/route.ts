@@ -8,9 +8,8 @@ import { AKTIVE_QUELLEN } from "@/lib/quellen";
 import { BEWORBEN_STATUS, findeFruehere, WARN_TAGE } from "@/lib/firma";
 import { ausloeser, protokolliere } from "@/lib/laufprotokoll";
 import { usd } from "@/lib/kosten";
-import { ladeEinstellungen, ladeProfile } from "@/lib/profil";
-import { morgennachrichtFuer, verbindungAus } from "@/lib/telegram-profil";
 import { lesen } from "@/lib/lesen";
+import { morgenlaufWeitereProfile } from "@/lib/morgenlauf-profile";
 
 export const dynamic = "force-dynamic";
 // 300 s: nach deiner Nachricht bewertet der Morgenlauf im Hintergrund weitere Profile (Schritt 2.2).
@@ -72,37 +71,8 @@ export async function GET(request: Request) {
       // Nachricht und dein Lauf davon nie aufgehalten werden. Phase 3: danach ihre eigene Telegram-Nachricht.
       if (!url.searchParams.get("dry")) {
         after(async () => {
-          const start = Date.now();
-          try {
-            const { profile } = await ladeProfile(db);
-            for (const p of profile) {
-              if (p.rolle === "admin" || p.aktiv === false || !p.profiltext) continue;
-              // Gesamtlaufzeit (inkl. deiner Bewertung) unter maxDuration 300 s halten
-              const rest = 270_000 - (Date.now() - beginn);
-              if (Date.now() - start > 200_000 || rest < 10_000) break;
-              try {
-                const r = await runEvaluation(db, { budgetMs: Math.min(45_000, rest - 5_000), anlass: "morgenlauf", profil: p.slug });
-                if (r.failed > 0) {
-                  await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: `Morgenlauf · ${p.name}`, meldung: r.fehlerbeispiele[0] ?? "unbekannt" }]);
-                }
-              } catch (err) {
-                await logFehler(db, [{ quelle: "Bewertung (Claude)", detail: `Morgenlauf · ${p.name}`, meldung: err instanceof Error ? err.message : String(err) }]);
-              }
-              // Phase 3: eigene Morgennachricht, wenn die Person Telegram verbunden hat.
-              try {
-                const t = verbindungAus(await ladeEinstellungen(db, p.slug));
-                if (t) {
-                  const basis = process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`;
-                  // Bewusst kein Eintrag im Laufprotokoll: dort steht dein Morgenlauf und soll es bleiben.
-                  await morgennachrichtFuer(db, p, t.chat_id, `${basis}/inbox`);
-                }
-              } catch (err) {
-                await logFehler(db, [{ quelle: "Telegram", detail: `Morgenlauf · ${p.name}`, meldung: err instanceof Error ? err.message : String(err) }]);
-              }
-            }
-          } catch {
-            /* Weitere Profile dürfen den Morgenlauf nie stören */
-          }
+          // Weitere Profile (Bewertung, Pause, Morgennachricht) — in src/lib/morgenlauf-profile.ts
+          await morgenlaufWeitereProfile(db, process.env.PUBLIC_BASE_URL ?? `https://${request.headers.get("host") ?? ""}`, beginn);
         });
       }
     }
@@ -227,3 +197,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
+
