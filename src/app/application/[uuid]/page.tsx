@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { erkenneSprache } from "@/lib/sprache";
 import ApplicationClient from "./ApplicationClient";
 import FragenClient from "./FragenClient";
 import { CV_BASE, loadCv } from "@/lib/cv-source";
@@ -44,7 +45,7 @@ export default async function ApplicationPage({
 
   const { data: job, error } = await lesen(db)
     .select(
-      "uuid,source,title,title_de,employer_name,municipal,county,country,application_url,application_due,application_draft,eval_summary"
+      "uuid,source,title,title_de,employer_name,municipal,county,country,application_url,application_due,application_draft,eval_summary,description"
     )
     .eq("uuid", uuid)
     .maybeSingle();
@@ -186,7 +187,7 @@ export default async function ApplicationPage({
       <ApplicationClient
         uuid={job.uuid as string}
         draft={(job.application_draft as any) ?? null}
-        defaultLang="de"
+        defaultLang={erkenneSprache(job.title as string, job.description as string)}
         cvQuelle={cvQuelle}
       />
 
