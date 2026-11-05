@@ -7,6 +7,9 @@ import Avatar from "@/components/ui/Avatar";
 import { fotoAus, fotoUrl } from "@/lib/foto";
 import ProfilWahl from "./ProfilWahl";
 import ZurueckZuMir from "./ZurueckZuMir";
+import { after } from "next/server";
+import { merkeAktivitaet } from "@/lib/aktivitaet";
+import { runEvaluation } from "@/lib/run-evaluate";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile, STANDARD_SLUG } from "@/lib/profil";
 import { profilAusCookies } from "@/lib/aktuelles-profil";
@@ -116,6 +119,29 @@ async function profilAuswahl(): Promise<{ profile: Array<{ slug: string; name: s
   }
 }
 
+/**
+ * Aktivität merken (höchstens stündlich). Kommt die Person aus der Pause zurück:
+ * neue Stellen der letzten 7 Tage im Hintergrund bewerten (höchstens 60).
+ */
+async function aktivMerken(slug: string): Promise<boolean> {
+  try {
+    const db = supabaseAdmin();
+    const { zurueck } = await merkeAktivitaet(db, slug);
+    if (zurueck) {
+      after(async () => {
+        try {
+          await runEvaluation(db, { budgetMs: 90_000, limit: 60, days: 7, anlass: "rueckkehr", profil: slug });
+        } catch {
+          /* Nachholen ist Komfort — der Morgenlauf bewertet sonst morgen */
+        }
+      });
+    }
+    return zurueck;
+  } catch {
+    return false;
+  }
+}
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Schritt 2.3: Ohne Anmeldung (Login-Seite) keine Navigation; weitere Personen sehen nur ihre Seiten.
   const sitzung = await sitzungAusCookies();
@@ -128,10 +154,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (loginAktiv() && !sitzung) return html(children);
 
   if (sitzung?.r === "nutzer") {
-    const ich = await meinProfilKurz(sitzung.s);
+    const [ich, rueckkehr] = await Promise.all([meinProfilKurz(sitzung.s), aktivMerken(sitzung.s)]);
     return html(
       <AppShell
         gruppen={GRUPPEN_NUTZER}
+        hinweis={
+          rueckkehr ? (
+            <div className="border-b border-keep/20 bg-keep/10">
+              <p className="mx-auto max-w-5xl px-4 py-2 text-xs leading-relaxed sm:px-6" role="status">
+                <span className="font-semibold">Willkommen zurück!</span> Deine Suche war pausiert. Die neuen Stellen der letzten Tage werden gerade
+                bewertet — in ein, zwei Minuten stehen sie unter Meine Jobs.
+              </p>
+            </div>
+          ) : undefined
+        }
         unten={
           <div className="space-y-1">
             <a href="/so-funktionierts" className="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm text-muted transition hover:bg-subtle hover:text-ink">

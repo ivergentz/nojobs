@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { ladeProfile } from "@/lib/profil";
+import { istPausiert, ladeAktivitaeten, PAUSE_TAGE, tageInaktiv, type Aktivitaet } from "@/lib/aktivitaet";
 import { AktivSchalter, EinladenKnopf, LoeschenKnopf, NeuesProfilFormular, SuchprofilBearbeiten } from "./ProfilVerwaltung";
 
 /**
@@ -8,8 +9,9 @@ import { AktivSchalter, EinladenKnopf, LoeschenKnopf, NeuesProfilFormular, Suchp
  */
 export default async function ProfileUebersicht() {
   let ergebnis: Awaited<ReturnType<typeof ladeProfile>>;
+  let aktivitaet = new Map<string, Aktivitaet>();
   try {
-    ergebnis = await ladeProfile(supabaseAdmin());
+    [ergebnis, aktivitaet] = await Promise.all([ladeProfile(supabaseAdmin()), ladeAktivitaeten(supabaseAdmin())]);
   } catch (err) {
     ergebnis = { profile: [], fehler: err instanceof Error ? err.message : String(err) };
   }
@@ -32,6 +34,7 @@ export default async function ProfileUebersicht() {
                   {p.name} <span className="text-muted">· {p.rolle === "admin" ? "Admin" : "Nutzer"}</span>
                   {p.email ? <span className="text-muted"> · {p.email}</span> : null}
                   {p.aktiv === false ? <span className="text-muted"> · deaktiviert</span> : null}
+                  {p.rolle !== "admin" && p.aktiv !== false ? <AktivStatus a={aktivitaet.get(p.slug)} /> : null}
                   {p.rolle !== "admin" && p.telegram ? <span className="text-keep"> · Telegram ✓</span> : null}
                   {p.rolle !== "admin" ? (
                     p.einwilligungAt ? (
@@ -74,4 +77,13 @@ export default async function ProfileUebersicht() {
       )}
     </section>
   );
+}
+
+/** Zuletzt aktiv / pausiert (Pause nach 7 Tagen ohne Besuch: keine Bewertung, keine Morgennachricht). */
+function AktivStatus({ a }: { a: Aktivitaet | undefined }) {
+  const tage = tageInaktiv(a);
+  if (tage === null) return <span className="text-muted"> · noch kein Besuch erfasst</span>;
+  const datum = new Date(a!.zuletzt as string).toLocaleDateString("de-DE");
+  if (istPausiert(a)) return <span className="text-warn" title={`Seit ${PAUSE_TAGE} Tagen kein Besuch: keine Bewertung, keine Morgennachricht.`}> · pausiert (zuletzt da am {datum})</span>;
+  return <span className="text-muted"> · zuletzt aktiv {tage === 0 ? "heute" : `am ${datum}`}</span>;
 }
