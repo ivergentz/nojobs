@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 
 /* Designdurchgang: dieselben Ziele wie bisher, nur nach Aufgaben gruppiert und verständlicher benannt. */
 const JOBS: NavPunkt = { href: "/inbox", label: "Meine Jobs", icon: "inbox" };
+const HINZU: NavPunkt = { href: "/stelle-hinzufuegen", label: "Stelle hinzufügen", icon: "plus" };
 const PROFIL: NavPunkt = { href: "/profil", label: "Mein Profil", icon: "user" };
 const LABELN: NavPunkt = { href: "/label", label: "Stellen beurteilen", icon: "label" };
 const KALIBRIERUNG: NavPunkt = { href: "/eval", label: "Kalibrierung", icon: "sliders" };
@@ -34,7 +35,7 @@ const HILFE: NavPunkt = { href: "/so-funktionierts", label: "So funktioniert's",
  * Betreiber-Seiten für alle (Steuerung, Kosten, Log, Tracking) erscheinen erst wieder auf deinem Profil.
  */
 const GRUPPEN_FREMD: NavGruppe[] = [
-  { punkte: [JOBS, PROFIL, LABELN] },
+  { punkte: [JOBS, HINZU, PROFIL, LABELN] },
   {
     titel: "Nur für dich",
     punkte: [KALIBRIERUNG, { href: "/stats", label: "Auswertung", icon: "chart" }],
@@ -44,7 +45,7 @@ const GRUPPEN_FREMD: NavGruppe[] = [
 
 function gruppenAdmin(mitProfil: boolean): NavGruppe[] {
   return [
-    { punkte: mitProfil ? [JOBS, PROFIL] : [JOBS] },
+    { punkte: mitProfil ? [JOBS, HINZU, PROFIL] : [JOBS, HINZU] },
     { titel: "Trefferqualität", punkte: [LABELN, KALIBRIERUNG] },
     {
       titel: "Auswertung",
@@ -72,7 +73,7 @@ function gruppenAdmin(mitProfil: boolean): NavGruppe[] {
  * Hilfe steht unten bei Profil und Abmelden.
  */
 const GRUPPEN_NUTZER: NavGruppe[] = [
-  { punkte: [JOBS, PROFIL] },
+  { punkte: [JOBS, HINZU, PROFIL] },
   {
     titel: "Treffer verbessern",
     punkte: [LABELN].filter((p) => SEITEN_NUTZER.includes(p.href)),

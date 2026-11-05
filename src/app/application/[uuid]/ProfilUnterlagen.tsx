@@ -12,13 +12,14 @@ import BeworbenKnopf from "./BeworbenKnopf";
 import ProfilUnterlagenClient from "./ProfilUnterlagenClient";
 import VorbereitungClient from "./VorbereitungClient";
 import BewerbungsAblauf from "./BewerbungsAblauf";
+import HinzugefuegtHinweis from "./HinzugefuegtHinweis";
 
 /** Phase 4.3 · Unterlagen-Seite für weitere Profile (eigene Daten aus jobs_profil / profile_cv). */
 export async function ProfilUnterlagen({ profil, uuid, von, schonBeworben }: { profil: string; uuid: string; von: string | null; schonBeworben: boolean }) {
   const db = supabaseAdmin();
   const [{ data: job, error }, id, einstellungen] = await Promise.all([
     lesen(db, profil)
-      .select("uuid,title,employer_name,municipal,county,country,application_url,application_due,application_draft,vorbereitung,app_status")
+      .select("uuid,source,title,employer_name,municipal,county,country,application_url,application_due,application_draft,vorbereitung,app_status,eval_fit,eval_summary,label")
       .eq("uuid", uuid)
       .maybeSingle(),
     profilId(db, profil),
@@ -78,9 +79,14 @@ export async function ProfilUnterlagen({ profil, uuid, von, schonBeworben }: { p
         )}
       </header>
 
+      {job.source === "manuell" && (
+        <HinzugefuegtHinweis uuid={job.uuid as string} fit={(job.eval_fit as string | null) ?? null} summary={(job.eval_summary as string | null) ?? null} label={(job.label as string | null) ?? null} />
+      )}
+
       {lebenslauf ? (
         <>
           <BewerbungsAblauf entwurf={Boolean(entwurf)} beworben={beworben} />
+          <div id="unterlagen" className="scroll-mt-4" />
           <ProfilUnterlagenClient
             uuid={job.uuid as string}
             initial={entwurf}

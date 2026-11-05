@@ -44,6 +44,7 @@ const ZWECK: Record<string, string> = {
   recherche: "Websuche zum Unternehmen",
   lebenslauf: "Lebenslauf auslesen",
   suchprofil: "Suchprofil vorschlagen",
+  einlesen: "Stelle einlesen",
   sonstiges: "Sonstiges",
 };
 

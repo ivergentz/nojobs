@@ -1,3 +1,5 @@
+import Icon from "@/components/ui/Icon";
+import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase";
 import InboxClient, { type InboxJob } from "./InboxClient";
 import { AKTIVE_QUELLEN, QUELLEN_NAME } from "@/lib/quellen";
@@ -151,6 +153,11 @@ export default async function InboxPage() {
               ? `${empfohlen === 1 ? "Eine passt" : `${empfohlen} passen`} besonders gut zu deinen Zielen — sie stehen oben. Der Rest ist einen zweiten Blick wert.`
               : "Gefunden und vorsortiert — jede Stelle mit einer kurzen Einschätzung, was passt und was nicht."
             : "Hier landen jeden Morgen die Stellen, die zu deinen Zielen passen."
+        }
+        aktionen={
+          <Link href="/stelle-hinzufuegen" className="btn-secondary btn-sm">
+            <Icon name="plus" size={14} /> Stelle hinzufügen
+          </Link>
         }
       >
         {inbox.error && (
