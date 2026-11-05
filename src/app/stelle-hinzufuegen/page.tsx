@@ -1,9 +1,29 @@
 import StelleHinzufuegenClient from "./StelleHinzufuegenClient";
+import PlattformSuchen from "./PlattformSuchen";
+import { supabaseAdmin } from "@/lib/supabase";
+import { istStandard, profilAusCookies } from "@/lib/aktuelles-profil";
+import { ladeProfilVoll, STANDARD_SLUG } from "@/lib/profil";
+import { aktiveBaBegriffe, ladePflege } from "@/lib/suchpflege";
 
 export const metadata = { title: "Stelle hinzufügen · nojobs" };
+export const dynamic = "force-dynamic";
+
+/** Suchbegriffe, Ort und Umkreis des aktuellen Profils — für die fertigen Suchen auf den Jobbörsen. */
+async function suche(): Promise<{ begriffe: string[]; ort: string | null; umkreisKm: number }> {
+  try {
+    const slug = await profilAusCookies();
+    const db = supabaseAdmin();
+    if (istStandard(slug)) return { begriffe: aktiveBaBegriffe(await ladePflege(db, STANDARD_SLUG)), ort: "Hamburg", umkreisKm: 25 };
+    const p = await ladeProfilVoll(db, slug);
+    return { begriffe: p?.suchbegriffe ?? [], ort: p?.suchort.ort ?? null, umkreisKm: p?.suchort.umkreis ?? 25 };
+  } catch {
+    return { begriffe: [], ort: null, umkreisKm: 25 };
+  }
+}
 
 /** Eine Stelle, die nojobs nicht selbst gefunden hat, per Link oder Text übernehmen — mit Bewertung und allen Funktionen. */
-export default function StelleHinzufuegenPage() {
+export default async function StelleHinzufuegenPage() {
+  const s = await suche();
   return (
     <main className="page max-w-3xl">
       <header className="mb-2">
@@ -24,6 +44,7 @@ export default function StelleHinzufuegenPage() {
           <li>Bis zu 20 Stellen pro Tag.</li>
         </ul>
       </section>
+      <PlattformSuchen begriffe={s.begriffe} ort={s.ort} umkreisKm={s.umkreisKm} />
     </main>
   );
 }
