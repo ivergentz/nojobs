@@ -248,10 +248,29 @@ export default function ApplicationClient({
             <Icon name="download" size={15} />
             Lebenslauf als PDF
           </PdfKnopf>
-          <button type="button" onClick={() => void generate()} disabled={busy} className="btn-ghost sm:ml-auto">
-            <Icon name="refresh" size={15} />
-            neu entwerfen
-          </button>
+          <span className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <label className="sr-only" htmlFor="neu-sprache">
+              Sprache für den neuen Entwurf
+            </label>
+            <select id="neu-sprache" value={lang} onChange={(event) => setLang(event.target.value as "de" | "en")} disabled={busy} className="field mt-0 w-auto">
+              <option value="de">Deutsch</option>
+              <option value="en">Englisch</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                // Neu entwerfen ersetzt den Entwurf — bei ungesicherten Änderungen oder Sprachwechsel nachfragen
+                const wechsel = lang !== draft.lang;
+                if ((dirty || wechsel) && !window.confirm(wechsel ? `Unterlagen auf ${lang === "en" ? "Englisch" : "Deutsch"} neu entwerfen? Der jetzige Entwurf wird ersetzt.` : "Ungesicherte Änderungen gehen verloren. Neu entwerfen?")) return;
+                void generate();
+              }}
+              disabled={busy}
+              className={lang !== draft.lang ? "btn-primary" : "btn-ghost"}
+            >
+              <Icon name="refresh" size={15} />
+              {lang !== draft.lang ? `auf ${lang === "en" ? "Englisch" : "Deutsch"} neu entwerfen` : "neu entwerfen"}
+            </button>
+          </span>
         </div>
         {dirty && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-warn">
