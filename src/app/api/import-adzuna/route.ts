@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { authorized } from "@/lib/auth";
 import { logFehler } from "@/lib/fehlerlog";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -11,13 +11,14 @@ import { titelAusgeschlossen } from "@/lib/normalize-de";
 import type { BaHit } from "@/lib/ba";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /**
  * Import aus Adzuna — für dein Profil und alle weiteren Profile.
  *
  * Kostenlos, aber mit Grenzen (25/Minute, 250/Tag, 2.500/Monat). Deshalb:
- *   - höchstens ANFRAGEN_PRO_PROFIL Suchen je Profil und Lauf, täglich rotierend durch die Begriffe
+ *   - höchstens ANFRAGEN_PRO_PROFIL Suchen je Profil und Lauf, täglich rotierend durch die Begriffe,
+ *     nacheinander mit Pause (keine Spitzen); läuft im Hintergrund weiter, damit der Nachtlauf nicht wartet
  *   - höchstens einmal in 20 Stunden (?force=1 hebt die Sperre auf)
  *   - ohne ADZUNA_APP_ID/ADZUNA_APP_KEY passiert gar nichts
  * Dein Profil: gleiche Titel- und Ortsregeln wie Google Jobs (Hamburg/remote).
@@ -25,16 +26,27 @@ export const maxDuration = 60;
  * erscheinen nie in deiner Inbox. Doppelte (Firma + Titel, letzte 45 Tage) werden nicht gespeichert.
  */
 
-const ANFRAGEN_PRO_PROFIL = 5;
+const ANFRAGEN_PRO_PROFIL = 3;
 const TAGE = 7;
+/** Pause zwischen zwei Aufrufen: Adzuna begrenzt auch kurze Spitzen (429 schon beim ersten Lauf mit 5 parallelen). */
+const PAUSE_MS = Number(process.env.ADZUNA_PAUSE_MS ?? 3000);
 
 type Auftrag = { slug: string; admin: boolean; begriff: string; wo: string; umkreis: number };
 
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "nicht autorisiert" }, { status: 401 });
   if (!adzunaAn()) return NextResponse.json({ ok: true, done: true, gespeichert: 0, hinweis: "Adzuna aus (ADZUNA_APP_ID/ADZUNA_APP_KEY nicht gesetzt)." });
-
   const url = new URL(request.url);
+  const arbeit = importiere(url);
+  // ?warten=1: Ergebnis abwarten (Tests, Steuerung). Sonst im Hintergrund — der Nachtlauf wartet nicht auf die Pausen.
+  if (url.searchParams.get("warten") === "1") return arbeit;
+  after(async () => {
+    await arbeit;
+  });
+  return NextResponse.json({ ok: true, done: true, gestartet: true, hinweis: "Adzuna läuft im Hintergrund (Ergebnis in der Steuerung unter Quellen)." });
+}
+
+async function importiere(url: URL): Promise<NextResponse> {
   const startedAt = Date.now();
   const db = supabaseAdmin();
   const stats = { suchen: 0, treffer: 0, passend: 0, doppelt: 0, neu: 0, profile: 0 };
@@ -66,24 +78,22 @@ export async function GET(request: Request) {
       }
     }
 
-    // ---- Abrufen: in kleinen Gruppen, deutlich unter 25 pro Minute; bei Rate-Limit sofort aufhören
+    // ---- Abrufen: nacheinander mit Pause, nie parallel; bei Rate-Limit sofort aufhören (keine Wiederholung)
     const gefunden: Array<{ a: Auftrag; job: AdzunaJob }> = [];
     let abbruch = false;
-    for (let i = 0; i < auftraege.length && !abbruch; i += 5) {
-      await Promise.all(
-        auftraege.slice(i, i + 5).map(async (a) => {
-          try {
-            const jobs = await adzunaSuche({ was: a.begriff, wo: a.wo, umkreis: a.umkreis, tage: TAGE });
-            stats.suchen += 1;
-            stats.treffer += jobs.length;
-            for (const job of jobs) gefunden.push({ a, job });
-          } catch (err) {
-            const meldung = err instanceof Error ? err.message : String(err);
-            if (/429/.test(meldung)) abbruch = true;
-            log.push({ quelle: "Adzuna", detail: a.begriff, meldung });
-          }
-        })
-      );
+    for (const [i, a] of auftraege.entries()) {
+      if (abbruch || Date.now() - startedAt > 100_000) break;
+      if (i > 0) await new Promise((r) => setTimeout(r, PAUSE_MS));
+      try {
+        const jobs = await adzunaSuche({ was: a.begriff, wo: a.wo, umkreis: a.umkreis, tage: TAGE });
+        stats.suchen += 1;
+        stats.treffer += jobs.length;
+        for (const job of jobs) gefunden.push({ a, job });
+      } catch (err) {
+        const meldung = err instanceof Error ? err.message : String(err);
+        if (/429/.test(meldung)) abbruch = true;
+        log.push({ quelle: "Adzuna", detail: a.begriff, meldung });
+      }
     }
 
     // ---- Bestand für den Dubletten-Abgleich (wie beim Google-Import)
